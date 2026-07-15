@@ -860,6 +860,9 @@ public:
         --remaining_;
         return bit;
     }
+    bool hasOnlyZeroPaddingAndEof() {
+        return current_ == 0 && in_.peek() == std::char_traits<char>::eof();
+    }
 private:
     std::istream& in_;
     uint8_t current_ = 0;
@@ -970,6 +973,7 @@ void huffmanDecompress(const fs::path& input, const fs::path& output,
     }
     if (!outputBuffer.empty()) writeExact(out, outputBuffer.data(), outputBuffer.size());
     report(options.progress, "decompress-huffman", produced, originalSize);
+    ensure(reader.hasOnlyZeroPaddingAndEof(), "Huffman stream has non-zero padding or trailing data");
 }
 
 void compressStage(const fs::path& input, const fs::path& output,
@@ -1380,7 +1384,10 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
         ensure(!ec, "cannot canonicalize archive output directory");
         fs::path canonicalOutput = canonicalParent / output.filename();
         ensure(!isPathInside(canonicalOutput, source), "archive output cannot be inside the source directory");
-        ensure(!fs::exists(canonicalOutput), "archive output already exists");
+        struct stat outputState{};
+        ensure(lstat(canonicalOutput.c_str(), &outputState) != 0,
+               "archive output already exists");
+        ensure(errno == ENOENT, "cannot inspect archive output path");
 
         uint64_t inputBytes = 0;
         auto entries = scanDirectory(source, inputBytes, options);
