@@ -45,10 +45,12 @@ public:
 
     bool registerUser(std::string& error);
     bool upload(const std::string& archivePath, const std::string& displayName,
-                std::string& backupId, std::string& error);
+                std::string& backupId, std::string& error,
+                ProgressCallback progress = {}, std::atomic_bool* cancel = nullptr);
     std::vector<RemoteBackupEntry> list(std::string& error);
     bool download(const std::string& backupId, const std::string& outputPath,
-                  std::string& error);
+                  std::string& error, ProgressCallback progress = {},
+                  std::atomic_bool* cancel = nullptr);
 
 private:
     std::string host_;
@@ -60,4 +62,3 @@ private:
 } // namespace backup::network
 
 #endif
-
