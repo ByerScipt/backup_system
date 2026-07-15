@@ -526,6 +526,18 @@ void validateEntries(std::vector<Entry>& entries, uint64_t packedSize) {
     for (size_t i = 1; i < entries.size(); ++i) {
         ensure(entries[i].path.rfind(prefix, 0) == 0, "archive entry escapes the top-level directory");
     }
+    std::map<std::string, EntryType> hierarchy;
+    for (const auto& entry : entries) hierarchy.emplace(entry.path, entry.type);
+    for (const auto& entry : entries) {
+        fs::path parent = fs::path(entry.path).parent_path();
+        while (!parent.empty()) {
+            auto found = hierarchy.find(parent.generic_string());
+            ensure(found != hierarchy.end(), "archive entry has a missing parent: " + entry.path);
+            ensure(found->second == EntryType::Directory,
+                   "archive entry is nested below a non-directory: " + entry.path);
+            parent = parent.parent_path();
+        }
+    }
 }
 
 std::vector<Entry> readStreamEntries(std::ifstream& in, uint64_t size) {
