@@ -1,0 +1,6 @@
+[server]
+port = 8848
+storage_path = ./server_data
+max_connections = 32
+timeout_seconds = 30
+
