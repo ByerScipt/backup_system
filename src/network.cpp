@@ -219,6 +219,7 @@ std::vector<UserRecord> loadUsers(const fs::path& storage) {
 
 void saveUsers(const fs::path& storage, const std::vector<UserRecord>& users) {
     fs::create_directories(storage); fs::path temp=storage/(".users-"+randomId()+".tmp"); std::ofstream out(temp,std::ios::binary|std::ios::trunc);ensure(out.good(),"cannot write user database");
+    ensure(chmod(temp.c_str(),0600)==0,"cannot secure user database permissions");
     out.write("USR1",4);uint32_t count=static_cast<uint32_t>(users.size());uint8_t cb[4]{static_cast<uint8_t>(count),static_cast<uint8_t>(count>>8),static_cast<uint8_t>(count>>16),static_cast<uint8_t>(count>>24)};out.write(reinterpret_cast<char*>(cb),4);
     for(const auto& u:users){uint16_t n=static_cast<uint16_t>(u.name.size());uint8_t nb[2]{static_cast<uint8_t>(n),static_cast<uint8_t>(n>>8)};out.write(reinterpret_cast<char*>(nb),2);out.write(u.name.data(),n);out.write(reinterpret_cast<const char*>(u.salt.data()),u.salt.size());out.write(reinterpret_cast<const char*>(u.verifier.data()),u.verifier.size());}
     out.close();ensure(out.good(),"cannot finalize user database");std::error_code ec;fs::rename(temp,storage/"users.db",ec);if(ec)fs::remove(temp);ensure(!ec,"cannot commit user database");
@@ -230,8 +231,9 @@ fs::path userDirectory(const fs::path& storage, const std::string& username) {
 
 void writeMeta(const fs::path& path, const RemoteBackupEntry& entry) {
     fs::path temp=path.string()+".tmp-"+randomId();std::ofstream out(temp,std::ios::binary|std::ios::trunc);ensure(out.good(),"cannot write backup metadata");
+    ensure(chmod(temp.c_str(),0600)==0,"cannot secure backup metadata permissions");
     out.write("MET1",4);uint16_t n=static_cast<uint16_t>(entry.name.size());uint8_t nb[2]{static_cast<uint8_t>(n),static_cast<uint8_t>(n>>8)};out.write(reinterpret_cast<char*>(nb),2);out.write(entry.name.data(),n);
-    auto little64=[&](uint64_t v){uint8_t b[8];for(int i=0;i<8;++i)b[i]=static_cast<uint8_t>(v>>(i*8));out.write(reinterpret_cast<char*>(b),8);};little64(entry.timestamp);little64(entry.size);out.write(entry.digest.data(),static_cast<std::streamsize>(entry.digest.size()));out.close();
+    auto little64=[&](uint64_t v){uint8_t b[8];for(int i=0;i<8;++i)b[i]=static_cast<uint8_t>(v>>(i*8));out.write(reinterpret_cast<char*>(b),8);};little64(entry.timestamp);little64(entry.size);out.write(entry.digest.data(),static_cast<std::streamsize>(entry.digest.size()));out.close();ensure(out.good(),"cannot finalize backup metadata");
     std::error_code ec;fs::rename(temp,path,ec);if(ec)fs::remove(temp);ensure(!ec,"cannot commit backup metadata");
 }
 
@@ -269,7 +271,7 @@ void handleUpload(int fd, uint32_t requestId, const Frame& start, const fs::path
                   const std::string& username) {
     Reader reader(start.payload);std::string displayName=reader.string();uint64_t declaredSize=reader.u64();auto digestBytes=reader.bytes(32);reader.end();ensure(displayName.size()<=256,"backup display name is too long");
     std::array<uint8_t,32> declaredDigest{};std::copy(digestBytes.begin(),digestBytes.end(),declaredDigest.begin());
-    fs::path dir=userDirectory(storage,username);fs::create_directories(dir);std::string id=randomId();while(fs::exists(dir/(id+".bak")))id=randomId();fs::path temp=dir/(".upload-"+id+".tmp");
+    fs::path dir=userDirectory(storage,username);fs::create_directories(dir);ensure(chmod(dir.c_str(),0700)==0,"cannot secure user storage directory");std::string id=randomId();while(fs::exists(dir/(id+".bak")))id=randomId();fs::path temp=dir/(".upload-"+id+".tmp");
     struct Cleanup{fs::path path;bool keep=false;~Cleanup(){if(!keep){std::error_code ec;fs::remove(path,ec);}}} cleanup{temp};
     std::ofstream out(temp,std::ios::binary|std::ios::trunc);ensure(out.good(),"cannot create upload staging file");chmod(temp.c_str(),0600);std::vector<uint8_t> ready;putString(ready,id);sendFrame(fd,MessageType::UploadReady,requestId,ready);
     uint64_t received=0;
