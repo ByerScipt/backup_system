@@ -62,10 +62,13 @@ void createFixture(const fs::path& root) {
     writeBytes(root/"empty.bin",{});writeBytes(root/"hello.txt",{'h','e','l','l','o','\n'});
     writeBytes(root/"executable.sh",{'#','!','/','b','i','n','/','s','h','\n'});chmod((root/"executable.sh").c_str(),0751);
     std::vector<uint8_t> all(256);for(int i=0;i<256;++i)all[i]=static_cast<uint8_t>(i);writeBytes(root/"all-bytes.bin",all);
+    std::vector<uint8_t> randomData(8192);uint32_t randomState=0x13579bdfu;for(auto& byte:randomData){randomState^=randomState<<13;randomState^=randomState>>17;randomState^=randomState<<5;byte=static_cast<uint8_t>(randomState);}writeBytes(root/"random.bin",randomData);
     std::vector<uint8_t> rleBoundary;rleBoundary.insert(rleBoundary.end(),127,'A');rleBoundary.insert(rleBoundary.end(),128,'B');rleBoundary.insert(rleBoundary.end(),2,'C');rleBoundary.insert(rleBoundary.end(),3,'D');rleBoundary.insert(rleBoundary.end(),129,'E');writeBytes(root/"rle-boundaries.bin",rleBoundary);
     writeBytes(root/"nested"/"single-symbol.bin",std::vector<uint8_t>(4096,0x41));
     writeBytes(root/"中文目录"/"数据.txt",{'U','T','F','-','8','\n'});
+    fs::path deep=root;for(int i=0;i<8;++i){deep/=("depth-"+std::to_string(i));fs::create_directory(deep);}std::string longName(180,'x');writeBytes(deep/(longName+".bin"),{'l','o','n','g','\n'});
     chmod((root/"hello.txt").c_str(),0600);
+    timespec executableTimes[2]{{1700000000,123456789},{1700000001,987654321}};check(utimensat(AT_FDCWD,(root/"executable.sh").c_str(),executableTimes,0)==0,"timestamp fixture failed");
     check(::symlink("../hello.txt",(root/"nested"/"hello-link").c_str())==0,"symlink fixture failed");
     check(::mkfifo((root/"named-pipe").c_str(),0640)==0,"FIFO fixture failed");
     makeSocketNode(root/"unix-socket");
@@ -76,15 +79,18 @@ void compareFixture(const fs::path& source, const fs::path& restored) {
     check(readBytes(source/"hello.txt")==readBytes(restored/"hello.txt"),"text file mismatch");
     check(readBytes(source/"executable.sh")==readBytes(restored/"executable.sh"),"executable file mismatch");
     check(readBytes(source/"all-bytes.bin")==readBytes(restored/"all-bytes.bin"),"binary file mismatch");
+    check(readBytes(source/"random.bin")==readBytes(restored/"random.bin"),"random binary mismatch");
     check(readBytes(source/"rle-boundaries.bin")==readBytes(restored/"rle-boundaries.bin"),"RLE boundary file mismatch");
     check(readBytes(source/"nested"/"single-symbol.bin")==readBytes(restored/"nested"/"single-symbol.bin"),"repeat file mismatch");
     check(fs::is_directory(restored/"nested"/"emptydir"),"empty directory missing");
+    fs::path sourceDeep=source,restoredDeep=restored;for(int i=0;i<8;++i){std::string component="depth-"+std::to_string(i);sourceDeep/=component;restoredDeep/=component;}std::string longName(180,'x');check(readBytes(sourceDeep/(longName+".bin"))==readBytes(restoredDeep/(longName+".bin")),"long path or deep directory mismatch");
     check(fs::is_symlink(restored/"nested"/"hello-link"),"symbolic link missing");
     check(fs::read_symlink(restored/"nested"/"hello-link")==fs::path("../hello.txt"),"symbolic link target mismatch");
     struct stat st{};check(lstat((restored/"named-pipe").c_str(),&st)==0&&S_ISFIFO(st.st_mode),"FIFO missing");
     if(gSocketFixtureAvailable)check(lstat((restored/"unix-socket").c_str(),&st)==0&&S_ISSOCK(st.st_mode),"Unix socket node missing");
     check(lstat((restored/"hello.txt").c_str(),&st)==0&&(st.st_mode&0777)==0600,"file mode mismatch");
     check(lstat((restored/"executable.sh").c_str(),&st)==0&&(st.st_mode&0777)==0751,"executable mode mismatch");
+    struct stat sourceExecutable{};check(lstat((source/"executable.sh").c_str(),&sourceExecutable)==0&&sourceExecutable.st_mtim.tv_sec==st.st_mtim.tv_sec&&sourceExecutable.st_mtim.tv_nsec==st.st_mtim.tv_nsec,"mtime metadata mismatch");
 }
 
 void testSha256() {
