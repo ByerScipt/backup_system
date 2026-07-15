@@ -312,6 +312,8 @@ struct Entry {
     std::string linkTarget;
     uint64_t device = 0;
     uint64_t contentOffset = 0;
+    uint64_t sourceDevice = 0;
+    uint64_t sourceInode = 0;
 };
 
 EntryType entryTypeFromMode(mode_t mode) {
@@ -331,6 +333,8 @@ Entry makeEntry(const fs::path& full, const std::string& archivePath) {
     Entry e;
     e.path = archivePath;
     e.sourcePath = full;
+    e.sourceDevice = static_cast<uint64_t>(st.st_dev);
+    e.sourceInode = static_cast<uint64_t>(st.st_ino);
     e.type = entryTypeFromMode(st.st_mode);
     e.mode = static_cast<uint32_t>(st.st_mode & 07777);
     e.uid = static_cast<uint32_t>(st.st_uid);
@@ -427,7 +431,9 @@ Entry readEntryMetadata(std::istream& in, bool withOffset) {
 }
 
 bool sameFileState(const struct stat& st, const Entry& e) {
-    if (!S_ISREG(st.st_mode) || static_cast<uint64_t>(st.st_size) != e.size) return false;
+    if (!S_ISREG(st.st_mode) || static_cast<uint64_t>(st.st_size) != e.size ||
+        static_cast<uint64_t>(st.st_dev) != e.sourceDevice ||
+        static_cast<uint64_t>(st.st_ino) != e.sourceInode) return false;
 #ifdef __APPLE__
     return st.st_mtimespec.tv_sec == e.mtimeSec && static_cast<uint32_t>(st.st_mtimespec.tv_nsec) == e.mtimeNsec;
 #else
@@ -437,26 +443,32 @@ bool sameFileState(const struct stat& st, const Entry& e) {
 
 void copySourceFile(const Entry& e, std::ostream& out, uint64_t& completed,
                     uint64_t total, const BackupOptions& options) {
+    int flags = O_RDONLY | O_CLOEXEC;
+#ifdef O_NOFOLLOW
+    flags |= O_NOFOLLOW;
+#endif
+    int fd = ::open(e.sourcePath.c_str(), flags);
+    ensure(fd >= 0, "cannot securely open source file: " + e.sourcePath.string());
+    struct CloseFd { int fd; ~CloseFd(){if(fd>=0)::close(fd);} } closeFd{fd};
     struct stat before{};
-    ensure(lstat(e.sourcePath.c_str(), &before) == 0 && sameFileState(before, e),
+    ensure(fstat(fd, &before) == 0 && sameFileState(before, e),
            "source file changed after scanning: " + e.sourcePath.string());
-    std::ifstream in(e.sourcePath, std::ios::binary);
-    ensure(in.good(), "cannot read source file: " + e.sourcePath.string());
     std::vector<char> buffer(kBufferSize);
     uint64_t remaining = e.size;
     while (remaining) {
         checkCancelled(options.cancel);
         size_t take = static_cast<size_t>(std::min<uint64_t>(buffer.size(), remaining));
-        in.read(buffer.data(), static_cast<std::streamsize>(take));
-        ensure(static_cast<size_t>(in.gcount()) == take,
-               "source file changed while being read: " + e.sourcePath.string());
-        writeExact(out, buffer.data(), take);
-        remaining -= take;
-        completed += take;
+        ssize_t got;
+        do { got=::read(fd,buffer.data(),take); } while(got<0&&errno==EINTR);
+        ensure(got > 0, "source file changed while being read: " + e.sourcePath.string());
+        writeExact(out, buffer.data(), static_cast<size_t>(got));
+        remaining -= static_cast<uint64_t>(got);
+        completed += static_cast<uint64_t>(got);
         report(options.progress, "pack", completed, total, e.path);
     }
-    struct stat after{};
-    ensure(lstat(e.sourcePath.c_str(), &after) == 0 && sameFileState(after, e),
+    struct stat openedAfter{}, pathAfter{};
+    ensure(fstat(fd, &openedAfter) == 0 && sameFileState(openedAfter, e) &&
+           lstat(e.sourcePath.c_str(), &pathAfter) == 0 && sameFileState(pathAfter, e),
            "source file changed while being read: " + e.sourcePath.string());
 }
 
@@ -1219,11 +1231,11 @@ void restoreSocketNode(const fs::path& path) {
 }
 
 void applyMetadata(const fs::path& target, const Entry& entry) {
+    if (lchown(target.c_str(), static_cast<uid_t>(entry.uid), static_cast<gid_t>(entry.gid)) != 0 &&
+        errno != EPERM && errno != EACCES) warnMetadata("lchown", target);
     if (entry.type != EntryType::Symlink) {
         if (chmod(target.c_str(), static_cast<mode_t>(entry.mode)) != 0) warnMetadata("chmod", target);
     }
-    if (lchown(target.c_str(), static_cast<uid_t>(entry.uid), static_cast<gid_t>(entry.gid)) != 0 &&
-        errno != EPERM && errno != EACCES) warnMetadata("lchown", target);
     timespec times[2]{};
     times[0].tv_sec = static_cast<time_t>(entry.atimeSec);
     times[0].tv_nsec = static_cast<long>(entry.atimeNsec);

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -59,6 +60,7 @@ void makeSocketNode(const fs::path& path) {
 void createFixture(const fs::path& root) {
     fs::create_directories(root/"nested"/"emptydir");fs::create_directories(root/"中文目录");
     writeBytes(root/"empty.bin",{});writeBytes(root/"hello.txt",{'h','e','l','l','o','\n'});
+    writeBytes(root/"executable.sh",{'#','!','/','b','i','n','/','s','h','\n'});chmod((root/"executable.sh").c_str(),0751);
     std::vector<uint8_t> all(256);for(int i=0;i<256;++i)all[i]=static_cast<uint8_t>(i);writeBytes(root/"all-bytes.bin",all);
     std::vector<uint8_t> rleBoundary;rleBoundary.insert(rleBoundary.end(),127,'A');rleBoundary.insert(rleBoundary.end(),128,'B');rleBoundary.insert(rleBoundary.end(),2,'C');rleBoundary.insert(rleBoundary.end(),3,'D');rleBoundary.insert(rleBoundary.end(),129,'E');writeBytes(root/"rle-boundaries.bin",rleBoundary);
     writeBytes(root/"nested"/"single-symbol.bin",std::vector<uint8_t>(4096,0x41));
@@ -72,6 +74,7 @@ void createFixture(const fs::path& root) {
 void compareFixture(const fs::path& source, const fs::path& restored) {
     check(readBytes(source/"empty.bin")==readBytes(restored/"empty.bin"),"empty file mismatch");
     check(readBytes(source/"hello.txt")==readBytes(restored/"hello.txt"),"text file mismatch");
+    check(readBytes(source/"executable.sh")==readBytes(restored/"executable.sh"),"executable file mismatch");
     check(readBytes(source/"all-bytes.bin")==readBytes(restored/"all-bytes.bin"),"binary file mismatch");
     check(readBytes(source/"rle-boundaries.bin")==readBytes(restored/"rle-boundaries.bin"),"RLE boundary file mismatch");
     check(readBytes(source/"nested"/"single-symbol.bin")==readBytes(restored/"nested"/"single-symbol.bin"),"repeat file mismatch");
@@ -81,6 +84,7 @@ void compareFixture(const fs::path& source, const fs::path& restored) {
     struct stat st{};check(lstat((restored/"named-pipe").c_str(),&st)==0&&S_ISFIFO(st.st_mode),"FIFO missing");
     if(gSocketFixtureAvailable)check(lstat((restored/"unix-socket").c_str(),&st)==0&&S_ISSOCK(st.st_mode),"Unix socket node missing");
     check(lstat((restored/"hello.txt").c_str(),&st)==0&&(st.st_mode&0777)==0600,"file mode mismatch");
+    check(lstat((restored/"executable.sh").c_str(),&st)==0&&(st.st_mode&0777)==0751,"executable mode mismatch");
 }
 
 void testSha256() {
@@ -114,6 +118,7 @@ void testFailureModes(const fs::path& workspace, const fs::path& source,
 
     fs::path inside=source/"inside.bak";BackupOptions options;auto insideResult=BackupEngine::create(source.string(),inside.string(),options);check(!insideResult.success,"archive inside source was accepted");
     fs::path brokenOutput=workspace/"broken-output.bak";check(::symlink("missing-target",brokenOutput.c_str())==0,"broken output symlink fixture failed");auto brokenResult=BackupEngine::create(source.string(),brokenOutput.string(),options);check(!brokenResult.success,"broken output symlink was overwritten");check(fs::is_symlink(brokenOutput),"broken output symlink was not preserved");
+    fs::path mutationSource=workspace/"mutation-src";fs::create_directory(mutationSource);fs::path mutationFile=mutationSource/"mutable.bin";writeBytes(mutationFile,{'o','l','d','!'});struct stat originalState{};check(stat(mutationFile.c_str(),&originalState)==0,"cannot stat mutation fixture");bool replaced=false;BackupOptions mutationOptions;mutationOptions.progress=[&](const ProgressEvent& event){if(!replaced&&event.stage=="scan"&&event.detail=="mutation-src/mutable.bin"){fs::rename(mutationFile,workspace/"mutation-original.bin");writeBytes(mutationFile,{'n','e','w','!'});timespec times[2]{originalState.st_atim,originalState.st_mtim};check(utimensat(AT_FDCWD,mutationFile.c_str(),times,0)==0,"cannot preserve mutation fixture times");replaced=true;}};auto mutationResult=BackupEngine::create(mutationSource.string(),(workspace/"mutation.bak").string(),mutationOptions);check(replaced,"mutation fixture callback did not run");check(!mutationResult.success,"same-size same-mtime source replacement was accepted");
 
     fs::path traversal=workspace/"traversal.bak";auto malicious=readBytes(plain->path);std::string root=source.filename().string();check(root.size()==7,"fixture root name must be seven bytes for traversal test");auto begin=std::search(malicious.begin()+112,malicious.end(),root.begin(),root.end());check(begin!=malicious.end(),"could not locate root name in test archive");std::string replacement="../evil";std::copy(replacement.begin(),replacement.end(),begin);std::vector<uint8_t> payload(malicious.begin()+112,malicious.end());auto digest=sha256(payload);std::copy(digest.begin(),digest.end(),malicious.begin()+48);std::copy(digest.begin(),digest.end(),malicious.begin()+80);writeBytes(traversal,malicious);auto pathResult=BackupEngine::restore(traversal.string(),(workspace/"path-target").string(),{});check(!pathResult.success,"path traversal archive was accepted");check(!fs::exists(workspace/"evil"),"path traversal escaped destination");
 
