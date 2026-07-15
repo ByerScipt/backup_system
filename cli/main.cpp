@@ -240,6 +240,10 @@ int remoteRestore(const Arguments& args) {
 
 int main(int argc, char* argv[]) {
     try {
+        if (argc == 2 && std::string(argv[1]) == "--version") {
+            std::cout << "backup-cli " << BACKUP_SYSTEM_VERSION << "\n";
+            return 0;
+        }
         if (argc < 2 || std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") { usage(); return argc < 2 ? 1 : 0; }
         std::string command=argv[1];
         if(command=="user"){

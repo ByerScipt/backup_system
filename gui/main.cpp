@@ -280,5 +280,5 @@ public:
 } // namespace
 
 int main(int argc,char* argv[]) {
-    QApplication app(argc,argv);app.setApplicationName("Backup Studio");app.setApplicationVersion("1.0");MainWindow window;window.show();return app.exec();
+    QApplication app(argc,argv);app.setApplicationName("Backup Studio");app.setApplicationVersion(BACKUP_SYSTEM_VERSION);MainWindow window;window.show();return app.exec();
 }

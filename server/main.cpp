@@ -11,6 +11,9 @@ void stopHandler(int) { if (gServer) gServer->stop(); }
 
 int main(int argc, char* argv[]) {
     try {
+        if (argc==2&&std::string(argv[1])=="--version"){
+            std::cout<<"backup-server "<<BACKUP_SYSTEM_VERSION<<"\n";return 0;
+        }
         backup::network::ServerConfig config;
         for (int i=1;i<argc;++i) {
             std::string option=argv[i];
@@ -27,4 +30,3 @@ int main(int argc, char* argv[]) {
         bool ok=server.run();gServer=nullptr;return ok?0:1;
     } catch(const std::exception& error){std::cerr<<"Error: "<<error.what()<<"\n";return 1;}
 }
-

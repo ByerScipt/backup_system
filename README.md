@@ -1,5 +1,7 @@
 # Backup Studio 数据备份与还原系统
 
+当前交付版本：`v1.0.0`。
+
 面向 Linux/POSIX 的 C++17 课程项目。系统采用流式流水线，包含两种自研打包算法、
 RLE/Huffman 压缩、XOR/Vigenère 教学加密、双 SHA-256 完整性校验、CLI、Qt6 GUI，
 以及账号隔离的基础网络备份服务。
@@ -19,6 +21,11 @@ ctest --test-dir build --output-on-failure
 
 GUI 需要 Qt 6 Widgets（Debian/Ubuntu 软件包 `qt6-base-dev`）。未安装 Qt6 时 CMake
 会给出警告，但仍构建 `backup-cli`、`backup-server` 和测试。
+
+```bash
+build/backup-cli --version
+build/backup-server --version
+```
 
 ## 本地命令
 

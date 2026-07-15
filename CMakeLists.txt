@@ -16,6 +16,7 @@ add_library(backup_core STATIC
 )
 target_include_directories(backup_core PUBLIC include)
 target_link_libraries(backup_core PUBLIC Threads::Threads)
+target_compile_definitions(backup_core PUBLIC BACKUP_SYSTEM_VERSION="${PROJECT_VERSION}")
 target_compile_options(backup_core PRIVATE -Wall -Wextra -Wpedantic)
 
 add_executable(backup-cli cli/main.cpp)
@@ -48,4 +49,3 @@ if(BACKUP_BUILD_TESTS)
 endif()
 
 install(TARGETS backup-cli backup-server RUNTIME DESTINATION bin)
-
