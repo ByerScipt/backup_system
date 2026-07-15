@@ -21,6 +21,10 @@
 #include <vector>
 
 #include <fcntl.h>
+#ifdef __linux__
+#include <linux/fs.h>
+#include <sys/syscall.h>
+#endif
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
@@ -290,6 +294,19 @@ private:
     bool keep_ = false;
 };
 
+void commitFileNoReplace(const fs::path& temporary, const fs::path& output) {
+#if defined(__linux__) && defined(SYS_renameat2)
+    if (::syscall(SYS_renameat2, AT_FDCWD, temporary.c_str(), AT_FDCWD,
+                  output.c_str(), RENAME_NOREPLACE) == 0) return;
+    if (errno != ENOSYS && errno != EINVAL)
+        throw BackupError("cannot atomically commit output without replacement: " +
+                          std::string(std::strerror(errno)));
+#endif
+    ensure(::link(temporary.c_str(), output.c_str()) == 0,
+           "cannot commit output without replacement: " + std::string(std::strerror(errno)));
+    static_cast<void>(::unlink(temporary.c_str()));
+}
+
 enum class EntryType : uint8_t {
     Regular = 1, Directory = 2, Symlink = 3, Fifo = 4,
     Character = 5, Block = 6, Socket = 7
@@ -426,7 +443,11 @@ Entry readEntryMetadata(std::istream& in, bool withOffset) {
     if (withOffset) e.contentOffset = readU64(in);
     ensure(e.atimeNsec < 1'000'000'000u && e.mtimeNsec < 1'000'000'000u &&
            e.ctimeNsec < 1'000'000'000u, "invalid nanosecond metadata");
+    ensure((e.mode & ~07777u) == 0, "invalid archive permission bits");
     if (e.type != EntryType::Regular) ensure(e.size == 0, "non-regular entry has file data");
+    if (e.type != EntryType::Symlink) ensure(e.linkTarget.empty(), "non-symlink entry has a link target");
+    if (e.type != EntryType::Character && e.type != EntryType::Block)
+        ensure(e.device == 0, "non-device entry has a device number");
     return e;
 }
 
@@ -1435,9 +1456,7 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
         out.close();
         int fd = ::open(finalTemp.path().c_str(), O_RDONLY);
         if (fd >= 0) { static_cast<void>(::fsync(fd)); ::close(fd); }
-        fs::rename(finalTemp.path(), canonicalOutput, ec);
-        ensure(!ec, "cannot atomically commit archive: " + ec.message());
-        finalTemp.keep();
+        commitFileNoReplace(finalTemp.path(), canonicalOutput);
 
         result.success = true;
         result.message = "backup completed";
