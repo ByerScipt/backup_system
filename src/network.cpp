@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <random>
@@ -344,16 +345,66 @@ ServerConfig ServerConfig::load(const std::string& path) {
 BackupServer::BackupServer(ServerConfig config) : config_(std::move(config)) {}
 
 bool BackupServer::run() {
+    struct Session {
+        std::thread worker;
+        std::shared_ptr<std::atomic_bool> finished;
+    };
+    std::vector<Session> sessions;
+    auto reap = [&](bool all) {
+        for (auto it = sessions.begin(); it != sessions.end();) {
+            if (all || it->finished->load()) {
+                if (it->worker.joinable()) it->worker.join();
+                it = sessions.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    };
+    bool success = false;
     try {
-        fs::create_directories(config_.storagePath);int fd=::socket(AF_INET,SOCK_STREAM,0);ensure(fd>=0,"cannot create listening socket");listenFd_=fd;int yes=1;setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(yes));sockaddr_in address{};address.sin_family=AF_INET;address.sin_addr.s_addr=INADDR_ANY;address.sin_port=htons(config_.port);ensure(::bind(fd,reinterpret_cast<sockaddr*>(&address),sizeof(address))==0,"cannot bind backup server port");ensure(::listen(fd,static_cast<int>(config_.maxConnections))==0,"cannot listen on backup server port");running_=true;std::atomic_uint32_t active{0};std::vector<std::thread> sessions;std::cout<<"backup-server listening on 0.0.0.0:"<<config_.port<<"\n";
-        while(running_){int client=::accept(fd,nullptr,nullptr);if(client<0){if(errno==EINTR)continue;if(!running_)break;continue;}if(active.load()>=config_.maxConnections){sendError(client,0,"server connection limit reached");::close(client);continue;}++active;sessions.emplace_back([client,config=config_,&active](){handleSession(client,config);--active;});}
-        for(auto& session:sessions)if(session.joinable())session.join();
-        if(listenFd_>=0){::close(listenFd_);listenFd_=-1;}
-        return true;
-    } catch(const std::exception& e){std::cerr<<"Server error: "<<e.what()<<"\n";if(listenFd_>=0){::close(listenFd_);listenFd_=-1;}return false;}
+        fs::create_directories(config_.storagePath);
+        int fd=::socket(AF_INET,SOCK_STREAM,0);ensure(fd>=0,"cannot create listening socket");
+        listenFd_.store(fd);int yes=1;setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(yes));
+        sockaddr_in address{};address.sin_family=AF_INET;address.sin_addr.s_addr=INADDR_ANY;
+        address.sin_port=htons(config_.port);
+        ensure(::bind(fd,reinterpret_cast<sockaddr*>(&address),sizeof(address))==0,
+               "cannot bind backup server port");
+        ensure(::listen(fd,static_cast<int>(config_.maxConnections))==0,
+               "cannot listen on backup server port");
+        running_=true;
+        std::cout<<"backup-server listening on 0.0.0.0:"<<config_.port<<"\n";
+        while(running_){
+            int client=::accept(fd,nullptr,nullptr);
+            if(client<0){if(errno==EINTR)continue;if(!running_)break;continue;}
+            reap(false);
+            if(sessions.size()>=config_.maxConnections){
+                try{sendError(client,0,"server connection limit reached");}catch(...){}
+                ::close(client);continue;
+            }
+            auto finished=std::make_shared<std::atomic_bool>(false);
+            sessions.push_back({
+                std::thread([client,config=config_,finished](){
+                    handleSession(client,config);finished->store(true);
+                }),
+                std::move(finished)
+            });
+        }
+        success = true;
+    } catch(const std::exception& e){
+        std::cerr<<"Server error: "<<e.what()<<"\n";
+    }
+    running_=false;
+    int listening = listenFd_.exchange(-1);
+    if(listening>=0) ::close(listening);
+    reap(true);
+    return success;
 }
 
-void BackupServer::stop() { running_=false;if(listenFd_>=0){::shutdown(listenFd_,SHUT_RDWR);::close(listenFd_);listenFd_=-1;} }
+void BackupServer::stop() {
+    running_=false;
+    int listening=listenFd_.exchange(-1);
+    if(listening>=0){::shutdown(listening,SHUT_RDWR);::close(listening);}
+}
 
 BackupClient::BackupClient(std::string host,uint16_t port,std::string username,std::string password)
     :host_(std::move(host)),port_(port),username_(std::move(username)),password_(std::move(password)){}

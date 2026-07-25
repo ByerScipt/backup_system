@@ -1,6 +1,6 @@
 # Backup Studio 数据备份与还原系统
 
-当前交付版本：`v1.0.0`。
+当前交付版本：`v1.1.0`。
 
 面向 Linux/POSIX 的 C++17 课程项目。系统采用流式流水线，包含两种自研打包算法、
 RLE/Huffman 压缩、XOR/Vigenère 教学加密、双 SHA-256 完整性校验、CLI、Qt6 GUI，
@@ -26,6 +26,12 @@ GUI 需要 Qt 6 Widgets（Debian/Ubuntu 软件包 `qt6-base-dev`）。未安装 
 build/backup-cli --version
 build/backup-server --version
 ```
+
+## 工程结构
+
+`include/backup` 与 `src` 是唯一核心实现；`cli`、`gui`、`server` 是三个薄入口；
+`tests` 放自动化门禁，`scripts` 放构建和性能复验，`deploy` 只放服务器配置示例。
+课程报告、PDF/PPT、视频和证书始终位于同级 `../backup_system_delivery`。
 
 ## 本地命令
 
@@ -68,7 +74,9 @@ ctest --test-dir build --output-on-failure
 ```
 
 自动化测试在运行时创建真实符号链接、FIFO、Unix 套接字和空目录，覆盖 18 种算法
-组合、错误密码、篡改、截断、路径穿越、重复路径、边界长度、冲突覆盖与网络隔离。
+组合的完整树级比较，以及错误密码、篡改、截断、解压输出限界、路径竞态、路径穿越、
+重复路径、边界长度、冲突覆盖与网络隔离。还原始终通过目录文件描述符和 `*at` 系列
+接口逐级解析，默认提交不会覆盖竞态出现的目标。
 性能证据写入同级的 `../backup_system_delivery/output/evidence/`。课程文档、PDF/PPT 与
 提交打包工具全部放在独立的 `../backup_system_delivery/`，不混入本源码工程。
 

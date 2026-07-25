@@ -605,9 +605,11 @@ std::vector<Entry> readIndexEntries(std::ifstream& in, uint64_t size) {
     uint64_t centralOffset = readU64(in);
     uint64_t centralSize = readU64(in);
     uint32_t trailerCount = readU32(in);
-    static_cast<void>(readU32(in));
+    ensure(readU32(in) == 0, "non-zero indexed trailer reserved field");
     ensure(centralOffset >= 8 && centralOffset <= size - 32 &&
            centralSize <= size - 32 - centralOffset, "invalid central directory bounds");
+    ensure(centralOffset + centralSize == size - 32,
+           "central directory size does not reach the indexed trailer");
     in.seekg(static_cast<std::streamoff>(centralOffset));
     std::array<char, 8> centralMagic{}; readExact(in, centralMagic.data(), centralMagic.size());
     ensure(centralMagic == kCentralMagic, "invalid central directory magic");
@@ -624,8 +626,8 @@ std::vector<Entry> readIndexEntries(std::ifstream& in, uint64_t size) {
         }
         entries.push_back(std::move(entry));
     }
-    ensure(static_cast<uint64_t>(in.tellg()) <= centralOffset + centralSize,
-           "central directory exceeds declared size");
+    ensure(static_cast<uint64_t>(in.tellg()) == centralOffset + centralSize,
+           "central directory size does not match its entries");
     return entries;
 }
 
@@ -742,19 +744,22 @@ void rleCompress(const fs::path& input, const fs::path& output,
 }
 
 void rleDecompress(const fs::path& input, const fs::path& output,
-                   const RestoreOptions& options) {
+                   uint64_t expectedSize, const RestoreOptions& options) {
     std::ifstream in(input, std::ios::binary);
-    std::ofstream out(output, std::ios::binary | std::ios::trunc);
-    ensure(in.good() && out.good(), "cannot open RLE restore stage");
+    ensure(in.good(), "cannot open RLE restore input");
     std::array<char, 4> magic{}; readExact(in, magic.data(), magic.size());
     ensure(magic == std::array<char,4>{{'R','L','E','1'}}, "invalid RLE header");
     uint64_t originalSize = readU64(in);
+    ensure(originalSize == expectedSize,
+           "RLE declared output size does not match archive header");
+    std::ofstream out(output, std::ios::binary | std::ios::trunc);
+    ensure(out.good(), "cannot create RLE restore output");
     uint64_t produced = 0;
     while (produced < originalSize) {
         checkCancelled(options.cancel);
         uint8_t control = readU8(in);
         size_t count = static_cast<size_t>(control & 0x7fu) + 1;
-        ensure(count <= originalSize - produced, "RLE block exceeds declared output size");
+        ensure(count <= expectedSize - produced, "RLE block exceeds output size limit");
         if (control & 0x80u) {
             uint8_t value = readU8(in);
             std::array<uint8_t, 128> repeated{};
@@ -947,15 +952,18 @@ void huffmanCompress(const fs::path& input, const fs::path& output,
 }
 
 void huffmanDecompress(const fs::path& input, const fs::path& output,
-                       const RestoreOptions& options) {
+                       uint64_t expectedSize, const RestoreOptions& options) {
     std::ifstream in(input, std::ios::binary);
-    std::ofstream out(output, std::ios::binary | std::ios::trunc);
-    ensure(in.good() && out.good(), "cannot open Huffman restore stage");
+    ensure(in.good(), "cannot open Huffman restore input");
     std::array<char,4> magic{}; readExact(in, magic.data(), magic.size());
     ensure(magic == std::array<char,4>{{'H','U','F','1'}}, "invalid Huffman header");
     uint64_t originalSize = readU64(in);
+    ensure(originalSize == expectedSize,
+           "Huffman declared output size does not match archive header");
     std::array<uint8_t,256> lengths{}; readExact(in, lengths.data(), lengths.size());
     auto codes = canonicalCodes(lengths);
+    std::ofstream out(output, std::ios::binary | std::ios::trunc);
+    ensure(out.good(), "cannot create Huffman restore output");
 
     struct TrieNode { int child[2]{-1,-1}; int symbol = -1; };
     std::vector<TrieNode> trie(1);
@@ -1023,14 +1031,17 @@ void compressStage(const fs::path& input, const fs::path& output,
 }
 
 void decompressStage(const fs::path& input, const fs::path& output,
-                     CompressionAlgorithm algorithm, const RestoreOptions& options) {
+                     CompressionAlgorithm algorithm, uint64_t expectedSize,
+                     const RestoreOptions& options) {
     switch (algorithm) {
     case CompressionAlgorithm::None:
+        ensure(fileSizeChecked(input) == expectedSize,
+               "decoded packed size mismatch (wrong password or damaged archive)");
         copyFileStage(input, output, "decompress-copy", options.progress, options.cancel); break;
     case CompressionAlgorithm::Rle:
-        rleDecompress(input, output, options); break;
+        rleDecompress(input, output, expectedSize, options); break;
     case CompressionAlgorithm::Huffman:
-        huffmanDecompress(input, output, options); break;
+        huffmanDecompress(input, output, expectedSize, options); break;
     default: throw BackupError("unsupported compression algorithm");
     }
 }
@@ -1193,78 +1204,187 @@ size_t pathDepth(const fs::path& path) {
     return static_cast<size_t>(std::distance(path.begin(), path.end()));
 }
 
-void warnMetadata(const std::string& operation, const fs::path& path) {
-    std::cerr << "Warning: " << operation << " failed for " << path << ": "
-              << std::strerror(errno) << '\n';
-}
-
-void rejectSymlinkParents(const fs::path& destination, const fs::path& relative) {
-    fs::path current = destination;
-    for (const auto& component : relative.parent_path()) {
-        current /= component;
-        struct stat st{};
-        if (lstat(current.c_str(), &st) == 0) {
-            ensure(!S_ISLNK(st.st_mode), "restore parent is a symbolic link: " + current.string());
-            ensure(S_ISDIR(st.st_mode), "restore parent is not a directory: " + current.string());
-        } else {
-            ensure(errno == ENOENT, "cannot inspect restore parent: " + current.string());
+class UniqueFd {
+public:
+    explicit UniqueFd(int fd = -1) : fd_(fd) {}
+    ~UniqueFd() { if (fd_ >= 0) ::close(fd_); }
+    UniqueFd(const UniqueFd&) = delete;
+    UniqueFd& operator=(const UniqueFd&) = delete;
+    UniqueFd(UniqueFd&& other) noexcept : fd_(other.fd_) { other.fd_ = -1; }
+    UniqueFd& operator=(UniqueFd&& other) noexcept {
+        if (this != &other) {
+            if (fd_ >= 0) ::close(fd_);
+            fd_ = other.fd_;
+            other.fd_ = -1;
         }
+        return *this;
     }
+    int get() const { return fd_; }
+    int release() { int value = fd_; fd_ = -1; return value; }
+private:
+    int fd_;
+};
+
+void warnMetadata(const std::string& operation, const fs::path& path) {
+    int error = errno;
+    std::cerr << "Warning: " << operation << " failed for " << path << ": "
+              << std::strerror(error) << '\n';
 }
 
-void checkTargetCompatibility(const fs::path& target, const Entry& entry, bool overwrite) {
-    struct stat st{};
-    if (lstat(target.c_str(), &st) != 0) {
-        ensure(errno == ENOENT, "cannot inspect restore target: " + target.string());
+UniqueFd openDirectoryAt(int rootFd, const fs::path& relative) {
+    UniqueFd current(::openat(rootFd, ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC));
+    ensure(current.get() >= 0, "cannot duplicate restore directory descriptor");
+    for (const auto& component : relative) {
+        std::string name = component.string();
+        int fd = ::openat(current.get(), name.c_str(),
+                          O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        ensure(fd >= 0, "restore parent is not a real directory: " + relative.string());
+        current = UniqueFd(fd);
+    }
+    return current;
+}
+
+UniqueFd openParentDirectory(int rootFd, const std::string& archivePath) {
+    return openDirectoryAt(rootFd, fs::path(archivePath).parent_path());
+}
+
+std::string temporaryNodeName() {
+    static std::atomic_uint64_t sequence{0};
+    std::random_device random;
+    std::ostringstream out;
+    out << ".backup-tmp-" << std::hex << random() << random() << sequence.fetch_add(1);
+    return out.str();
+}
+
+class TemporaryNode {
+public:
+    TemporaryNode(int parentFd, std::string name)
+        : parentFd_(parentFd), name_(std::move(name)) {}
+    ~TemporaryNode() {
+        if (!keep_) static_cast<void>(::unlinkat(parentFd_, name_.c_str(), 0));
+    }
+    const std::string& name() const { return name_; }
+    void keep() { keep_ = true; }
+private:
+    int parentFd_;
+    std::string name_;
+    bool keep_ = false;
+};
+
+std::pair<UniqueFd, std::string> createTemporaryFileAt(int parentFd) {
+    for (int attempt = 0; attempt < 100; ++attempt) {
+        std::string name = temporaryNodeName();
+        int fd = ::openat(parentFd, name.c_str(),
+                          O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+        if (fd >= 0) return {UniqueFd(fd), std::move(name)};
+        ensure(errno == EEXIST, "cannot create secure restore temporary file");
+    }
+    throw BackupError("cannot allocate a unique restore temporary file");
+}
+
+template <typename Creator>
+std::string createTemporaryNodeAt(Creator create) {
+    for (int attempt = 0; attempt < 100; ++attempt) {
+        std::string name = temporaryNodeName();
+        if (create(name) == 0) return name;
+        ensure(errno == EEXIST || errno == EADDRINUSE,
+               "cannot create secure restore temporary node");
+    }
+    throw BackupError("cannot allocate a unique restore temporary node");
+}
+
+void commitNodeAt(int parentFd, const std::string& temporary,
+                  const std::string& target, bool overwrite) {
+    if (overwrite) {
+        ensure(::renameat(parentFd, temporary.c_str(), parentFd, target.c_str()) == 0,
+               "cannot atomically replace restore target: " + std::string(std::strerror(errno)));
         return;
     }
-    ensure(overwrite, "restore target already exists: " + target.string());
-    if (entry.type == EntryType::Directory) {
-        ensure(S_ISDIR(st.st_mode) && !S_ISLNK(st.st_mode),
-               "cannot overwrite non-directory with directory: " + target.string());
-    } else {
-        ensure(!S_ISDIR(st.st_mode), "cannot overwrite directory with non-directory: " + target.string());
+#if defined(__linux__) && defined(SYS_renameat2)
+    if (::syscall(SYS_renameat2, parentFd, temporary.c_str(), parentFd,
+                  target.c_str(), RENAME_NOREPLACE) == 0) return;
+    if (errno != ENOSYS && errno != EINVAL)
+        throw BackupError("restore target already exists or cannot be committed: " +
+                          std::string(std::strerror(errno)));
+#endif
+    ensure(::linkat(parentFd, temporary.c_str(), parentFd, target.c_str(), 0) == 0,
+           "restore target already exists or cannot be committed: " +
+           std::string(std::strerror(errno)));
+    ensure(::unlinkat(parentFd, temporary.c_str(), 0) == 0,
+           "cannot remove committed restore temporary node");
+}
+
+void applyMetadataAt(int parentFd, const std::string& name,
+                     const Entry& entry, const fs::path& displayPath) {
+    if (::fchownat(parentFd, name.c_str(), static_cast<uid_t>(entry.uid),
+                   static_cast<gid_t>(entry.gid), AT_SYMLINK_NOFOLLOW) != 0 &&
+        errno != EPERM && errno != EACCES) {
+        warnMetadata("fchownat", displayPath);
+    }
+    if (entry.type != EntryType::Symlink &&
+        ::fchmodat(parentFd, name.c_str(), static_cast<mode_t>(entry.mode),
+                   AT_SYMLINK_NOFOLLOW) != 0) {
+        warnMetadata("fchmodat", displayPath);
+    }
+    timespec times[2]{
+        {static_cast<time_t>(entry.atimeSec), static_cast<long>(entry.atimeNsec)},
+        {static_cast<time_t>(entry.mtimeSec), static_cast<long>(entry.mtimeNsec)}
+    };
+    if (::utimensat(parentFd, name.c_str(), times, AT_SYMLINK_NOFOLLOW) != 0 &&
+        errno != EPERM && errno != EACCES && errno != ENOTSUP) {
+        warnMetadata("utimensat", displayPath);
     }
 }
 
-void removeExistingNonDirectory(const fs::path& target) {
-    struct stat st{};
-    if (lstat(target.c_str(), &st) == 0) {
-        ensure(!S_ISDIR(st.st_mode), "refusing to remove directory during restore: " + target.string());
-        ensure(unlink(target.c_str()) == 0, "cannot replace restore target: " + target.string());
-    } else {
-        ensure(errno == ENOENT, "cannot inspect restore target: " + target.string());
+void copyPackedFileToFd(std::ifstream& input, int outputFd, uint64_t size,
+                        const Entry& entry, const RestoreOptions& options) {
+    input.clear();
+    input.seekg(static_cast<std::streamoff>(entry.contentOffset));
+    ensure(input.good(), "cannot seek to packed file content");
+    std::vector<char> buffer(kBufferSize);
+    uint64_t completed = 0;
+    while (completed < size) {
+        checkCancelled(options.cancel);
+        size_t wanted = static_cast<size_t>(
+            std::min<uint64_t>(buffer.size(), size - completed));
+        input.read(buffer.data(), static_cast<std::streamsize>(wanted));
+        ensure(static_cast<size_t>(input.gcount()) == wanted,
+               "truncated packed file content");
+        size_t written = 0;
+        while (written < wanted) {
+            ssize_t count = ::write(outputFd, buffer.data() + written, wanted - written);
+            if (count < 0 && errno == EINTR) continue;
+            ensure(count > 0, "cannot write restored file");
+            written += static_cast<size_t>(count);
+        }
+        completed += wanted;
+        report(options.progress, "extract", completed, size, entry.path);
     }
 }
 
-void restoreSocketNode(const fs::path& path) {
-    ensure(path.string().size() < sizeof(sockaddr_un::sun_path), "Unix socket path is too long");
-    int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
-    ensure(fd >= 0, "cannot create Unix socket node");
+void ensureDirectoryAt(int parentFd, const std::string& name, bool overwrite,
+                       const fs::path& displayPath) {
+    if (::mkdirat(parentFd, name.c_str(), 0700) == 0) return;
+    ensure(errno == EEXIST, "cannot create directory: " + displayPath.string());
+    struct stat state{};
+    ensure(::fstatat(parentFd, name.c_str(), &state, AT_SYMLINK_NOFOLLOW) == 0 &&
+           S_ISDIR(state.st_mode) && overwrite,
+           "restore directory already exists or is not a real directory: " +
+           displayPath.string());
+}
+
+void createSocketNodeAt(int parentFd, const std::string& name) {
+    std::string path = "/proc/self/fd/" + std::to_string(parentFd) + "/" + name;
+    ensure(path.size() < sizeof(sockaddr_un::sun_path),
+           "Unix socket restore path is too long");
+    UniqueFd socketFd(::socket(AF_UNIX, SOCK_STREAM, 0));
+    ensure(socketFd.get() >= 0, "cannot create Unix socket node");
     sockaddr_un address{};
     address.sun_family = AF_UNIX;
     std::strncpy(address.sun_path, path.c_str(), sizeof(address.sun_path) - 1);
-    int result = ::bind(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address));
-    int saved = errno;
-    ::close(fd);
-    errno = saved;
-    ensure(result == 0, "cannot bind restored Unix socket node: " + path.string());
-}
-
-void applyMetadata(const fs::path& target, const Entry& entry) {
-    if (lchown(target.c_str(), static_cast<uid_t>(entry.uid), static_cast<gid_t>(entry.gid)) != 0 &&
-        errno != EPERM && errno != EACCES) warnMetadata("lchown", target);
-    if (entry.type != EntryType::Symlink) {
-        if (chmod(target.c_str(), static_cast<mode_t>(entry.mode)) != 0) warnMetadata("chmod", target);
-    }
-    timespec times[2]{};
-    times[0].tv_sec = static_cast<time_t>(entry.atimeSec);
-    times[0].tv_nsec = static_cast<long>(entry.atimeNsec);
-    times[1].tv_sec = static_cast<time_t>(entry.mtimeSec);
-    times[1].tv_nsec = static_cast<long>(entry.mtimeNsec);
-    if (utimensat(AT_FDCWD, target.c_str(), times,
-                  entry.type == EntryType::Symlink ? AT_SYMLINK_NOFOLLOW : 0) != 0 &&
-        errno != EPERM && errno != EACCES && errno != ENOTSUP) warnMetadata("utimensat", target);
+    ensure(::bind(socketFd.get(), reinterpret_cast<sockaddr*>(&address),
+                  sizeof(address)) == 0,
+           "cannot bind restored Unix socket node");
 }
 
 void extractEntries(const fs::path& packed, const fs::path& destination,
@@ -1280,12 +1400,9 @@ void extractEntries(const fs::path& packed, const fs::path& destination,
     }
     fs::path canonicalDestination = fs::canonical(destination, ec);
     ensure(!ec, "cannot canonicalize restore destination");
-
-    for (const auto& entry : entries) {
-        fs::path relative(entry.path);
-        rejectSymlinkParents(canonicalDestination, relative);
-        checkTargetCompatibility(canonicalDestination / relative, entry, options.overwrite);
-    }
+    UniqueFd destinationFd(::open(canonicalDestination.c_str(),
+                                  O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC));
+    ensure(destinationFd.get() >= 0, "cannot securely open restore destination");
 
     std::vector<const Entry*> directories;
     for (const auto& entry : entries) if (entry.type == EntryType::Directory) directories.push_back(&entry);
@@ -1294,10 +1411,10 @@ void extractEntries(const fs::path& packed, const fs::path& destination,
     });
     for (const Entry* entry : directories) {
         checkCancelled(options.cancel);
-        fs::path target = canonicalDestination / fs::path(entry->path);
-        if (!fs::exists(target, ec)) {
-            ensure(fs::create_directory(target, ec) && !ec, "cannot create directory: " + target.string());
-        }
+        UniqueFd parent = openParentDirectory(destinationFd.get(), entry->path);
+        std::string name = fs::path(entry->path).filename().string();
+        ensureDirectoryAt(parent.get(), name, options.overwrite,
+                          canonicalDestination / entry->path);
     }
 
     std::ifstream data(packed, std::ios::binary);
@@ -1306,49 +1423,64 @@ void extractEntries(const fs::path& packed, const fs::path& destination,
     for (const auto& entry : entries) {
         checkCancelled(options.cancel);
         if (entry.type == EntryType::Directory) continue;
-        fs::path target = canonicalDestination / fs::path(entry.path);
+        UniqueFd parent = openParentDirectory(destinationFd.get(), entry.path);
+        std::string target = fs::path(entry.path).filename().string();
+        fs::path displayPath = canonicalDestination / entry.path;
+        std::string temporary;
+        UniqueFd regularFd;
         if (entry.type == EntryType::Regular) {
-            TempFile temp(target.parent_path());
-            std::ofstream out(temp.path(), std::ios::binary | std::ios::trunc);
-            ensure(out.good(), "cannot create restored file: " + target.string());
-            data.clear();
-            data.seekg(static_cast<std::streamoff>(entry.contentOffset));
-            ensure(data.good(), "cannot seek to packed file content");
-            copyBytes(data, out, entry.size, options.progress, "extract", options.cancel);
-            out.close();
-            removeExistingNonDirectory(target);
-            fs::rename(temp.path(), target, ec);
-            ensure(!ec, "cannot commit restored file: " + target.string());
-            temp.keep();
-            outputBytes += entry.size;
+            auto created = createTemporaryFileAt(parent.get());
+            regularFd = std::move(created.first);
+            temporary = std::move(created.second);
         } else if (entry.type == EntryType::Symlink) {
-            removeExistingNonDirectory(target);
-            ensure(::symlink(entry.linkTarget.c_str(), target.c_str()) == 0,
-                   "cannot restore symbolic link: " + target.string());
+            temporary = createTemporaryNodeAt([&](const std::string& name) {
+                return ::symlinkat(entry.linkTarget.c_str(), parent.get(), name.c_str());
+            });
         } else if (entry.type == EntryType::Fifo) {
-            removeExistingNonDirectory(target);
-            ensure(::mkfifo(target.c_str(), static_cast<mode_t>(entry.mode)) == 0,
-                   "cannot restore FIFO: " + target.string());
+            temporary = createTemporaryNodeAt([&](const std::string& name) {
+                return ::mkfifoat(parent.get(), name.c_str(), 0600);
+            });
         } else if (entry.type == EntryType::Character || entry.type == EntryType::Block) {
-            removeExistingNonDirectory(target);
             mode_t type = entry.type == EntryType::Character ? S_IFCHR : S_IFBLK;
-            ensure(::mknod(target.c_str(), type | static_cast<mode_t>(entry.mode),
-                           static_cast<dev_t>(entry.device)) == 0,
-                   "cannot restore device node (root permission may be required): " + target.string());
+            temporary = createTemporaryNodeAt([&](const std::string& name) {
+                return ::mknodat(parent.get(), name.c_str(), type | 0600,
+                                 static_cast<dev_t>(entry.device));
+            });
         } else if (entry.type == EntryType::Socket) {
-            removeExistingNonDirectory(target);
-            restoreSocketNode(target);
+            temporary = createTemporaryNodeAt([&](const std::string& name) {
+                try {
+                    createSocketNodeAt(parent.get(), name);
+                    return 0;
+                } catch (...) {
+                    if (errno == EADDRINUSE) return -1;
+                    throw;
+                }
+            });
         }
+        TemporaryNode cleanup(parent.get(), temporary);
+        if (entry.type == EntryType::Regular) {
+            copyPackedFileToFd(data, regularFd.get(), entry.size, entry, options);
+        }
+        applyMetadataAt(parent.get(), temporary, entry, displayPath);
+        if (entry.type == EntryType::Regular) {
+            ensure(::fsync(regularFd.get()) == 0, "cannot synchronize restored file");
+            ensure(::close(regularFd.release()) == 0, "cannot close restored file");
+            ensure(outputBytes <= UINT64_MAX - entry.size, "restored byte count overflow");
+            outputBytes += entry.size;
+        }
+        commitNodeAt(parent.get(), temporary, target, options.overwrite);
+        cleanup.keep();
         report(options.progress, "restore-entry", outputBytes, 0, entry.path);
     }
 
-    for (const auto& entry : entries) {
-        if (entry.type != EntryType::Directory) applyMetadata(canonicalDestination / entry.path, entry);
-    }
     std::sort(directories.begin(), directories.end(), [](const Entry* a, const Entry* b) {
         return pathDepth(a->path) > pathDepth(b->path);
     });
-    for (const Entry* entry : directories) applyMetadata(canonicalDestination / entry->path, *entry);
+    for (const Entry* entry : directories) {
+        UniqueFd parent = openParentDirectory(destinationFd.get(), entry->path);
+        std::string name = fs::path(entry->path).filename().string();
+        applyMetadataAt(parent.get(), name, *entry, canonicalDestination / entry->path);
+    }
 }
 
 using DecodedArchiveConsumer =
@@ -1374,7 +1506,8 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
     cryptStage(encoded.path(), compressed.path(), header.info.encryption, options.password,
                header.salt, options.progress, options.cancel, "decrypt");
     TempFile packed;
-    decompressStage(compressed.path(), packed.path(), header.info.compression, options);
+    decompressStage(compressed.path(), packed.path(), header.info.compression,
+                    header.info.packedSize, options);
     ensure(fileSizeChecked(packed.path()) == header.info.packedSize,
            "decoded packed size mismatch (wrong password or damaged archive)");
     ensure(shaFileRange(packed.path(), 0, UINT64_MAX) == header.info.packedDigest,
@@ -1454,9 +1587,16 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
         ensure(payload.good(), "cannot reopen encoded payload");
         copyBytes(payload, out, info.encodedSize, options.progress, "finalize", options.cancel);
         out.close();
+        ensure(out.good(), "cannot close final archive");
         int fd = ::open(finalTemp.path().c_str(), O_RDONLY);
-        if (fd >= 0) { static_cast<void>(::fsync(fd)); ::close(fd); }
+        ensure(fd >= 0, "cannot open final archive for synchronization");
+        ensure(::fsync(fd) == 0, "cannot synchronize final archive");
+        ensure(::close(fd) == 0, "cannot close synchronized final archive");
         commitFileNoReplace(finalTemp.path(), canonicalOutput);
+        int parentFd = ::open(canonicalParent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        ensure(parentFd >= 0, "cannot open archive parent directory for synchronization");
+        ensure(::fsync(parentFd) == 0, "cannot synchronize archive parent directory");
+        ensure(::close(parentFd) == 0, "cannot close archive parent directory");
 
         result.success = true;
         result.message = "backup completed";

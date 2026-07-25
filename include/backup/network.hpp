@@ -35,7 +35,7 @@ public:
 private:
     ServerConfig config_;
     std::atomic_bool running_{false};
-    int listenFd_ = -1;
+    std::atomic_int listenFd_{-1};
 };
 
 class BackupClient {
