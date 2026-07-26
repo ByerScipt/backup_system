@@ -1,6 +1,6 @@
 # Backup Studio 数据备份与还原系统
 
-当前交付版本：`v1.1.0`。
+当前交付版本：`v1.2.0`。
 
 面向 Linux/POSIX 的 C++17 课程项目。系统采用流式流水线，包含两种自研打包算法、
 RLE/Huffman 压缩、XOR/Vigenère 教学加密、双 SHA-256 完整性校验、CLI、Qt6 GUI，
@@ -25,7 +25,12 @@ GUI 需要 Qt 6 Widgets（Debian/Ubuntu 软件包 `qt6-base-dev`）。未安装 
 ```bash
 build/backup-cli --version
 build/backup-server --version
+build/backup-gui
 ```
+
+Qt6 GUI 采用侧边导航与卡片式任务界面，提供本地备份、本地还原、远程备份、远程
+还原、备份历史和账号管理六个工作区。日志可复制，备份 ID 可双击复制，算法选项会
+根据加密状态联动校验；所有耗时操作仍调用公共核心并在后台线程执行。
 
 ## 工程结构
 
