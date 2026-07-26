@@ -1,6 +1,7 @@
 #include "backup/core.hpp"
 #include "backup/network.hpp"
 
+#include <QAbstractButton>
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QButtonGroup>
@@ -8,13 +9,17 @@
 #include <QClipboard>
 #include <QComboBox>
 #include <QDateTime>
+#include <QDialog>
 #include <QDir>
+#include <QEvent>
 #include <QFile>
 #include <QFileDialog>
+#include <QFontDatabase>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHeaderView>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMainWindow>
@@ -22,6 +27,10 @@
 #include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QResizeEvent>
+#include <QScreen>
+#include <QScrollArea>
+#include <QShowEvent>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QStringList>
@@ -29,11 +38,14 @@
 #include <QTextEdit>
 #include <QThread>
 #include <QTimer>
+#include <QTreeView>
 #include <QUuid>
 #include <QVBoxLayout>
+#include <QWindow>
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -61,6 +73,47 @@ struct Card {
 struct Page {
     QWidget* widget = nullptr;
     QVBoxLayout* layout = nullptr;
+};
+
+QString preferredChineseFontFamily() {
+    const QStringList installed =
+        QFontDatabase::families(QFontDatabase::SimplifiedChinese);
+    const QStringList preferred = {
+        "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei UI",
+        "Microsoft YaHei", "PingFang SC", "Droid Sans Fallback"};
+    for (const QString& candidate : preferred) {
+        for (const QString& family : installed) {
+            if (family.compare(candidate, Qt::CaseInsensitive) == 0) {
+                return family;
+            }
+        }
+    }
+    return QFontDatabase::systemFont(QFontDatabase::GeneralFont).family();
+}
+
+QFont applicationFont() {
+    QFont font = QFontDatabase::systemFont(QFontDatabase::GeneralFont);
+    font.setFamilies({preferredChineseFontFamily()});
+    const qreal systemPointSize =
+        font.pointSizeF() > 0.0 ? font.pointSizeF() : 10.0;
+    font.setPointSizeF(std::max<qreal>(11.0, systemPointSize));
+    font.setStyleHint(QFont::SansSerif);
+    font.setStyleStrategy(QFont::PreferAntialias);
+    return font;
+}
+
+class MessageBoxButtonIconFilter final : public QObject {
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override {
+        if (event->type() == QEvent::Show) {
+            if (auto* messageBox = qobject_cast<QMessageBox*>(watched)) {
+                for (auto* button : messageBox->buttons()) {
+                    button->setIcon(QIcon{});
+                }
+            }
+        }
+        return QObject::eventFilter(watched, event);
+    }
 };
 
 QString stageName(const QString& stage) {
@@ -101,9 +154,24 @@ void appendLog(QTextEdit* log, const QString& text) {
 Page makePage() {
     Page page;
     page.widget = new QWidget;
-    page.layout = new QVBoxLayout(page.widget);
+    auto* outerLayout = new QVBoxLayout(page.widget);
+    outerLayout->setContentsMargins(0, 0, 0, 0);
+    outerLayout->setSpacing(0);
+
+    auto* scroll = new QScrollArea;
+    scroll->setObjectName("pageScroll");
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    auto* content = new QWidget;
+    content->setObjectName("pageContent");
+    page.layout = new QVBoxLayout(content);
     page.layout->setContentsMargins(0, 0, 0, 0);
     page.layout->setSpacing(14);
+    page.layout->setSizeConstraint(QLayout::SetMinimumSize);
+    scroll->setWidget(content);
+    outerLayout->addWidget(scroll);
     return page;
 }
 
@@ -155,7 +223,7 @@ QHBoxLayout* pathRow(QLineEdit*& edit, QPushButton*& browse,
     edit->setPlaceholderText(placeholder);
     browse = new QPushButton("浏览");
     browse->setObjectName("secondaryButton");
-    browse->setFixedWidth(82);
+    browse->setMinimumWidth(82);
     row->addWidget(edit, 1);
     row->addWidget(browse);
     return row;
@@ -194,7 +262,7 @@ JobControls addJobControls(QVBoxLayout* layout, const QString& startText) {
     controls.log->setObjectName("taskLog");
     controls.log->setReadOnly(true);
     controls.log->setAcceptRichText(false);
-    controls.log->setMinimumHeight(128);
+    controls.log->setMinimumHeight(72);
     controls.log->setPlaceholderText("任务日志将在这里显示");
     controls.log->document()->setMaximumBlockCount(800);
     layout->addWidget(controls.log, 1);
@@ -211,7 +279,7 @@ using Job = std::function<QString(std::atomic_bool*, const ProgressCallback&)>;
 void startJob(QWidget* owner, const JobControls& controls, Job job,
               std::function<void()> afterSuccess = {}) {
     if (owner->property("jobRunning").toBool()) {
-        QMessageBox::information(owner, "任务进行中",
+        QMessageBox::information(owner, "Task Running",
                                  "请等待当前任务完成，或先取消当前任务。");
         return;
     }
@@ -295,7 +363,7 @@ void startJob(QWidget* owner, const JobControls& controls, Job job,
                 appendLog(safeLog, (ok ? "✓  " : "✕  ") + message);
                 if (ok && afterSuccess) afterSuccess();
                 if (!ok) {
-                    QMessageBox::critical(safeOwner, "任务失败", message);
+                    QMessageBox::critical(safeOwner, "Task Failed", message);
                 }
             },
             Qt::QueuedConnection);
@@ -394,7 +462,30 @@ ServerFields addServerRows(QFormLayout* form) {
     fields.port = new QSpinBox;
     fields.port->setRange(1, 65535);
     fields.port->setValue(8848);
-    form->addRow("端口", fields.port);
+    fields.port->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    auto* portRow = new QHBoxLayout;
+    portRow->setContentsMargins(0, 0, 0, 0);
+    portRow->setSpacing(7);
+    auto* decreasePort = new QPushButton("−");
+    auto* increasePort = new QPushButton("+");
+    for (auto* button : {decreasePort, increasePort}) {
+        button->setObjectName("stepButton");
+        button->setAutoRepeat(true);
+        button->setAutoRepeatDelay(350);
+        button->setAutoRepeatInterval(80);
+    }
+    decreasePort->setToolTip("端口减 1");
+    increasePort->setToolTip("端口加 1");
+    decreasePort->setAccessibleName("减少端口");
+    increasePort->setAccessibleName("增加端口");
+    QObject::connect(decreasePort, &QPushButton::clicked, fields.port,
+                     &QSpinBox::stepDown);
+    QObject::connect(increasePort, &QPushButton::clicked, fields.port,
+                     &QSpinBox::stepUp);
+    portRow->addWidget(fields.port, 1);
+    portRow->addWidget(decreasePort);
+    portRow->addWidget(increasePort);
+    form->addRow("端口", portRow);
 
     fields.username = new QLineEdit;
     fields.username->setClearButtonEnabled(true);
@@ -437,6 +528,102 @@ QString temporaryArchivePath() {
            QUuid::createUuid().toString(QUuid::WithoutBraces) + ".bak";
 }
 
+void configureFileDialog(QFileDialog& dialog, QWidget* owner,
+                         bool directoryMode) {
+    QScreen* targetScreen = owner ? owner->screen() : nullptr;
+    if (!targetScreen) targetScreen = QApplication::primaryScreen();
+
+    const QSize available =
+        targetScreen ? targetScreen->availableGeometry().size()
+                     : QSize(1280, 800);
+    const int maximumWidth = std::max(640, qRound(available.width() * 0.92));
+    const int maximumHeight = std::max(480, qRound(available.height() * 0.86));
+    const int targetWidth =
+        std::min(maximumWidth,
+                 std::clamp(qRound(available.width() * 0.78), 860, 1280));
+    const int targetHeight =
+        std::min(maximumHeight,
+                 std::clamp(qRound(available.height() * 0.74), 560, 840));
+
+    dialog.setSizeGripEnabled(true);
+    dialog.setMinimumSize(std::min(760, targetWidth),
+                          std::min(500, targetHeight));
+    dialog.resize(targetWidth, targetHeight);
+    dialog.setLabelText(QFileDialog::LookIn, "位置");
+    dialog.setLabelText(QFileDialog::Reject, "取消");
+    dialog.setLabelText(QFileDialog::FileType, "类型");
+
+    if (directoryMode) {
+        dialog.setViewMode(QFileDialog::List);
+        dialog.setLabelText(QFileDialog::FileName, "目录");
+        dialog.setLabelText(QFileDialog::Accept, "选择");
+    } else {
+        dialog.setViewMode(QFileDialog::Detail);
+        dialog.setLabelText(QFileDialog::FileName, "文件名");
+        for (auto* view : dialog.findChildren<QTreeView*>()) {
+            QHeaderView* header = view->header();
+            header->setStretchLastSection(false);
+            header->setSectionResizeMode(0, QHeaderView::Stretch);
+            for (int column = 1; column < header->count(); ++column) {
+                header->setSectionResizeMode(
+                    column, QHeaderView::ResizeToContents);
+            }
+        }
+    }
+
+    const QString capturePath =
+        qEnvironmentVariable("BACKUP_GUI_DIALOG_CAPTURE");
+    if (!capturePath.isEmpty()) {
+        QTimer::singleShot(300, &dialog, [&dialog, capturePath]() {
+            dialog.grab().save(capturePath);
+            dialog.reject();
+        });
+    }
+}
+
+QString selectDirectory(QWidget* owner, const QString& title,
+                        const QString& initialPath = {}) {
+    QFileDialog dialog(owner);
+    dialog.setOption(QFileDialog::DontUseNativeDialog, true);
+    dialog.setWindowTitle(title);
+    dialog.setFileMode(QFileDialog::Directory);
+    dialog.setOption(QFileDialog::ShowDirsOnly, true);
+    if (!initialPath.isEmpty()) dialog.setDirectory(initialPath);
+    configureFileDialog(dialog, owner, true);
+    if (dialog.exec() != QDialog::Accepted) return {};
+    return dialog.selectedFiles().value(0);
+}
+
+QString selectArchive(QWidget* owner, const QString& title,
+                      const QString& initialPath = {}) {
+    QFileDialog dialog(owner);
+    dialog.setOption(QFileDialog::DontUseNativeDialog, true);
+    dialog.setWindowTitle(title);
+    dialog.setFileMode(QFileDialog::ExistingFile);
+    dialog.setNameFilter("Backup Archive (*.bak)");
+    if (!initialPath.isEmpty()) dialog.selectFile(initialPath);
+    dialog.setLabelText(QFileDialog::Accept, "打开");
+    configureFileDialog(dialog, owner, false);
+    if (dialog.exec() != QDialog::Accepted) return {};
+    return dialog.selectedFiles().value(0);
+}
+
+QString selectArchiveOutput(QWidget* owner, const QString& title,
+                            const QString& initialPath = {}) {
+    QFileDialog dialog(owner);
+    dialog.setOption(QFileDialog::DontUseNativeDialog, true);
+    dialog.setWindowTitle(title);
+    dialog.setAcceptMode(QFileDialog::AcceptSave);
+    dialog.setFileMode(QFileDialog::AnyFile);
+    dialog.setNameFilter("Backup Archive (*.bak)");
+    dialog.setDefaultSuffix("bak");
+    if (!initialPath.isEmpty()) dialog.selectFile(initialPath);
+    dialog.setLabelText(QFileDialog::Accept, "保存");
+    configureFileDialog(dialog, owner, false);
+    if (dialog.exec() != QDialog::Accepted) return {};
+    return dialog.selectedFiles().value(0);
+}
+
 QWidget* localBackupPage() {
     Page page = makePage();
     Card configuration =
@@ -459,25 +646,25 @@ QWidget* localBackupPage() {
     page.layout->addWidget(task.frame, 1);
 
     QObject::connect(browseSource, &QPushButton::clicked, page.widget, [=]() {
-        const QString value =
-            QFileDialog::getExistingDirectory(page.widget, "选择源目录");
+        const QString value = selectDirectory(
+            page.widget, "Select Source Directory", source->text());
         if (!value.isEmpty()) source->setText(value);
     });
     QObject::connect(browseOutput, &QPushButton::clicked, page.widget, [=]() {
-        const QString value = QFileDialog::getSaveFileName(
-            page.widget, "选择输出归档", {}, "Backup Archive (*.bak)");
+        const QString value = selectArchiveOutput(
+            page.widget, "Select Output Archive", output->text());
         if (!value.isEmpty()) output->setText(value);
     });
     QObject::connect(controls.start, &QPushButton::clicked, page.widget, [=]() {
         const QString src = source->text().trimmed();
         const QString out = output->text().trimmed();
         if (src.isEmpty() || out.isEmpty()) {
-            QMessageBox::warning(page.widget, "输入错误",
+            QMessageBox::warning(page.widget, "Input Error",
                                  "请选择源目录和输出归档。");
             return;
         }
         if (QFile::exists(out)) {
-            QMessageBox::warning(page.widget, "文件冲突",
+            QMessageBox::warning(page.widget, "File Conflict",
                                  "输出归档已经存在，请选择新文件名。");
             return;
         }
@@ -487,7 +674,7 @@ QWidget* localBackupPage() {
             algorithms =
                 snapshotAlgorithms(pack, compression, encryption, key);
         } catch (const std::exception& error) {
-            QMessageBox::warning(page.widget, "输入错误",
+            QMessageBox::warning(page.widget, "Input Error",
                                  QString::fromUtf8(error.what()));
             return;
         }
@@ -554,14 +741,15 @@ QWidget* localRestorePage() {
     page.layout->addWidget(task.frame, 1);
 
     QObject::connect(browseArchive, &QPushButton::clicked, page.widget, [=]() {
-        const QString value = QFileDialog::getOpenFileName(
-            page.widget, "选择备份归档", {}, "Backup Archive (*.bak)");
+        const QString value = selectArchive(
+            page.widget, "Select Backup Archive", archive->text());
         if (!value.isEmpty()) archive->setText(value);
     });
     QObject::connect(
         browseDestination, &QPushButton::clicked, page.widget, [=]() {
-            const QString value = QFileDialog::getExistingDirectory(
-                page.widget, "选择目标目录");
+            const QString value = selectDirectory(
+                page.widget, "Select Destination Directory",
+                destination->text());
             if (!value.isEmpty()) destination->setText(value);
         });
 
@@ -571,7 +759,7 @@ QWidget* localRestorePage() {
         const QString dest = destination->text().trimmed();
         const QString password = key->text();
         if (input.isEmpty() || dest.isEmpty()) {
-            QMessageBox::warning(page.widget, "输入错误",
+            QMessageBox::warning(page.widget, "Input Error",
                                  "请选择备份归档和目标目录。");
             return;
         }
@@ -609,13 +797,13 @@ QWidget* localRestorePage() {
         const QString password = key->text();
         const bool allowOverwrite = overwrite->isChecked();
         if (input.isEmpty() || dest.isEmpty()) {
-            QMessageBox::warning(page.widget, "输入错误",
+            QMessageBox::warning(page.widget, "Input Error",
                                  "请选择备份归档和目标目录。");
             return;
         }
         if (allowOverwrite &&
             QMessageBox::question(
-                page.widget, "确认覆盖",
+                page.widget, "Confirm Overwrite",
                 "目标中已有的同名文件会被替换，是否继续？") !=
                 QMessageBox::Yes) {
             return;
@@ -699,15 +887,15 @@ QWidget* remoteBackupPage() {
     page.layout->addWidget(task.frame, 1);
 
     QObject::connect(browse, &QPushButton::clicked, page.widget, [=]() {
-        const QString value =
-            QFileDialog::getExistingDirectory(page.widget, "选择源目录");
+        const QString value = selectDirectory(
+            page.widget, "Select Source Directory", source->text());
         if (!value.isEmpty()) source->setText(value);
     });
     QObject::connect(controls.start, &QPushButton::clicked, page.widget, [=]() {
         const QString src = source->text().trimmed();
         const QString backupName = name->text().trimmed();
         if (src.isEmpty()) {
-            QMessageBox::warning(page.widget, "输入错误", "请选择源目录。");
+            QMessageBox::warning(page.widget, "Input Error", "请选择源目录。");
             return;
         }
 
@@ -718,7 +906,7 @@ QWidget* remoteBackupPage() {
                 snapshotAlgorithms(pack, compression, encryption, key);
             serverValues = snapshotServer(server);
         } catch (const std::exception& error) {
-            QMessageBox::warning(page.widget, "输入错误",
+            QMessageBox::warning(page.widget, "Input Error",
                                  QString::fromUtf8(error.what()));
             return;
         }
@@ -796,8 +984,9 @@ QWidget* remoteRestorePage() {
     page.layout->addWidget(task.frame, 1);
 
     QObject::connect(browse, &QPushButton::clicked, page.widget, [=]() {
-        const QString value =
-            QFileDialog::getExistingDirectory(page.widget, "选择目标目录");
+        const QString value = selectDirectory(
+            page.widget, "Select Destination Directory",
+            destination->text());
         if (!value.isEmpty()) destination->setText(value);
     });
     QObject::connect(controls.start, &QPushButton::clicked, page.widget, [=]() {
@@ -806,7 +995,7 @@ QWidget* remoteRestorePage() {
         const QString password = key->text();
         const bool allowOverwrite = overwrite->isChecked();
         if (backupId.isEmpty() || dest.isEmpty()) {
-            QMessageBox::warning(page.widget, "输入错误",
+            QMessageBox::warning(page.widget, "Input Error",
                                  "请填写备份 ID 和目标目录。");
             return;
         }
@@ -815,13 +1004,13 @@ QWidget* remoteRestorePage() {
         try {
             serverValues = snapshotServer(server);
         } catch (const std::exception& error) {
-            QMessageBox::warning(page.widget, "输入错误",
+            QMessageBox::warning(page.widget, "Input Error",
                                  QString::fromUtf8(error.what()));
             return;
         }
         if (allowOverwrite &&
             QMessageBox::question(
-                page.widget, "确认覆盖",
+                page.widget, "Confirm Overwrite",
                 "目标中已有的同名文件会被替换，是否继续？") !=
                 QMessageBox::Yes) {
             return;
@@ -895,12 +1084,11 @@ QWidget* remoteListPage() {
 
     top->addWidget(connection.frame, 1);
     top->addWidget(listCard.frame, 2);
-    page.layout->addLayout(top, 2);
+    page.layout->addLayout(top, 3);
 
     Card task = makeCard("同步状态");
     JobControls controls = addJobControls(task.body, "刷新远程列表");
-    controls.log->setMaximumHeight(82);
-    page.layout->addWidget(task.frame, 1);
+    page.layout->addWidget(task.frame, 2);
 
     auto entries =
         std::make_shared<std::vector<network::RemoteBackupEntry>>();
@@ -909,7 +1097,7 @@ QWidget* remoteListPage() {
         try {
             serverValues = snapshotServer(server);
         } catch (const std::exception& error) {
-            QMessageBox::warning(page.widget, "输入错误",
+            QMessageBox::warning(page.widget, "Input Error",
                                  QString::fromUtf8(error.what()));
             return;
         }
@@ -1021,7 +1209,7 @@ QWidget* userPage() {
 
     QObject::connect(controls.start, &QPushButton::clicked, page.widget, [=]() {
         if (server.password->text() != confirm->text()) {
-            QMessageBox::warning(page.widget, "输入错误",
+            QMessageBox::warning(page.widget, "Input Error",
                                  "两次输入的密码不一致。");
             return;
         }
@@ -1029,7 +1217,7 @@ QWidget* userPage() {
         try {
             serverValues = snapshotServer(server);
         } catch (const std::exception& error) {
-            QMessageBox::warning(page.widget, "输入错误",
+            QMessageBox::warning(page.widget, "Input Error",
                                  QString::fromUtf8(error.what()));
             return;
         }
@@ -1052,7 +1240,12 @@ QWidget* userPage() {
 class MainWindow : public QMainWindow {
 public:
     MainWindow() {
-        setWindowTitle("Backup Studio · 数据备份与还原系统");
+        scaleTimer_.setSingleShot(true);
+        scaleTimer_.setInterval(70);
+        QObject::connect(&scaleTimer_, &QTimer::timeout, this,
+                         [this]() { applyResponsiveTheme(); });
+
+        setWindowTitle("Backup Studio");
         setMinimumSize(1024, 700);
         resize(1180, 780);
 
@@ -1062,25 +1255,16 @@ public:
         rootLayout->setContentsMargins(0, 0, 0, 0);
         rootLayout->setSpacing(0);
 
-        auto* sidebar = new QFrame;
-        sidebar->setObjectName("sidebar");
-        sidebar->setFixedWidth(224);
-        auto* sidebarLayout = new QVBoxLayout(sidebar);
-        sidebarLayout->setContentsMargins(18, 24, 18, 20);
-        sidebarLayout->setSpacing(7);
+        sidebar_ = new QFrame;
+        sidebar_->setObjectName("sidebar");
+        sidebarLayout_ = new QVBoxLayout(sidebar_);
+        sidebarLayout_->setContentsMargins(18, 24, 18, 20);
+        sidebarLayout_->setSpacing(7);
 
-        auto* brandRow = new QHBoxLayout;
-        brandRow->setSpacing(11);
-        auto* logo = new QLabel("BS");
-        logo->setObjectName("logoMark");
-        logo->setAlignment(Qt::AlignCenter);
-        logo->setFixedSize(44, 44);
         auto* brand = new QLabel("Backup Studio");
         brand->setObjectName("brand");
-        brandRow->addWidget(logo);
-        brandRow->addWidget(brand, 1);
-        sidebarLayout->addLayout(brandRow);
-        sidebarLayout->addSpacing(20);
+        sidebarLayout_->addWidget(brand);
+        sidebarLayout_->addSpacing(20);
 
         auto* pages = new QStackedWidget;
         pages->setObjectName("pageStack");
@@ -1093,11 +1277,11 @@ public:
 
         auto* navigation = new QButtonGroup(this);
         navigation->setExclusive(true);
-        auto addSection = [sidebarLayout](const QString& text) {
+        auto addSection = [this](const QString& text) {
             auto* label = new QLabel(text);
             label->setObjectName("navSection");
-            sidebarLayout->addSpacing(7);
-            sidebarLayout->addWidget(label);
+            sidebarLayout_->addSpacing(7);
+            sidebarLayout_->addWidget(label);
         };
         auto addNavigation = [&](int index, const QString& text) {
             auto* button = new QPushButton(text);
@@ -1105,7 +1289,7 @@ public:
             button->setCheckable(true);
             button->setCursor(Qt::PointingHandCursor);
             navigation->addButton(button, index);
-            sidebarLayout->addWidget(button);
+            sidebarLayout_->addWidget(button);
         };
 
         addSection("本地工作区");
@@ -1119,21 +1303,21 @@ public:
         addNavigation(5, "账号管理");
         navigation->button(0)->setChecked(true);
 
-        sidebarLayout->addStretch();
+        sidebarLayout_->addStretch();
 
         auto* content = new QFrame;
         content->setObjectName("contentRoot");
-        auto* contentLayout = new QVBoxLayout(content);
-        contentLayout->setContentsMargins(30, 24, 30, 24);
-        contentLayout->setSpacing(18);
+        contentLayout_ = new QVBoxLayout(content);
+        contentLayout_->setContentsMargins(30, 24, 30, 24);
+        contentLayout_->setSpacing(18);
 
         auto* header = new QHBoxLayout;
         auto* pageTitle = new QLabel("本地备份");
         pageTitle->setObjectName("pageTitle");
         header->addWidget(pageTitle);
         header->addStretch();
-        contentLayout->addLayout(header);
-        contentLayout->addWidget(pages, 1);
+        contentLayout_->addLayout(header);
+        contentLayout_->addWidget(pages, 1);
 
         const QStringList titles = {
             "本地备份", "本地还原", "远程备份",
@@ -1153,18 +1337,96 @@ public:
             navigation->button(initialPage)->click();
         }
 
-        rootLayout->addWidget(sidebar);
+        rootLayout->addWidget(sidebar_);
         rootLayout->addWidget(content, 1);
         setCentralWidget(root);
-        setStyleSheet(theme());
+        applyResponsiveTheme();
+    }
+
+protected:
+    void resizeEvent(QResizeEvent* event) override {
+        QMainWindow::resizeEvent(event);
+        scaleTimer_.start();
+    }
+
+    void showEvent(QShowEvent* event) override {
+        QMainWindow::showEvent(event);
+        if (!screenSignalsConnected_ && windowHandle()) {
+            screenSignalsConnected_ = true;
+            QObject::connect(
+                windowHandle(), &QWindow::screenChanged, this,
+                [this](QScreen* screen) {
+                    watchScreen(screen);
+                    appliedScale_ = 0.0;
+                    applyResponsiveTheme();
+                });
+        }
+        watchScreen(screen());
+        appliedScale_ = 0.0;
+        applyResponsiveTheme();
     }
 
 private:
-    static QString theme() {
-        return R"(
+    qreal responsiveScale() const {
+        bool hasOverride = false;
+        const qreal overrideScale =
+            qEnvironmentVariable("BACKUP_GUI_SCALE").toDouble(&hasOverride);
+        if (hasOverride) {
+            return std::clamp(overrideScale, 0.9, 2.0);
+        }
+        const qreal widthRatio = width() / 1180.0;
+        const qreal heightRatio = height() / 780.0;
+        return std::clamp(std::min(widthRatio, heightRatio), 1.0, 1.5);
+    }
+
+    void watchScreen(QScreen* currentScreen) {
+        QObject::disconnect(dpiConnection_);
+        if (!currentScreen) return;
+        dpiConnection_ = QObject::connect(
+            currentScreen, &QScreen::logicalDotsPerInchChanged, this,
+            [this](qreal) {
+                appliedScale_ = 0.0;
+                applyResponsiveTheme();
+            });
+    }
+
+    void applyResponsiveTheme() {
+        const qreal scale = responsiveScale();
+        if (std::abs(scale - appliedScale_) < 0.01) return;
+        appliedScale_ = scale;
+        setStyleSheet(theme(scale));
+
+        const auto pixels = [scale](int value) {
+            return qRound(static_cast<qreal>(value) * scale);
+        };
+        sidebar_->setFixedWidth(pixels(224));
+        sidebarLayout_->setContentsMargins(
+            pixels(18), pixels(24), pixels(18), pixels(20));
+        sidebarLayout_->setSpacing(pixels(7));
+        contentLayout_->setContentsMargins(
+            pixels(30), pixels(24), pixels(30), pixels(24));
+        contentLayout_->setSpacing(pixels(18));
+
+        for (auto* card : findChildren<QFrame*>("card")) {
+            if (auto* layout = qobject_cast<QVBoxLayout*>(card->layout())) {
+                layout->setContentsMargins(
+                    pixels(20), pixels(18), pixels(20), pixels(18));
+                layout->setSpacing(pixels(12));
+            }
+        }
+        for (auto* form : findChildren<QFormLayout*>()) {
+            form->setHorizontalSpacing(pixels(18));
+            form->setVerticalSpacing(pixels(11));
+        }
+        for (auto* badge : findChildren<QLabel*>("numberBadge")) {
+            badge->setFixedSize(pixels(32), pixels(32));
+        }
+    }
+
+    static QString theme(qreal scale) {
+        QString style = R"(
             * {
-                font-family: "Noto Sans CJK SC", "Microsoft YaHei", "Segoe UI", sans-serif;
-                font-size: 13px;
+                font-size: @BASE_PT@pt;
                 color: #1f2937;
             }
             QMainWindow, QWidget#appRoot {
@@ -1174,26 +1436,19 @@ private:
                 background: #111827;
                 border: none;
             }
-            QLabel#logoMark {
-                color: white;
-                background: #2563eb;
-                border-radius: 12px;
-                font-size: 15px;
-                font-weight: 800;
-            }
             QLabel#brand {
                 color: #f8fafc;
-                font-size: 17px;
+                font-size: @BRAND_PT@pt;
                 font-weight: 700;
             }
             QLabel#navSection {
                 color: #64748b;
-                font-size: 10px;
+                font-size: @SMALL_PT@pt;
                 font-weight: 700;
                 padding: 5px 10px 2px 10px;
             }
             QPushButton#navButton {
-                min-height: 42px;
+                min-height: @NAV_H@px;
                 padding: 0 13px;
                 border: none;
                 border-radius: 10px;
@@ -1217,10 +1472,14 @@ private:
             }
             QLabel#pageTitle {
                 color: #111827;
-                font-size: 25px;
+                font-size: @TITLE_PT@pt;
                 font-weight: 750;
             }
             QStackedWidget#pageStack {
+                background: transparent;
+                border: none;
+            }
+            QScrollArea#pageScroll, QWidget#pageContent {
                 background: transparent;
                 border: none;
             }
@@ -1231,12 +1490,12 @@ private:
             }
             QLabel#cardTitle {
                 color: #172033;
-                font-size: 15px;
+                font-size: @CARD_PT@pt;
                 font-weight: 700;
             }
             QLabel#cardDescription, QLabel#hint {
                 color: #718096;
-                font-size: 11px;
+                font-size: @SMALL_PT@pt;
             }
             QLabel#securityTitle {
                 color: #253047;
@@ -1247,11 +1506,11 @@ private:
                 background: #eaf1ff;
                 border: 1px solid #cfddff;
                 border-radius: 9px;
-                font-size: 12px;
+                font-size: @BASE_PT@pt;
                 font-weight: 700;
             }
             QLineEdit, QComboBox, QSpinBox {
-                min-height: 38px;
+                min-height: @CONTROL_H@px;
                 padding: 0 11px;
                 color: #1f2937;
                 background: #fbfcfe;
@@ -1287,7 +1546,7 @@ private:
                 selection-background-color: #2563eb;
             }
             QPushButton {
-                min-height: 38px;
+                min-height: @CONTROL_H@px;
                 padding: 0 15px;
                 border: 1px solid #d1d9e6;
                 border-radius: 8px;
@@ -1320,6 +1579,20 @@ private:
                 background: #e1ecff;
                 border-color: #9fbbfd;
             }
+            QPushButton#stepButton {
+                min-width: @STEP_W@px;
+                max-width: @STEP_W@px;
+                padding: 0;
+                color: #1d4ed8;
+                background: #eff5ff;
+                border-color: #c7d7fe;
+                font-size: @STEP_PT@pt;
+                font-weight: 700;
+            }
+            QPushButton#stepButton:hover {
+                background: #dce9ff;
+                border-color: #8eaffd;
+            }
             QPushButton#dangerButton {
                 color: #b42318;
                 background: white;
@@ -1330,12 +1603,12 @@ private:
                 border-color: #e99b94;
             }
             QPushButton#quietButton {
-                min-height: 32px;
+                min-height: @QUIET_H@px;
                 padding: 0 10px;
                 color: #64748b;
                 background: transparent;
                 border-color: transparent;
-                font-size: 11px;
+                font-size: @SMALL_PT@pt;
             }
             QPushButton#quietButton:hover {
                 color: #1d4ed8;
@@ -1351,8 +1624,8 @@ private:
                 color: #39465a;
             }
             QCheckBox::indicator {
-                width: 17px;
-                height: 17px;
+                width: @CHECK_SIZE@px;
+                height: @CHECK_SIZE@px;
                 border: 1px solid #aeb9ca;
                 border-radius: 5px;
                 background: white;
@@ -1362,14 +1635,14 @@ private:
                 border-color: #2563eb;
             }
             QProgressBar {
-                min-height: 20px;
-                max-height: 20px;
+                min-height: @PROGRESS_H@px;
+                max-height: @PROGRESS_H@px;
                 color: #334155;
                 background: #e8edf4;
                 border: none;
                 border-radius: 7px;
                 text-align: center;
-                font-size: 10px;
+                font-size: @TINY_PT@pt;
                 font-weight: 650;
             }
             QProgressBar::chunk {
@@ -1388,8 +1661,7 @@ private:
                 color: #cbd5e1;
                 background: #111827;
                 border-color: #273449;
-                font-family: "Noto Sans Mono CJK SC", "DejaVu Sans Mono", monospace;
-                font-size: 11px;
+                font-size: @SMALL_PT@pt;
             }
             QTableWidget {
                 color: #273449;
@@ -1402,17 +1674,17 @@ private:
                 selection-background-color: #e7efff;
             }
             QHeaderView::section {
-                min-height: 34px;
+                min-height: @HEADER_H@px;
                 padding: 0 8px;
                 color: #526176;
                 background: #f1f5f9;
                 border: none;
                 border-bottom: 1px solid #dbe3ee;
-                font-size: 11px;
+                font-size: @SMALL_PT@pt;
                 font-weight: 700;
             }
             QScrollBar:vertical {
-                width: 9px;
+                width: @SCROLL_W@px;
                 margin: 2px;
                 background: transparent;
             }
@@ -1431,7 +1703,39 @@ private:
                 padding: 6px;
             }
         )";
+
+        const auto points = [scale](qreal base) {
+            return QString::number(base * scale, 'f', 1);
+        };
+        const auto pixels = [scale](int base) {
+            return QString::number(
+                qRound(static_cast<qreal>(base) * scale));
+        };
+        style.replace("@BASE_PT@", points(11.0));
+        style.replace("@SMALL_PT@", points(9.5));
+        style.replace("@TINY_PT@", points(8.5));
+        style.replace("@BRAND_PT@", points(14.0));
+        style.replace("@TITLE_PT@", points(20.0));
+        style.replace("@CARD_PT@", points(12.0));
+        style.replace("@STEP_PT@", points(14.0));
+        style.replace("@NAV_H@", pixels(44));
+        style.replace("@CONTROL_H@", pixels(40));
+        style.replace("@QUIET_H@", pixels(32));
+        style.replace("@CHECK_SIZE@", pixels(18));
+        style.replace("@PROGRESS_H@", pixels(22));
+        style.replace("@HEADER_H@", pixels(36));
+        style.replace("@SCROLL_W@", pixels(10));
+        style.replace("@STEP_W@", pixels(40));
+        return style;
     }
+
+    QFrame* sidebar_ = nullptr;
+    QVBoxLayout* sidebarLayout_ = nullptr;
+    QVBoxLayout* contentLayout_ = nullptr;
+    QTimer scaleTimer_;
+    QMetaObject::Connection dpiConnection_;
+    qreal appliedScale_ = 0.0;
+    bool screenSignalsConnected_ = false;
 };
 
 }  // namespace
@@ -1442,9 +1746,32 @@ int main(int argc, char* argv[]) {
     app.setApplicationName("Backup Studio");
     app.setApplicationDisplayName("Backup Studio");
     app.setApplicationVersion(BACKUP_SYSTEM_VERSION);
+    app.setFont(applicationFont());
+    MessageBoxButtonIconFilter messageBoxButtonIconFilter;
+    app.installEventFilter(&messageBoxButtonIconFilter);
 
     MainWindow window;
+    bool widthProvided = false;
+    bool heightProvided = false;
+    const int captureWidth =
+        qEnvironmentVariableIntValue("BACKUP_GUI_WIDTH", &widthProvided);
+    const int captureHeight =
+        qEnvironmentVariableIntValue("BACKUP_GUI_HEIGHT", &heightProvided);
+    if (widthProvided && heightProvided) {
+        window.resize(std::max(captureWidth, window.minimumWidth()),
+                      std::max(captureHeight, window.minimumHeight()));
+    }
     window.show();
+    const QString dialogCapturePath =
+        qEnvironmentVariable("BACKUP_GUI_DIALOG_CAPTURE");
+    if (!dialogCapturePath.isEmpty()) {
+        QTimer::singleShot(100, &window, [&]() {
+            selectDirectory(&window, "Select Source Directory",
+                            QDir::currentPath());
+            app.quit();
+        });
+        return app.exec();
+    }
     const QString capturePath = qEnvironmentVariable("BACKUP_GUI_CAPTURE");
     if (!capturePath.isEmpty()) {
         QTimer::singleShot(300, &app, [&]() {
