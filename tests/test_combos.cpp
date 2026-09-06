@@ -20,8 +20,9 @@ std::vector<BuiltArchive> testAllCombinations(
     for (auto pack : {PackAlgorithm::Stream, PackAlgorithm::Index}) {
         for (auto compression : {CompressionAlgorithm::None, CompressionAlgorithm::Rle,
                                  CompressionAlgorithm::Huffman}) {
-            for (auto encryption : {EncryptionAlgorithm::None, EncryptionAlgorithm::Xor,
-                                    EncryptionAlgorithm::Vigenere}) {
+            for (auto encryption : {EncryptionAlgorithm::None,
+                                    EncryptionAlgorithm::ChaCha20,
+                                    EncryptionAlgorithm::Aes256}) {
                 normalizeAtimes(source, fixturePaths);
                 TreeSnapshot expected = snapshotKnownTree(source, fixturePaths);
                 fs::path archive = workspace / ("combo-" + std::to_string(number) + ".bak");

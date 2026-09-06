@@ -157,8 +157,8 @@ std::string toString(CompressionAlgorithm value) {
 std::string toString(EncryptionAlgorithm value) {
     switch (value) {
     case EncryptionAlgorithm::None: return "none";
-    case EncryptionAlgorithm::Xor: return "xor";
-    case EncryptionAlgorithm::Vigenere: return "vigenere";
+    case EncryptionAlgorithm::ChaCha20: return "chacha20";
+    case EncryptionAlgorithm::Aes256: return "aes256";
     }
     return "unknown";
 }
@@ -178,8 +178,8 @@ CompressionAlgorithm parseCompressionAlgorithm(const std::string& value) {
 
 EncryptionAlgorithm parseEncryptionAlgorithm(const std::string& value) {
     if (value == "none") return EncryptionAlgorithm::None;
-    if (value == "xor") return EncryptionAlgorithm::Xor;
-    if (value == "vigenere") return EncryptionAlgorithm::Vigenere;
+    if (value == "chacha20") return EncryptionAlgorithm::ChaCha20;
+    if (value == "aes256") return EncryptionAlgorithm::Aes256;
     throw std::invalid_argument("unknown encryption algorithm: " + value);
 }
 

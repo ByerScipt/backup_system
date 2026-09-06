@@ -18,9 +18,9 @@ void addAlgorithmRows(QFormLayout* form, QComboBox*& pack,
 
     encryption = new QComboBox;
     encryption->addItem("不加密  ·  None", "none");
-    encryption->addItem("密钥流异或  ·  XOR", "xor");
-    encryption->addItem("字节移位  ·  Vigenère", "vigenere");
-    encryption->setToolTip("XOR 与 Vigenère 是课程教学算法，不用于生产敏感数据。");
+    encryption->addItem("流密码  ·  ChaCha20", "chacha20");
+    encryption->addItem("分组密码  ·  AES-256 CTR", "aes256");
+    encryption->setToolTip("ChaCha20（RFC 8439）与 AES-256 CTR 均为现代密码，密钥由口令经盐值迭代派生。");
     form->addRow("加密算法", encryption);
 
     key = new QLineEdit;

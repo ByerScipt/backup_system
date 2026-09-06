@@ -12,7 +12,7 @@ void usage() {
 
 Local:
   backup-cli backup SOURCE -o ARCHIVE --pack stream|index
-      [--compress none|rle|huffman] [--encrypt none|xor|vigenere]
+      [--compress none|rle|huffman] [--encrypt none|chacha20|aes256]
       [--key-file FILE]
   backup-cli restore ARCHIVE -d DEST [--key-file FILE] [--overwrite]
   backup-cli inspect ARCHIVE

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.5.0
+
+- 移除教学用的 XOR/Vigenère，替换为完整自研的 ChaCha20（RFC 8439）与 AES-256 CTR，
+  加密扩展分仍为两种算法 20 分；旧归档 id 1/2 明确拒绝，不会误解码。
+- 自研算法用标准向量锁定：ChaCha20 锚定 RFC 8439（`10f1e7e4…`），AES-256 锚定
+  FIPS-197 C.3（另经 openssl 独立复核）， 测试新增 `testCryptoVectors`。
+- 组合测试回到 18 种（2 打包 × 3 压缩 × none/chacha20/aes256），CLI/GUI/文档同步更新。
+
 ## v1.4.0
 
 - 去 AI 味工程拆分：`core 1716行` 拆为 11 个模块、`network 432行` 拆为 6 个模块、`cli/gui/tests` 全部按页面/功能分文件，最大文件从 1783 行降到 504 行。

@@ -169,6 +169,10 @@ void decompressStage(const fs::path& input, const fs::path& output,
 // ---- crypto ----
 std::array<uint8_t, 32> deriveKey(const std::string& password,
                                   const std::array<uint8_t,16>& salt);
+void chacha20Xor(const std::array<uint8_t,32>& key, const std::array<uint8_t,12>& nonce,
+                 uint64_t position, uint8_t* data, size_t size);
+void aes256CtrXor(const std::array<uint8_t,32>& key, const std::array<uint8_t,16>& counter,
+                  uint64_t position, uint8_t* data, size_t size);
 void cryptStage(const fs::path& input, const fs::path& output,
                 EncryptionAlgorithm algorithm, const std::string& password,
                 const std::array<uint8_t,16>& salt,

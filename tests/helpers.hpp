@@ -62,6 +62,7 @@ struct BuiltArchive {
     EncryptionAlgorithm encryption;
 };
 void testSha256();
+void testCryptoVectors();
 std::vector<BuiltArchive> testAllCombinations(const fs::path& workspace, const fs::path& source,
                                               const std::vector<std::string>& fixturePaths);
 void testTransformBounds(const fs::path& workspace, const std::vector<BuiltArchive>& archives);

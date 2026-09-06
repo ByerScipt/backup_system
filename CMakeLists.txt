@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(backup_system VERSION 1.4.0 LANGUAGES CXX)
+project(backup_system VERSION 1.5.0 LANGUAGES CXX)
 
 option(BACKUP_BUILD_GUI "Build the optional Qt6 GUI" ON)
 option(BACKUP_BUILD_TESTS "Build automated tests" ON)
@@ -61,8 +61,8 @@ endif()
 
 if(BACKUP_BUILD_TESTS)
     enable_testing()
-    add_executable(backup-tests tests/test_main.cpp tests/helpers.cpp tests/test_combos.cpp tests/test_security.cpp tests/test_network.cpp)
-    target_include_directories(backup-tests PRIVATE tests)
+    add_executable(backup-tests tests/test_main.cpp tests/helpers.cpp tests/test_combos.cpp tests/test_security.cpp tests/test_network.cpp tests/test_crypto_vectors.cpp)
+    target_include_directories(backup-tests PRIVATE tests src)
     target_link_libraries(backup-tests PRIVATE backup_core)
     target_compile_options(backup-tests PRIVATE ${BACKUP_WARNINGS})
     add_test(NAME backup-tests COMMAND backup-tests)

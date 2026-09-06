@@ -3,11 +3,11 @@
 当前交付版本：`v1.4.0`。
 
 面向 Linux/POSIX 的 C++17 课程项目。系统采用流式流水线，包含两种自研打包算法、
-RLE/Huffman 压缩、XOR/Vigenère 教学加密、双 SHA-256 完整性校验、CLI、Qt6 GUI，
+RLE/Huffman 压缩、ChaCha20/AES-256 自研加密、双 SHA-256 完整性校验、CLI、Qt6 GUI，
 以及账号隔离的基础网络备份服务。
 
-> XOR 与 Vigenère 仅用于算法教学，不适合保护生产环境中的敏感数据。网络版定位为
-> 可信局域网演示，不提供 TLS。
+> ChaCha20（RFC 8439）与 AES-256 CTR 均为完整自研实现（无第三方密码代码），
+> 密钥由口令经随机盐迭代 SHA-256 派生。网络版定位为可信局域网演示，不提供 TLS。
 
 ## 快速构建
 
@@ -60,9 +60,9 @@ Qt6 GUI 采用侧边导航与卡片式任务界面，提供本地备份、本地
 ## 本地命令
 
 ```bash
-# 两种打包 × 三种压缩状态 × 三种加密状态均可组合
+# 两种打包 × 三种压缩状态 × 三种加密状态（none/chacha20/aes256）均可组合
 build/backup-cli backup ./data -o ./data.bak \
-  --pack index --compress huffman --encrypt xor --key-file ./archive.key
+  --pack index --compress huffman --encrypt chacha20 --key-file ./archive.key
 
 build/backup-cli inspect ./data.bak
 build/backup-cli restore ./data.bak -d ./restore --key-file ./archive.key

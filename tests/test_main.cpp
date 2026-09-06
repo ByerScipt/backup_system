@@ -8,8 +8,9 @@
 
 int main() {
     try {
-        std::cout << "[1/4] SHA-256\n";
+        std::cout << "[1/4] SHA-256 and cipher known-answer vectors\n";
         testSha256();
+        testCryptoVectors();
         TempDirectory temp;
         fs::path source = temp.path / "testsrc";
         createFixture(source);

@@ -12,7 +12,7 @@ namespace backup {
 
 enum class PackAlgorithm : uint8_t { Stream = 1, Index = 2 };
 enum class CompressionAlgorithm : uint8_t { None = 0, Rle = 1, Huffman = 2 };
-enum class EncryptionAlgorithm : uint8_t { None = 0, Xor = 1, Vigenere = 2 };
+enum class EncryptionAlgorithm : uint8_t { None = 0, ChaCha20 = 3, Aes256 = 4 };  // ids 1-2 retired with the legacy XOR/Vigenere ciphers
 
 struct ProgressEvent {
     std::string stage;

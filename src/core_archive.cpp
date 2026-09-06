@@ -34,7 +34,11 @@ ParsedHeader readArchiveHeader(std::istream& in) {
     uint8_t pack = readU8(in), compression = readU8(in), encryption = readU8(in);
     ensure(readU8(in) == 0, "non-zero archive reserved byte");
     ensure(pack == 1 || pack == 2, "invalid pack algorithm identifier");
-    ensure(compression <= 2 && encryption <= 2, "invalid transform algorithm identifier");
+    ensure(compression <= 2 &&
+           (encryption == 0 || encryption == 3 || encryption == 4),
+           "invalid transform algorithm identifier");
+    ensure(encryption != 1 && encryption != 2,
+           "legacy XOR/Vigenere archives are no longer supported");
     parsed.info.pack = static_cast<PackAlgorithm>(pack);
     parsed.info.compression = static_cast<CompressionAlgorithm>(compression);
     parsed.info.encryption = static_cast<EncryptionAlgorithm>(encryption);

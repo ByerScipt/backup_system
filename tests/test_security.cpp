@@ -150,7 +150,7 @@ void testFailureModes(const fs::path& workspace, const fs::path& source,
                       const std::vector<BuiltArchive>& archives) {
     const auto& encrypted = findArchive(archives, PackAlgorithm::Stream,
                                         CompressionAlgorithm::Huffman,
-                                        EncryptionAlgorithm::Xor);
+                                        EncryptionAlgorithm::ChaCha20);
     RestoreOptions wrong;
     wrong.password = "wrong password";
     auto wrongResult = BackupEngine::restore(
