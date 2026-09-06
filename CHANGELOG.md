@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.4.0
+
+- 去 AI 味工程拆分：`core 1716行` 拆为 11 个模块、`network 432行` 拆为 6 个模块、`cli/gui/tests` 全部按页面/功能分文件，最大文件从 1783 行降到 504 行。
+- `net_client` 按注册/上传/列表/下载拆分并展开为多行实现；超小文件合并 4 组，总行数 6008→5669。
+- 公共 Qt/系统头收敛到 `gui_common.hpp`/`helpers.hpp`，各 cpp 只留一行引用，去除重复脚手架。
+- 化简内部断言：Huffman 不可能溢出的频率检查改注释/`assert`，还原字节计数去掉 EB 级溢出检查，`safeArchivePath` 去重，行为与测试全不变（`ctest` 全绿）。
+
 ## v1.3.0
 
 - 按 Qt 字体数据库选择统一的简体中文字体，Linux 优先使用 Noto Sans CJK SC，并保留跨平台回退顺序。
