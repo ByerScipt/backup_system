@@ -1,6 +1,6 @@
 # Backup Studio 数据备份与还原系统
 
-当前交付版本：`v1.3.0`。
+当前交付版本：`v1.4.0`。
 
 面向 Linux/POSIX 的 C++17 课程项目。系统采用流式流水线，包含两种自研打包算法、
 RLE/Huffman 压缩、XOR/Vigenère 教学加密、双 SHA-256 完整性校验、CLI、Qt6 GUI，
@@ -38,8 +38,23 @@ Qt6 GUI 采用侧边导航与卡片式任务界面，提供本地备份、本地
 
 ## 工程结构
 
-`include/backup` 与 `src` 是唯一核心实现；`cli`、`gui`、`server` 是三个薄入口；
-`tests` 放自动化门禁，`scripts` 放构建和性能复验，`deploy` 只放服务器配置示例。
+公开接口只有 `include/backup/core.hpp`（本地流水线）与 `network.hpp`（远程服务）；
+实现按功能分文件，各文件均在 150 行左右，最大不超过 510 行：
+
+- `src/core_*.cpp`（11 个）：`common`（错误/IO/临时文件）、`sha256_impl`、`entry`（扫描/元数据）、
+  `pack`（顺序/索引打包）、`compress_rle`（含压缩调度）、`compress_huffman`、`crypto`、
+  `archive`（包头/解码）、`restore`（fd 安全还原）、`engine`（BackupEngine 组装），共享声明在
+  `src/core_internal.hpp`（`backup::detail`）。
+- `src/net_*.cpp`（7 个）：`io`（Socket/帧协议）、`auth_store`（挑战登录/users.db）、
+  `server`、`client_simple`（建连/注册/列表）、`client_upload`、`client_download`，
+  共享声明在 `src/net_internal.hpp`（`backup::network::detail`）。
+- `cli/`：`cli_args`（参数/密钥）、`commands`（本地/远程命令）、瘦 `main`（分发）。
+- `gui/`：`theme`、`widgets`（卡片/任务）、`setup`（算法/服务器表单）、`dialogs`、
+  `pages_local`、`pages_remote`、`pages_user`、`main_window`（组装），共享声明在
+  `gui_common.hpp`，入口 `main` 只做 QApplication 装配。
+- `tests/`：`helpers`（Fixture/树比较）、`test_combos`（18 种组合）、`test_security`
+  （篡改/截断/竞态）、`test_network`，瘦 `test_main` 只做四段编排。
+- `server/` 仍是单薄服务入口；`scripts` 放构建和性能复验，`deploy` 只放服务器配置示例。
 课程报告、PDF/PPT、视频和证书始终位于同级 `../backup_system_delivery`。
 
 ## 本地命令
