@@ -12,7 +12,11 @@ namespace backup {
 
 enum class PackAlgorithm : uint8_t { Stream = 1, Index = 2 };
 enum class CompressionAlgorithm : uint8_t { None = 0, Rle = 1, Huffman = 2 };
-enum class EncryptionAlgorithm : uint8_t { None = 0, ChaCha20 = 3, Aes256 = 4 };  // ids 1-2 retired with the legacy XOR/Vigenere ciphers
+enum class EncryptionAlgorithm : uint8_t {
+    None = 0,
+    ChaCha20 = 3,
+    Aes256 = 4
+}; // ids 1-2 retired with the legacy XOR/Vigenere ciphers
 
 struct ProgressEvent {
     std::string stage;
@@ -71,8 +75,7 @@ struct RestorePreview {
 
 class BackupEngine {
 public:
-    static BackupResult create(const std::string& sourceDirectory,
-                               const std::string& archivePath,
+    static BackupResult create(const std::string& sourceDirectory, const std::string& archivePath,
                                const BackupOptions& options);
 
     static BackupResult restore(const std::string& archivePath,
@@ -88,9 +91,8 @@ public:
 
 std::array<uint8_t, 32> sha256(const std::vector<uint8_t>& data);
 std::array<uint8_t, 32> sha256(const std::string& data);
-std::array<uint8_t, 32> sha256File(const std::string& path,
-                                  uint64_t offset = 0,
-                                  uint64_t length = UINT64_MAX);
+std::array<uint8_t, 32> sha256File(const std::string& path, uint64_t offset = 0,
+                                   uint64_t length = UINT64_MAX);
 std::string hexDigest(const std::array<uint8_t, 32>& digest);
 
 std::string toString(PackAlgorithm value);

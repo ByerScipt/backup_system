@@ -1,27 +1,22 @@
 #include "helpers.hpp"
 
-
-
 namespace fs = std::filesystem;
 using namespace backup;
 
 void testSha256() {
     check(hexDigest(sha256(std::string("abc"))) ==
-          "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+              "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
           "SHA-256 known vector failed");
 }
 
-
-std::vector<BuiltArchive> testAllCombinations(
-    const fs::path& workspace, const fs::path& source,
-    const std::vector<std::string>& fixturePaths) {
+std::vector<BuiltArchive> testAllCombinations(const fs::path& workspace, const fs::path& source,
+                                              const std::vector<std::string>& fixturePaths) {
     std::vector<BuiltArchive> archives;
     int number = 0;
     for (auto pack : {PackAlgorithm::Stream, PackAlgorithm::Index}) {
         for (auto compression : {CompressionAlgorithm::None, CompressionAlgorithm::Rle,
                                  CompressionAlgorithm::Huffman}) {
-            for (auto encryption : {EncryptionAlgorithm::None,
-                                    EncryptionAlgorithm::ChaCha20,
+            for (auto encryption : {EncryptionAlgorithm::None, EncryptionAlgorithm::ChaCha20,
                                     EncryptionAlgorithm::Aes256}) {
                 normalizeAtimes(source, fixturePaths);
                 TreeSnapshot expected = snapshotKnownTree(source, fixturePaths);
@@ -37,12 +32,14 @@ std::vector<BuiltArchive> testAllCombinations(
                 check(created.success, "combination backup failed: " + created.message);
                 auto info = BackupEngine::inspect(archive.string());
                 check(info.pack == pack && info.compression == compression &&
-                      info.encryption == encryption, "inspect algorithm mismatch");
+                          info.encryption == encryption,
+                      "inspect algorithm mismatch");
 
                 fs::path destination = workspace / ("restore-" + std::to_string(number));
                 RestoreOptions restore;
                 restore.password = options.password;
-                auto restored = BackupEngine::restore(archive.string(), destination.string(), restore);
+                auto restored =
+                    BackupEngine::restore(archive.string(), destination.string(), restore);
                 check(restored.success, "combination restore failed: " + restored.message);
                 compareCompleteTree(destination / source.filename(), fixturePaths, expected);
                 archives.push_back({archive, pack, compression, encryption});
@@ -54,9 +51,8 @@ std::vector<BuiltArchive> testAllCombinations(
     return archives;
 }
 
-const BuiltArchive& findArchive(const std::vector<BuiltArchive>& archives,
-                                PackAlgorithm pack, CompressionAlgorithm compression,
-                                EncryptionAlgorithm encryption) {
+const BuiltArchive& findArchive(const std::vector<BuiltArchive>& archives, PackAlgorithm pack,
+                                CompressionAlgorithm compression, EncryptionAlgorithm encryption) {
     auto found = std::find_if(archives.begin(), archives.end(), [&](const auto& archive) {
         return archive.pack == pack && archive.compression == compression &&
                archive.encryption == encryption;
@@ -73,4 +69,3 @@ uint64_t readLe64(const std::vector<uint8_t>& bytes, size_t offset) {
     }
     return value;
 }
-

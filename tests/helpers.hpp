@@ -1,23 +1,23 @@
 #pragma once
 #include "backup/core.hpp"
 #include "backup/network.hpp"
-#include <filesystem>
-#include <map>
-#include <string>
-#include <vector>
-#include <unistd.h>
-#include <sys/un.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <fcntl.h>
 #include <arpa/inet.h>
-#include <thread>
-#include <stdexcept>
-#include <iostream>
-#include <fstream>
-#include <cstring>
-#include <chrono>
 #include <array>
+#include <chrono>
+#include <cstring>
+#include <fcntl.h>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <map>
+#include <stdexcept>
+#include <string>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <thread>
+#include <unistd.h>
+#include <vector>
 namespace fs = std::filesystem;
 using namespace backup;
 
@@ -72,9 +72,11 @@ void testRestoreRaces(const fs::path& workspace, const fs::path& source,
 void testFailureModes(const fs::path& workspace, const fs::path& source,
                       const std::vector<BuiltArchive>& archives);
 void testNetwork(const fs::path& workspace, const fs::path& archive);
-const BuiltArchive& findArchive(const std::vector<BuiltArchive>& archives, PackAlgorithm pack, CompressionAlgorithm comp, EncryptionAlgorithm enc);
+const BuiltArchive& findArchive(const std::vector<BuiltArchive>& archives, PackAlgorithm pack,
+                                CompressionAlgorithm comp, EncryptionAlgorithm enc);
 uint64_t readLe64(const std::vector<uint8_t>& bytes, size_t offset);
 void writeLe64(std::vector<uint8_t>& bytes, size_t offset, uint64_t value);
 void refreshPayloadDigests(std::vector<uint8_t>& archive, bool packedIsPayload);
-void expectRestoreFailure(const fs::path& archive, const fs::path& destination, const std::string& context);
+void expectRestoreFailure(const fs::path& archive, const fs::path& destination,
+                          const std::string& context);
 uint16_t reservePort();

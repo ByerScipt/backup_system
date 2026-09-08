@@ -1,11 +1,21 @@
-#include "gui_common.hpp"
+#include "ui.hpp"
+#include <QAbstractButton>
+#include <QEvent>
+#include <QFile>
+#include <QFont>
+#include <QFontDatabase>
+#include <QIcon>
+#include <QMessageBox>
+#include <QStringList>
+#include <algorithm>
 
+namespace backup::gui {
+
+namespace {
 QString preferredChineseFontFamily() {
-    const QStringList installed =
-        QFontDatabase::families(QFontDatabase::SimplifiedChinese);
-    const QStringList preferred = {
-        "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei UI",
-        "Microsoft YaHei", "PingFang SC", "Droid Sans Fallback"};
+    const QStringList installed = QFontDatabase::families(QFontDatabase::SimplifiedChinese);
+    const QStringList preferred = {"Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei UI",
+                                   "Microsoft YaHei",  "PingFang SC",        "Droid Sans Fallback"};
     for (const QString& candidate : preferred) {
         for (const QString& family : installed) {
             if (family.compare(candidate, Qt::CaseInsensitive) == 0) {
@@ -16,17 +26,17 @@ QString preferredChineseFontFamily() {
     return QFontDatabase::systemFont(QFontDatabase::GeneralFont).family();
 }
 
+} // namespace
+
 QFont applicationFont() {
     QFont font = QFontDatabase::systemFont(QFontDatabase::GeneralFont);
     font.setFamilies({preferredChineseFontFamily()});
-    const qreal systemPointSize =
-        font.pointSizeF() > 0.0 ? font.pointSizeF() : 10.0;
+    const qreal systemPointSize = font.pointSizeF() > 0.0 ? font.pointSizeF() : 10.0;
     font.setPointSizeF(std::max<qreal>(11.0, systemPointSize));
     font.setStyleHint(QFont::SansSerif);
     font.setStyleStrategy(QFont::PreferAntialias);
     return font;
 }
-
 
 bool MessageBoxButtonIconFilter::eventFilter(QObject* watched, QEvent* event) {
     if (event->type() == QEvent::Show) {
@@ -39,38 +49,32 @@ bool MessageBoxButtonIconFilter::eventFilter(QObject* watched, QEvent* event) {
     return QObject::eventFilter(watched, event);
 }
 
-QString stageName(const QString& stage) {
-    if (stage == "scan") return "扫描目录";
-    if (stage == "pack") return "写入归档";
-    if (stage == "compress-rle") return "RLE 压缩";
-    if (stage == "decompress-rle") return "RLE 解压";
-    if (stage == "huffman-count") return "Huffman 统计";
-    if (stage == "compress-huffman") return "Huffman 压缩";
-    if (stage == "decompress-huffman") return "Huffman 解压";
-    if (stage == "encrypt") return "加密载荷";
-    if (stage == "decrypt") return "解密载荷";
-    if (stage == "extract") return "提取文件";
-    if (stage == "restore-entry") return "恢复元数据";
-    if (stage == "upload") return "上传归档";
-    if (stage == "download") return "下载归档";
-    if (stage == "conflict-preview") return "冲突预检";
-    return stage;
+QString applicationStyle(qreal scale) {
+    QFile file(":/style.qss");
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    QString style = QString::fromUtf8(file.readAll());
+
+    const auto points = [scale](qreal base) { return QString::number(base * scale, 'f', 1); };
+    const auto pixels = [scale](int base) {
+        return QString::number(qRound(static_cast<qreal>(base) * scale));
+    };
+    style.replace("@BASE_PT@", points(11.0));
+    style.replace("@SMALL_PT@", points(9.5));
+    style.replace("@TINY_PT@", points(8.5));
+    style.replace("@BRAND_PT@", points(14.0));
+    style.replace("@TITLE_PT@", points(20.0));
+    style.replace("@CARD_PT@", points(12.0));
+    style.replace("@STEP_PT@", points(14.0));
+    style.replace("@NAV_H@", pixels(44));
+    style.replace("@CONTROL_H@", pixels(40));
+    style.replace("@QUIET_H@", pixels(32));
+    style.replace("@CHECK_SIZE@", pixels(18));
+    style.replace("@PROGRESS_H@", pixels(22));
+    style.replace("@HEADER_H@", pixels(36));
+    style.replace("@SCROLL_W@", pixels(10));
+    style.replace("@STEP_W@", pixels(40));
+    return style;
 }
 
-QString formatBytes(uint64_t bytes) {
-    static constexpr const char* units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
-    double value = static_cast<double>(bytes);
-    size_t unit = 0;
-    while (value >= 1024.0 && unit + 1 < std::size(units)) {
-        value /= 1024.0;
-        ++unit;
-    }
-    const int precision = unit == 0 ? 0 : (value >= 100.0 ? 0 : 1);
-    return QString("%1 %2").arg(QString::number(value, 'f', precision), units[unit]);
-}
-
-void appendLog(QTextEdit* log, const QString& text) {
-    log->append(QString("[%1]  %2")
-                    .arg(QDateTime::currentDateTime().toString("HH:mm:ss"), text));
-}
-
+} // namespace backup::gui

@@ -1,16 +1,18 @@
-#include "core_internal.hpp"
+#include "internal.hpp"
 
 namespace backup {
 namespace detail {
 
 void writeArchiveHeader(std::ostream& out, const ArchiveInfo& info,
-                        const std::array<uint8_t,16>& salt) {
+                        const std::array<uint8_t, 16>& salt) {
     writeExact(out, kArchiveMagic.data(), kArchiveMagic.size());
     writeU16(out, kArchiveVersion);
     writeU16(out, kArchiveHeaderSize);
     uint32_t flags = 1u;
-    if (info.compression != CompressionAlgorithm::None) flags |= 2u;
-    if (info.encryption != EncryptionAlgorithm::None) flags |= 4u;
+    if (info.compression != CompressionAlgorithm::None)
+        flags |= 2u;
+    if (info.encryption != EncryptionAlgorithm::None)
+        flags |= 4u;
     writeU32(out, flags);
     writeU8(out, static_cast<uint8_t>(info.pack));
     writeU8(out, static_cast<uint8_t>(info.compression));
@@ -25,7 +27,8 @@ void writeArchiveHeader(std::ostream& out, const ArchiveInfo& info,
 
 ParsedHeader readArchiveHeader(std::istream& in) {
     ParsedHeader parsed;
-    std::array<char,4> magic{}; readExact(in, magic.data(), magic.size());
+    std::array<char, 4> magic{};
+    readExact(in, magic.data(), magic.size());
     ensure(magic == kArchiveMagic, "invalid archive magic; expected BKP2");
     parsed.info.version = readU16(in);
     ensure(parsed.info.version == kArchiveVersion, "unsupported archive version");
@@ -34,8 +37,7 @@ ParsedHeader readArchiveHeader(std::istream& in) {
     uint8_t pack = readU8(in), compression = readU8(in), encryption = readU8(in);
     ensure(readU8(in) == 0, "non-zero archive reserved byte");
     ensure(pack == 1 || pack == 2, "invalid pack algorithm identifier");
-    ensure(compression <= 2 &&
-           (encryption == 0 || encryption == 3 || encryption == 4),
+    ensure(compression <= 2 && (encryption == 0 || encryption == 3 || encryption == 4),
            "invalid transform algorithm identifier");
     ensure(encryption != 1 && encryption != 2,
            "legacy XOR/Vigenere archives are no longer supported");
@@ -43,7 +45,7 @@ ParsedHeader readArchiveHeader(std::istream& in) {
     parsed.info.compression = static_cast<CompressionAlgorithm>(compression);
     parsed.info.encryption = static_cast<EncryptionAlgorithm>(encryption);
     ensure((flags & 1u) && ((flags & 2u) != 0) == (compression != 0) &&
-           ((flags & 4u) != 0) == (encryption != 0) && (flags & ~7u) == 0,
+               ((flags & 4u) != 0) == (encryption != 0) && (flags & ~7u) == 0,
            "archive flags do not match algorithm identifiers");
     parsed.info.packedSize = readU64(in);
     parsed.info.encodedSize = readU64(in);
@@ -77,7 +79,8 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
         std::ofstream out(encoded.path(), std::ios::binary | std::ios::trunc);
         ensure(in.good() && out.good(), "cannot prepare restore payload");
         in.seekg(kArchiveHeaderSize);
-        copyBytes(in, out, header.info.encodedSize, options.progress, "read-archive", options.cancel);
+        copyBytes(in, out, header.info.encodedSize, options.progress, "read-archive",
+                  options.cancel);
     }
     TempFile compressed;
     cryptStage(encoded.path(), compressed.path(), header.info.encryption, options.password,
@@ -96,13 +99,20 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
 
 std::string entryTypeName(EntryType type) {
     switch (type) {
-    case EntryType::Regular: return "file";
-    case EntryType::Directory: return "directory";
-    case EntryType::Symlink: return "symlink";
-    case EntryType::Fifo: return "fifo";
-    case EntryType::Character: return "character-device";
-    case EntryType::Block: return "block-device";
-    case EntryType::Socket: return "unix-socket";
+    case EntryType::Regular:
+        return "file";
+    case EntryType::Directory:
+        return "directory";
+    case EntryType::Symlink:
+        return "symlink";
+    case EntryType::Fifo:
+        return "fifo";
+    case EntryType::Character:
+        return "character-device";
+    case EntryType::Block:
+        return "block-device";
+    case EntryType::Socket:
+        return "unix-socket";
     }
     return "unknown";
 }

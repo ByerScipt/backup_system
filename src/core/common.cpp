@@ -1,19 +1,22 @@
-#include "core_internal.hpp"
+#include "internal.hpp"
 
 namespace backup {
 namespace detail {
 
 void ensure(bool condition, const std::string& message) {
-    if (!condition) throw BackupError(message);
+    if (!condition)
+        throw BackupError(message);
 }
 
 void checkCancelled(std::atomic_bool* cancel) {
-    if (cancel && cancel->load()) throw BackupError("operation cancelled");
+    if (cancel && cancel->load())
+        throw BackupError("operation cancelled");
 }
 
-void report(const ProgressCallback& callback, const std::string& stage,
-            uint64_t completed, uint64_t total, const std::string& detail) {
-    if (callback) callback({stage, completed, total, detail});
+void report(const ProgressCallback& callback, const std::string& stage, uint64_t completed,
+            uint64_t total, const std::string& detail) {
+    if (callback)
+        callback({stage, completed, total, detail});
 }
 
 void writeExact(std::ostream& out, const void* data, size_t size) {
@@ -26,7 +29,9 @@ void readExact(std::istream& in, void* data, size_t size) {
     ensure(in.good(), "truncated or unreadable input stream");
 }
 
-void writeU8(std::ostream& out, uint8_t value) { writeExact(out, &value, 1); }
+void writeU8(std::ostream& out, uint8_t value) {
+    writeExact(out, &value, 1);
+}
 
 void writeU16(std::ostream& out, uint16_t value) {
     uint8_t b[2]{static_cast<uint8_t>(value), static_cast<uint8_t>(value >> 8)};
@@ -35,13 +40,15 @@ void writeU16(std::ostream& out, uint16_t value) {
 
 void writeU32(std::ostream& out, uint32_t value) {
     uint8_t b[4];
-    for (int i = 0; i < 4; ++i) b[i] = static_cast<uint8_t>(value >> (i * 8));
+    for (int i = 0; i < 4; ++i)
+        b[i] = static_cast<uint8_t>(value >> (i * 8));
     writeExact(out, b, sizeof(b));
 }
 
 void writeU64(std::ostream& out, uint64_t value) {
     uint8_t b[8];
-    for (int i = 0; i < 8; ++i) b[i] = static_cast<uint8_t>(value >> (i * 8));
+    for (int i = 0; i < 8; ++i)
+        b[i] = static_cast<uint8_t>(value >> (i * 8));
     writeExact(out, b, sizeof(b));
 }
 
@@ -52,35 +59,42 @@ uint8_t readU8(std::istream& in) {
 }
 
 uint16_t readU16(std::istream& in) {
-    uint8_t b[2]; readExact(in, b, 2);
+    uint8_t b[2];
+    readExact(in, b, 2);
     return static_cast<uint16_t>(b[0]) | (static_cast<uint16_t>(b[1]) << 8);
 }
 
 uint32_t readU32(std::istream& in) {
-    uint8_t b[4]; readExact(in, b, 4);
+    uint8_t b[4];
+    readExact(in, b, 4);
     uint32_t v = 0;
-    for (int i = 0; i < 4; ++i) v |= static_cast<uint32_t>(b[i]) << (i * 8);
+    for (int i = 0; i < 4; ++i)
+        v |= static_cast<uint32_t>(b[i]) << (i * 8);
     return v;
 }
 
 uint64_t readU64(std::istream& in) {
-    uint8_t b[8]; readExact(in, b, 8);
+    uint8_t b[8];
+    readExact(in, b, 8);
     uint64_t v = 0;
-    for (int i = 0; i < 8; ++i) v |= static_cast<uint64_t>(b[i]) << (i * 8);
+    for (int i = 0; i < 8; ++i)
+        v |= static_cast<uint64_t>(b[i]) << (i * 8);
     return v;
 }
 
 void writeString(std::ostream& out, const std::string& value) {
     ensure(value.size() <= kMaxString, "archive string is too long");
     writeU32(out, static_cast<uint32_t>(value.size()));
-    if (!value.empty()) writeExact(out, value.data(), value.size());
+    if (!value.empty())
+        writeExact(out, value.data(), value.size());
 }
 
 std::string readString(std::istream& in) {
     uint32_t size = readU32(in);
     ensure(size <= kMaxString, "archive string length exceeds safety limit");
     std::string value(size, '\0');
-    if (size) readExact(in, value.data(), size);
+    if (size)
+        readExact(in, value.data(), size);
     ensure(value.find('\0') == std::string::npos, "archive path contains NUL");
     return value;
 }
@@ -97,7 +111,8 @@ void copyBytes(std::istream& in, std::ostream& out, uint64_t count,
         ensure(static_cast<size_t>(in.gcount()) == wanted, "truncated input while copying data");
         writeExact(out, buffer.data(), wanted);
         done += wanted;
-        if (!stage.empty()) report(callback, stage, done, count);
+        if (!stage.empty())
+            report(callback, stage, done, count);
     }
 }
 
@@ -114,16 +129,15 @@ TempFile::TempFile(const fs::path& directory) {
 }
 
 TempFile::~TempFile() {
-    if (!keep_) {
-        std::error_code ec;
-        fs::remove(path_, ec);
-    }
+    std::error_code ec;
+    fs::remove(path_, ec);
 }
 
 void commitFileNoReplace(const fs::path& temporary, const fs::path& output) {
 #if defined(__linux__) && defined(SYS_renameat2)
-    if (::syscall(SYS_renameat2, AT_FDCWD, temporary.c_str(), AT_FDCWD,
-                  output.c_str(), RENAME_NOREPLACE) == 0) return;
+    if (::syscall(SYS_renameat2, AT_FDCWD, temporary.c_str(), AT_FDCWD, output.c_str(),
+                  RENAME_NOREPLACE) == 0)
+        return;
     if (errno != ENOSYS && errno != EINVAL)
         throw BackupError("cannot atomically commit output without replacement: " +
                           std::string(std::strerror(errno)));
@@ -134,10 +148,12 @@ void commitFileNoReplace(const fs::path& temporary, const fs::path& output) {
 }
 
 bool isPathInside(const fs::path& child, const fs::path& parent) {
-    auto c = child.lexically_normal(); auto p = parent.lexically_normal();
+    auto c = child.lexically_normal();
+    auto p = parent.lexically_normal();
     auto ci = c.begin(), pi = p.begin();
     for (; pi != p.end(); ++pi, ++ci) {
-        if (ci == c.end() || *ci != *pi) return false;
+        if (ci == c.end() || *ci != *pi)
+            return false;
     }
     return true;
 }
@@ -148,8 +164,8 @@ size_t pathDepth(const fs::path& path) {
 
 void warnMetadata(const std::string& operation, const fs::path& path) {
     int error = errno;
-    std::cerr << "Warning: " << operation << " failed for " << path << ": "
-              << std::strerror(error) << '\n';
+    std::cerr << "Warning: " << operation << " failed for " << path << ": " << std::strerror(error)
+              << '\n';
 }
 } // namespace detail
 } // namespace backup

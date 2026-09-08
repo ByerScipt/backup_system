@@ -1,4 +1,4 @@
-#include "cli_args.hpp"
+#include "arguments.hpp"
 #include "commands.hpp"
 
 #include <iostream>
@@ -38,19 +38,32 @@ int main(int argc, char* argv[]) {
             std::cout << "backup-cli " << BACKUP_SYSTEM_VERSION << "\n";
             return 0;
         }
-        if (argc < 2 || std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") { usage(); return argc < 2 ? 1 : 0; }
-        std::string command=argv[1];
-        if(command=="user"){
-            if(argc<3||std::string(argv[2])!="register")throw std::runtime_error("only 'user register' is supported");
-            return registerUser(parseArgs(argc,argv,3));
+        if (argc < 2 || std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") {
+            usage();
+            return argc < 2 ? 1 : 0;
         }
-        Arguments args=parseArgs(argc,argv,2);
-        if(command=="backup")return localBackup(args);
-        if(command=="restore")return localRestore(args);
-        if(command=="inspect")return inspectArchive(args);
-        if(command=="remote-backup")return remoteBackup(args);
-        if(command=="remote-list")return remoteList(args);
-        if(command=="remote-restore")return remoteRestore(args);
-        throw std::runtime_error("unknown command: "+command);
-    } catch(const std::exception& error){std::cerr<<"Error: "<<error.what()<<"\n";return 1;}
+        std::string command = argv[1];
+        if (command == "user") {
+            if (argc < 3 || std::string(argv[2]) != "register")
+                throw std::runtime_error("only 'user register' is supported");
+            return registerUser(parseArgs(argc, argv, 3));
+        }
+        Arguments args = parseArgs(argc, argv, 2);
+        if (command == "backup")
+            return localBackup(args);
+        if (command == "restore")
+            return localRestore(args);
+        if (command == "inspect")
+            return inspectArchive(args);
+        if (command == "remote-backup")
+            return remoteBackup(args);
+        if (command == "remote-list")
+            return remoteList(args);
+        if (command == "remote-restore")
+            return remoteRestore(args);
+        throw std::runtime_error("unknown command: " + command);
+    } catch (const std::exception& error) {
+        std::cerr << "Error: " << error.what() << "\n";
+        return 1;
+    }
 }

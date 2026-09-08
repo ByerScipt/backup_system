@@ -1,7 +1,5 @@
 #include "helpers.hpp"
 
-
-
 namespace fs = std::filesystem;
 using namespace backup;
 
@@ -17,7 +15,8 @@ void refreshPayloadDigests(std::vector<uint8_t>& archive, bool packedIsPayload) 
     std::vector<uint8_t> payload(archive.begin() + 112, archive.end());
     auto digest = sha256(payload);
     std::copy(digest.begin(), digest.end(), archive.begin() + 80);
-    if (packedIsPayload) std::copy(digest.begin(), digest.end(), archive.begin() + 48);
+    if (packedIsPayload)
+        std::copy(digest.begin(), digest.end(), archive.begin() + 48);
 }
 
 void expectRestoreFailure(const fs::path& archive, const fs::path& destination,
@@ -30,28 +29,26 @@ void expectRestoreFailure(const fs::path& archive, const fs::path& destination,
     }
 }
 
-void testTransformBounds(const fs::path& workspace,
-                         const std::vector<BuiltArchive>& archives) {
+void testTransformBounds(const fs::path& workspace, const std::vector<BuiltArchive>& archives) {
     for (auto compression : {CompressionAlgorithm::Rle, CompressionAlgorithm::Huffman}) {
-        const auto& source = findArchive(archives, PackAlgorithm::Stream, compression,
-                                         EncryptionAlgorithm::None);
+        const auto& source =
+            findArchive(archives, PackAlgorithm::Stream, compression, EncryptionAlgorithm::None);
         std::vector<uint8_t> bytes = readBytes(source.path);
         uint64_t packedSize = readLe64(bytes, 16);
         writeLe64(bytes, 116, packedSize + 1);
         refreshPayloadDigests(bytes, false);
-        fs::path malformed = workspace /
-            (compression == CompressionAlgorithm::Rle ? "rle-over-output.bak"
-                                                      : "huffman-over-output.bak");
+        fs::path malformed =
+            workspace / (compression == CompressionAlgorithm::Rle ? "rle-over-output.bak"
+                                                                  : "huffman-over-output.bak");
         writeBytes(malformed, bytes);
-        expectRestoreFailure(
-            malformed, workspace / (malformed.stem().string() + "-target"),
-            compression == CompressionAlgorithm::Rle ? "RLE declared output size"
-                                                     : "Huffman declared output size");
+        expectRestoreFailure(malformed, workspace / (malformed.stem().string() + "-target"),
+                             compression == CompressionAlgorithm::Rle
+                                 ? "RLE declared output size"
+                                 : "Huffman declared output size");
     }
 
     const auto& huffman = findArchive(archives, PackAlgorithm::Stream,
-                                      CompressionAlgorithm::Huffman,
-                                      EncryptionAlgorithm::None);
+                                      CompressionAlgorithm::Huffman, EncryptionAlgorithm::None);
     std::vector<uint8_t> emptyArchive = readBytes(huffman.path);
     emptyArchive.resize(112);
     std::vector<uint8_t> emptyPayload{'H', 'U', 'F', '1'};
@@ -64,10 +61,9 @@ void testTransformBounds(const fs::path& workspace,
     refreshPayloadDigests(emptyArchive, false);
     fs::path empty = workspace / "huffman-empty.bak";
     writeBytes(empty, emptyArchive);
-    auto emptyResult = BackupEngine::restore(
-        empty.string(), (workspace / "huffman-empty-target").string(), {});
-    check(!emptyResult.success &&
-          emptyResult.message.find("Huffman") == std::string::npos,
+    auto emptyResult =
+        BackupEngine::restore(empty.string(), (workspace / "huffman-empty-target").string(), {});
+    check(!emptyResult.success && emptyResult.message.find("Huffman") == std::string::npos,
           "empty Huffman stream did not pass decompression safely");
 
     std::vector<uint8_t> padding = readBytes(huffman.path);
@@ -78,10 +74,8 @@ void testTransformBounds(const fs::path& workspace,
     expectRestoreFailure(nonZeroPadding, workspace / "huffman-padding-target");
 }
 
-void testIndexBounds(const fs::path& workspace,
-                     const std::vector<BuiltArchive>& archives) {
-    const auto& source = findArchive(archives, PackAlgorithm::Index,
-                                     CompressionAlgorithm::None,
+void testIndexBounds(const fs::path& workspace, const std::vector<BuiltArchive>& archives) {
+    const auto& source = findArchive(archives, PackAlgorithm::Index, CompressionAlgorithm::None,
                                      EncryptionAlgorithm::None);
     std::vector<uint8_t> bytes = readBytes(source.path);
     size_t trailer = bytes.size() - 32;
@@ -99,14 +93,12 @@ void testIndexBounds(const fs::path& workspace,
     refreshPayloadDigests(bytes, true);
     fs::path reserved = workspace / "index-reserved.bak";
     writeBytes(reserved, bytes);
-    expectRestoreFailure(reserved, workspace / "index-reserved-target",
-                         "reserved field");
+    expectRestoreFailure(reserved, workspace / "index-reserved-target", "reserved field");
 }
 
 void testRestoreRaces(const fs::path& workspace, const fs::path& source,
                       const std::vector<BuiltArchive>& archives) {
-    const auto& plain = findArchive(archives, PackAlgorithm::Stream,
-                                    CompressionAlgorithm::None,
+    const auto& plain = findArchive(archives, PackAlgorithm::Stream, CompressionAlgorithm::None,
                                     EncryptionAlgorithm::None);
     fs::path conflictDestination = workspace / "late-conflict";
     fs::path lateTarget = conflictDestination / source.filename() / "hello.txt";
@@ -118,8 +110,8 @@ void testRestoreRaces(const fs::path& workspace, const fs::path& source,
             conflictInjected = true;
         }
     };
-    auto conflictResult = BackupEngine::restore(
-        plain.path.string(), conflictDestination.string(), noOverwrite);
+    auto conflictResult =
+        BackupEngine::restore(plain.path.string(), conflictDestination.string(), noOverwrite);
     check(conflictInjected, "late conflict fixture was not injected");
     check(!conflictResult.success, "late target conflict was overwritten by default");
     check(readBytes(lateTarget) == std::vector<uint8_t>({'k', 'e', 'e', 'p'}),
@@ -139,8 +131,7 @@ void testRestoreRaces(const fs::path& workspace, const fs::path& source,
             symlinkInjected = true;
         }
     };
-    auto raceResult = BackupEngine::restore(
-        plain.path.string(), symlinkDestination.string(), race);
+    auto raceResult = BackupEngine::restore(plain.path.string(), symlinkDestination.string(), race);
     check(symlinkInjected, "parent symlink race fixture was not injected");
     check(!raceResult.success, "symlink parent race escaped restore destination");
     check(!fs::exists(outside / "数据.txt"), "restore wrote through raced symlink parent");
@@ -148,19 +139,18 @@ void testRestoreRaces(const fs::path& workspace, const fs::path& source,
 
 void testFailureModes(const fs::path& workspace, const fs::path& source,
                       const std::vector<BuiltArchive>& archives) {
-    const auto& encrypted = findArchive(archives, PackAlgorithm::Stream,
-                                        CompressionAlgorithm::Huffman,
-                                        EncryptionAlgorithm::ChaCha20);
+    const auto& encrypted =
+        findArchive(archives, PackAlgorithm::Stream, CompressionAlgorithm::Huffman,
+                    EncryptionAlgorithm::ChaCha20);
     RestoreOptions wrong;
     wrong.password = "wrong password";
-    auto wrongResult = BackupEngine::restore(
-        encrypted.path.string(), (workspace / "wrong-password").string(), wrong);
+    auto wrongResult = BackupEngine::restore(encrypted.path.string(),
+                                             (workspace / "wrong-password").string(), wrong);
     check(!wrongResult.success, "wrong password was accepted");
     check(!fs::exists(workspace / "wrong-password" / source.filename()),
           "wrong password created output tree");
 
-    const auto& plain = findArchive(archives, PackAlgorithm::Stream,
-                                    CompressionAlgorithm::None,
+    const auto& plain = findArchive(archives, PackAlgorithm::Stream, CompressionAlgorithm::None,
                                     EncryptionAlgorithm::None);
     fs::path conflict = workspace / "conflict";
     auto first = BackupEngine::restore(plain.path.string(), conflict.string(), {});
@@ -210,14 +200,13 @@ void testFailureModes(const fs::path& workspace, const fs::path& source,
     check(rejected, "invalid algorithm identifier passed inspect");
 
     BackupOptions basicOptions;
-    auto insideResult = BackupEngine::create(
-        source.string(), (source / "inside.bak").string(), basicOptions);
+    auto insideResult =
+        BackupEngine::create(source.string(), (source / "inside.bak").string(), basicOptions);
     check(!insideResult.success, "archive inside source was accepted");
     fs::path brokenOutput = workspace / "broken-output.bak";
     check(::symlink("missing-target", brokenOutput.c_str()) == 0,
           "broken output symlink fixture failed");
-    auto brokenResult = BackupEngine::create(
-        source.string(), brokenOutput.string(), basicOptions);
+    auto brokenResult = BackupEngine::create(source.string(), brokenOutput.string(), basicOptions);
     check(!brokenResult.success && fs::is_symlink(brokenOutput),
           "broken output symlink was overwritten");
 
@@ -225,14 +214,12 @@ void testFailureModes(const fs::path& workspace, const fs::path& source,
     fs::create_directory(mutationSource);
     fs::path mutationFile = mutationSource / "mutable.bin";
     writeBytes(mutationFile, {'o', 'l', 'd', '!'});
-    struct stat originalState{};
-    check(::stat(mutationFile.c_str(), &originalState) == 0,
-          "cannot stat mutation fixture");
+    struct stat originalState {};
+    check(::stat(mutationFile.c_str(), &originalState) == 0, "cannot stat mutation fixture");
     bool replaced = false;
     BackupOptions mutationOptions;
     mutationOptions.progress = [&](const ProgressEvent& event) {
-        if (!replaced && event.stage == "scan" &&
-            event.detail == "mutation-src/mutable.bin") {
+        if (!replaced && event.stage == "scan" && event.detail == "mutation-src/mutable.bin") {
             fs::rename(mutationFile, workspace / "mutation-original.bin");
             writeBytes(mutationFile, {'n', 'e', 'w', '!'});
             timespec times[2]{originalState.st_atim, originalState.st_mtim};
@@ -249,8 +236,7 @@ void testFailureModes(const fs::path& workspace, const fs::path& source,
     std::string root = source.filename().string();
     check(root.size() == 7, "fixture root name must be seven bytes");
     std::vector<uint8_t> malicious = readBytes(plain.path);
-    auto rootAt = std::search(malicious.begin() + 112, malicious.end(),
-                              root.begin(), root.end());
+    auto rootAt = std::search(malicious.begin() + 112, malicious.end(), root.begin(), root.end());
     check(rootAt != malicious.end(), "cannot locate root path fixture");
     std::copy_n("../evil", 7, rootAt);
     refreshPayloadDigests(malicious, true);
@@ -263,8 +249,8 @@ void testFailureModes(const fs::path& workspace, const fs::path& source,
     std::string original = root + "/hello.txt";
     std::string replacement = root + "/empty.bin";
     check(original.size() == replacement.size(), "duplicate fixture lengths differ");
-    auto duplicateAt = std::search(duplicate.begin() + 112, duplicate.end(),
-                                   original.begin(), original.end());
+    auto duplicateAt =
+        std::search(duplicate.begin() + 112, duplicate.end(), original.begin(), original.end());
     check(duplicateAt != duplicate.end(), "cannot locate duplicate path fixture");
     std::copy(replacement.begin(), replacement.end(), duplicateAt);
     refreshPayloadDigests(duplicate, true);
@@ -273,8 +259,7 @@ void testFailureModes(const fs::path& workspace, const fs::path& source,
     expectRestoreFailure(duplicateArchive, workspace / "duplicate-target");
 
     std::vector<uint8_t> oversized = readBytes(plain.path);
-    rootAt = std::search(oversized.begin() + 112, oversized.end(),
-                         root.begin(), root.end());
+    rootAt = std::search(oversized.begin() + 112, oversized.end(), root.begin(), root.end());
     check(rootAt != oversized.end() && rootAt - oversized.begin() >= 4,
           "cannot locate path length fixture");
     std::fill(rootAt - 4, rootAt, 0xff);
@@ -304,8 +289,7 @@ void testFailureModes(const fs::path& workspace, const fs::path& source,
     check(!fs::exists(workspace / "out"), "archive symlink escaped destination");
 
     const auto& huffman = findArchive(archives, PackAlgorithm::Stream,
-                                      CompressionAlgorithm::Huffman,
-                                      EncryptionAlgorithm::None);
+                                      CompressionAlgorithm::Huffman, EncryptionAlgorithm::None);
     std::vector<uint8_t> trailing = readBytes(huffman.path);
     uint64_t encodedSize = readLe64(trailing, 24);
     trailing.push_back(0);

@@ -1,14 +1,13 @@
 #include "helpers.hpp"
 
-
-
 namespace fs = std::filesystem;
 using namespace backup;
 
 bool gSocketFixtureAvailable = false;
 
 void check(bool condition, const std::string& message) {
-    if (!condition) throw std::runtime_error(message);
+    if (!condition)
+        throw std::runtime_error(message);
 }
 
 TempDirectory::TempDirectory() {
@@ -71,7 +70,8 @@ void createFixture(const fs::path& root) {
     check(::chmod((root / "executable.sh").c_str(), 0751) == 0, "chmod fixture failed");
 
     std::vector<uint8_t> allBytes(256);
-    for (int value = 0; value < 256; ++value) allBytes[value] = static_cast<uint8_t>(value);
+    for (int value = 0; value < 256; ++value)
+        allBytes[value] = static_cast<uint8_t>(value);
     writeBytes(root / "all-bytes.bin", allBytes);
 
     std::vector<uint8_t> randomData(8192);
@@ -127,18 +127,16 @@ std::vector<std::string> listTree(const fs::path& root) {
 void normalizeAtimes(const fs::path& root, const std::vector<std::string>& paths) {
     for (size_t index = 0; index < paths.size(); ++index) {
         fs::path path = paths[index] == "." ? root : root / paths[index];
-        struct stat state{};
+        struct stat state {};
         check(::lstat(path.c_str(), &state) == 0, "cannot stat fixture for atime normalization");
-        timespec times[2]{
-            {1700001000 + static_cast<time_t>(index), static_cast<long>((index * 7919) % 1000000000)},
-            state.st_mtim
-        };
+        timespec times[2]{{1700001000 + static_cast<time_t>(index),
+                           static_cast<long>((index * 7919) % 1000000000)},
+                          state.st_mtim};
         int flags = S_ISLNK(state.st_mode) ? AT_SYMLINK_NOFOLLOW : 0;
         check(::utimensat(AT_FDCWD, path.c_str(), times, flags) == 0,
               "cannot normalize fixture atime");
     }
 }
-
 
 std::vector<uint8_t> readWithoutAtime(const fs::path& path, uint64_t size) {
     int flags = O_RDONLY | O_CLOEXEC | O_NOFOLLOW;
@@ -151,7 +149,8 @@ std::vector<uint8_t> readWithoutAtime(const fs::path& path, uint64_t size) {
     size_t done = 0;
     while (done < data.size()) {
         ssize_t count = ::read(fd, data.data() + done, data.size() - done);
-        if (count < 0 && errno == EINTR) continue;
+        if (count < 0 && errno == EINTR)
+            continue;
         check(count > 0, "truncated tree entry: " + path.string());
         done += static_cast<size_t>(count);
     }
@@ -164,7 +163,7 @@ TreeSnapshot snapshotKnownTree(const fs::path& root,
     TreeSnapshot snapshot;
     for (const std::string& relative : expectedPaths) {
         fs::path path = relative == "." ? root : root / relative;
-        struct stat state{};
+        struct stat state {};
         check(::lstat(path.c_str(), &state) == 0, "tree entry is missing: " + relative);
         TreeEntry entry;
         entry.type = state.st_mode & S_IFMT;
@@ -174,7 +173,8 @@ TreeSnapshot snapshotKnownTree(const fs::path& root,
         entry.size = S_ISREG(state.st_mode) ? static_cast<uint64_t>(state.st_size) : 0;
         entry.atime = state.st_atim;
         entry.mtime = state.st_mtim;
-        if (S_ISREG(state.st_mode)) entry.content = readWithoutAtime(path, entry.size);
+        if (S_ISREG(state.st_mode))
+            entry.content = readWithoutAtime(path, entry.size);
         if (S_ISLNK(state.st_mode)) {
             std::vector<char> target(4096);
             ssize_t length = ::readlink(path.c_str(), target.data(), target.size());
@@ -194,12 +194,10 @@ bool sameTime(const timespec& left, const timespec& right) {
     return left.tv_sec == right.tv_sec && left.tv_nsec == right.tv_nsec;
 }
 
-void compareCompleteTree(const fs::path& restored,
-                         const std::vector<std::string>& expectedPaths,
+void compareCompleteTree(const fs::path& restored, const std::vector<std::string>& expectedPaths,
                          const TreeSnapshot& expected) {
     TreeSnapshot actual = snapshotKnownTree(restored, expectedPaths);
-    check(listTree(restored) == expectedPaths,
-          "restored tree has missing or unexpected entries");
+    check(listTree(restored) == expectedPaths, "restored tree has missing or unexpected entries");
     check(actual.size() == expected.size(), "restored tree entry count mismatch");
     for (const auto& [path, source] : expected) {
         const TreeEntry& target = actual.at(path);
@@ -214,7 +212,6 @@ void compareCompleteTree(const fs::path& restored,
         check(sameTime(target.mtime, source.mtime), "nanosecond mtime mismatch: " + path);
     }
 }
-
 
 uint16_t reservePort() {
     int fd = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -242,5 +239,3 @@ uint16_t reservePort() {
     ::close(fd);
     return port;
 }
-
-

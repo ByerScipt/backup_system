@@ -40,17 +40,15 @@ private:
 
 class BackupClient {
 public:
-    BackupClient(std::string host, uint16_t port,
-                 std::string username, std::string password);
+    BackupClient(std::string host, uint16_t port, std::string username, std::string password);
 
     bool registerUser(std::string& error);
     bool upload(const std::string& archivePath, const std::string& displayName,
-                std::string& backupId, std::string& error,
-                ProgressCallback progress = {}, std::atomic_bool* cancel = nullptr);
+                std::string& backupId, std::string& error, ProgressCallback progress = {},
+                std::atomic_bool* cancel = nullptr);
     std::vector<RemoteBackupEntry> list(std::string& error);
-    bool download(const std::string& backupId, const std::string& outputPath,
-                  std::string& error, ProgressCallback progress = {},
-                  std::atomic_bool* cancel = nullptr);
+    bool download(const std::string& backupId, const std::string& outputPath, std::string& error,
+                  ProgressCallback progress = {}, std::atomic_bool* cancel = nullptr);
 
 private:
     std::string host_;

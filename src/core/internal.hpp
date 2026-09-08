@@ -1,7 +1,4 @@
 #pragma once
-// Internal shared header for the core pipeline.
-// Public API stays in include/backup/core.hpp; everything here is
-// implementation detail (backup::detail) so each .cpp stays small.
 #include "backup/core.hpp"
 
 #include <algorithm>
@@ -59,8 +56,8 @@ public:
 
 void ensure(bool condition, const std::string& message);
 void checkCancelled(std::atomic_bool* cancel);
-void report(const ProgressCallback& callback, const std::string& stage,
-            uint64_t completed, uint64_t total, const std::string& detail = {});
+void report(const ProgressCallback& callback, const std::string& stage, uint64_t completed,
+            uint64_t total, const std::string& detail = {});
 
 // ---- io ----
 void writeExact(std::ostream& out, const void* data, size_t size);
@@ -79,9 +76,8 @@ void copyBytes(std::istream& in, std::ostream& out, uint64_t count,
                const ProgressCallback& callback = {}, const std::string& stage = {},
                std::atomic_bool* cancel = nullptr);
 uint64_t fileSizeChecked(const fs::path& path);
-void copyFileStage(const fs::path& input, const fs::path& output,
-                   const std::string& stage, const ProgressCallback& progress,
-                   std::atomic_bool* cancel);
+void copyFileStage(const fs::path& input, const fs::path& output, const std::string& stage,
+                   const ProgressCallback& progress, std::atomic_bool* cancel);
 void commitFileNoReplace(const fs::path& temporary, const fs::path& output);
 bool isPathInside(const fs::path& child, const fs::path& parent);
 size_t pathDepth(const fs::path& path);
@@ -93,11 +89,12 @@ public:
     ~TempFile();
     TempFile(const TempFile&) = delete;
     TempFile& operator=(const TempFile&) = delete;
-    const fs::path& path() const { return path_; }
-    void keep() { keep_ = true; }
+    const fs::path& path() const {
+        return path_;
+    }
+
 private:
     fs::path path_;
-    bool keep_ = false;
 };
 
 // ---- sha ----
@@ -105,8 +102,13 @@ std::array<uint8_t, 32> shaFileRange(const fs::path& path, uint64_t offset, uint
 
 // ---- entry / scan ----
 enum class EntryType : uint8_t {
-    Regular = 1, Directory = 2, Symlink = 3, Fifo = 4,
-    Character = 5, Block = 6, Socket = 7
+    Regular = 1,
+    Directory = 2,
+    Symlink = 3,
+    Fifo = 4,
+    Character = 5,
+    Block = 6,
+    Socket = 7
 };
 
 struct Entry {
@@ -137,56 +139,51 @@ std::vector<Entry> scanDirectory(const fs::path& source, uint64_t& inputBytes,
 void writeEntryMetadata(std::ostream& out, const Entry& e, bool withOffset);
 Entry readEntryMetadata(std::istream& in, bool withOffset);
 bool sameFileState(const struct stat& st, const Entry& e);
-void copySourceFile(const Entry& e, std::ostream& out, uint64_t& completed,
-                    uint64_t total, const BackupOptions& options);
+void copySourceFile(const Entry& e, std::ostream& out, uint64_t& completed, uint64_t total,
+                    const BackupOptions& options);
 bool safeArchivePath(const std::string& value);
 void validateEntries(std::vector<Entry>& entries, uint64_t packedSize);
 
 // ---- pack ----
-void packStream(const std::vector<Entry>& entries, const fs::path& output,
-                uint64_t inputBytes, const BackupOptions& options);
-void packIndex(std::vector<Entry> entries, const fs::path& output,
-               uint64_t inputBytes, const BackupOptions& options);
+void packStream(const std::vector<Entry>& entries, const fs::path& output, uint64_t inputBytes,
+                const BackupOptions& options);
+void packIndex(std::vector<Entry> entries, const fs::path& output, uint64_t inputBytes,
+               const BackupOptions& options);
 std::vector<Entry> readStreamEntries(std::ifstream& in, uint64_t size);
 std::vector<Entry> readIndexEntries(std::ifstream& in, uint64_t size);
 std::vector<Entry> readPackedEntries(const fs::path& packed, PackAlgorithm algorithm);
 
 // ---- compress ----
-void rleCompress(const fs::path& input, const fs::path& output,
-                 const BackupOptions& options);
-void rleDecompress(const fs::path& input, const fs::path& output,
-                   uint64_t expectedSize, const RestoreOptions& options);
-void huffmanCompress(const fs::path& input, const fs::path& output,
-                     const BackupOptions& options);
-void huffmanDecompress(const fs::path& input, const fs::path& output,
-                       uint64_t expectedSize, const RestoreOptions& options);
-void compressStage(const fs::path& input, const fs::path& output,
-                   CompressionAlgorithm algorithm, const BackupOptions& options);
-void decompressStage(const fs::path& input, const fs::path& output,
-                     CompressionAlgorithm algorithm, uint64_t expectedSize,
-                     const RestoreOptions& options);
+void rleCompress(const fs::path& input, const fs::path& output, const BackupOptions& options);
+void rleDecompress(const fs::path& input, const fs::path& output, uint64_t expectedSize,
+                   const RestoreOptions& options);
+void huffmanCompress(const fs::path& input, const fs::path& output, const BackupOptions& options);
+void huffmanDecompress(const fs::path& input, const fs::path& output, uint64_t expectedSize,
+                       const RestoreOptions& options);
+void compressStage(const fs::path& input, const fs::path& output, CompressionAlgorithm algorithm,
+                   const BackupOptions& options);
+void decompressStage(const fs::path& input, const fs::path& output, CompressionAlgorithm algorithm,
+                     uint64_t expectedSize, const RestoreOptions& options);
 
 // ---- crypto ----
-std::array<uint8_t, 32> deriveKey(const std::string& password,
-                                  const std::array<uint8_t,16>& salt);
-void chacha20Xor(const std::array<uint8_t,32>& key, const std::array<uint8_t,12>& nonce,
+std::array<uint8_t, 32> deriveKey(const std::string& password, const std::array<uint8_t, 16>& salt);
+void chacha20Xor(const std::array<uint8_t, 32>& key, const std::array<uint8_t, 12>& nonce,
                  uint64_t position, uint8_t* data, size_t size);
-void aes256CtrXor(const std::array<uint8_t,32>& key, const std::array<uint8_t,16>& counter,
+void aes256CtrXor(const std::array<uint8_t, 32>& key, const std::array<uint8_t, 16>& counter,
                   uint64_t position, uint8_t* data, size_t size);
-void cryptStage(const fs::path& input, const fs::path& output,
-                EncryptionAlgorithm algorithm, const std::string& password,
-                const std::array<uint8_t,16>& salt,
+void cryptStage(const fs::path& input, const fs::path& output, EncryptionAlgorithm algorithm,
+                const std::string& password, const std::array<uint8_t, 16>& salt,
                 const ProgressCallback& progress, std::atomic_bool* cancel,
                 const std::string& stage);
-std::array<uint8_t,16> randomSalt();
+std::array<uint8_t, 16> randomSalt();
 
 // ---- archive ----
 struct ParsedHeader {
     ArchiveInfo info;
-    std::array<uint8_t,16> salt{};
+    std::array<uint8_t, 16> salt{};
 };
 void writeArchiveHeader(std::ostream& out, const ArchiveInfo& info,
-                        const std::array<uint8_t,16>& salt);
+                        const std::array<uint8_t, 16>& salt);
 ParsedHeader readArchiveHeader(std::istream& in);
 ParsedHeader readArchiveHeader(const fs::path& path);
 using DecodedArchiveConsumer =
@@ -196,9 +193,8 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
 std::string entryTypeName(EntryType type);
 
 // ---- restore (fd based) ----
-void extractEntries(const fs::path& packed, const fs::path& destination,
-                    std::vector<Entry> entries, const RestoreOptions& options,
-                    uint64_t& outputBytes);
+void extractEntries(const fs::path& packed, const fs::path& destination, std::vector<Entry> entries,
+                    const RestoreOptions& options, uint64_t& outputBytes);
 
 } // namespace detail
 } // namespace backup

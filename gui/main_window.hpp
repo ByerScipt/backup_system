@@ -1,3 +1,5 @@
 #pragma once
-#include <QMainWindow>
+class QMainWindow;
+namespace backup::gui {
 QMainWindow* createMainWindow();
+}
