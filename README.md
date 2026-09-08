@@ -2,17 +2,16 @@
 
 A C++17 backup and restore application for Linux, with a command-line client, a Qt 6 desktop interface, and a TCP backup server. It stores directory trees in a single archive, with configurable packing, compression, and encryption.
 
-The project implements the archive format and algorithms directly and shares its archive and network libraries across the CLI and GUI. The current application version is **1.5.0**.
+The project implements its archive format, compression, and encryption without external compression or cryptography libraries.
 
 ## Features
 
-- **Local backup and restore:** archive directory trees, inspect archive metadata, and restore file contents and POSIX metadata.
-- **Configurable archive pipeline:** choose sequential or indexed packing, optional RLE or Huffman compression, and optional ChaCha20 or AES-256-CTR encryption. All 18 combinations are supported.
-- **Restore controls:** preview existing-path conflicts in the GUI, reject overwrites by default, and explicitly allow replacement when needed.
-- **Remote storage:** register an account, upload archives, browse backup history, and download and restore backups through an account-isolated server.
-- **Desktop workflow:** six workspaces for local backup, local restore, remote backup, remote restore, backup history, and account registration. Backup and restore jobs run in background threads with progress, logs, and cancellation, including remote transfers.
+- **Archive pipeline:** sequential or indexed packing, with optional RLE or Huffman compression and ChaCha20 or AES-256-CTR encryption.
+- **Files and metadata:** archive and restore directory trees, permissions, ownership, and timestamps, including symbolic links and special files where supported by the filesystem and user privileges.
+- **Remote backups:** register an account, upload archives, list backups, and download them for restoration. Each account has its own storage directory.
+- **Desktop interface:** local and remote backup workflows with background jobs, progress reporting, logs, and cancellation. Local restore includes a conflict preview.
 
-The GUI currently uses Chinese labels; CLI commands and messages are in English.
+The GUI uses Chinese labels; CLI commands and messages are in English.
 
 ## Build
 
@@ -100,38 +99,24 @@ Replace `BACKUP_ID` with the ID returned by upload or listing. Account passwords
 
 ## Design
 
-**Archive processing.** Directory scanning collects entries and metadata. Packing, compression, and encryption then process file contents in chunks, using temporary files between stages. This avoids loading entire file payloads into memory, while entry metadata remains in memory; sufficient temporary disk space is required. Sequential packing stores metadata alongside each entry, while indexed packing places a directory of entry offsets after the file data. Both use the project's custom `BKP2` archive format.
+**Archive pipeline.** The core scans a directory tree, packs its contents, then applies the selected compression and encryption. File data is processed in chunks, with temporary files between stages; entry metadata remains in memory. Allow disk space for intermediate files. Sequential packing stores metadata with each entry; indexed packing places an offset table after the file data. Both use the custom `BKP2` format.
 
-**Validation and extraction.** Archives contain SHA-256 digests of both the packed data and encoded payload. Restore validates sizes, checksums, entry paths, and transform bounds before extraction. Directory file descriptors and `*at` filesystem calls constrain destination path resolution. Backup output is committed atomically without replacing an existing archive; restore commits entries individually and is not a whole-directory transaction.
+**Restore.** SHA-256 digests cover the packed data and encoded payload. The reader checks sizes, checksums, paths, and decompression bounds before extracting any entries. Directory file descriptors and `*at` calls constrain destination path resolution. Backup output is committed atomically; restore commits entries individually, without whole-directory rollback.
 
-**Client–server storage.** The server uses a framed TCP protocol and a worker thread per connection, with a configurable connection limit. Login uses a salted password verifier and a random challenge. Uploads are staged, checked against their declared size and SHA-256 digest, and committed to the authenticated user's storage directory. The client creates the archive locally before upload; remote restore downloads it before extraction.
+**Network storage.** A framed TCP protocol supports account registration, challenge-response login, and archive transfers. The server runs a worker thread per connection, subject to the configured connection limit. Uploads are checked against their declared size and SHA-256 digest before being committed to the user's storage directory. Clients build archives before upload and download them before extraction.
 
-**Shared interfaces.** [core.hpp](include/backup/core.hpp) exposes backup, restore, inspection, preview, progress, and cancellation. [network.hpp](include/backup/network.hpp) exposes the server and client operations. The CLI and GUI call these interfaces rather than maintaining separate implementations of the archive pipeline.
+**Library boundaries.** `backup_core` provides local archive operations through [core.hpp](include/backup/core.hpp). `backup_network` depends on the core and exposes client and server operations through [network.hpp](include/backup/network.hpp). The CLI and GUI share these libraries. Private implementation headers stay under `src/`.
 
 ## Development
 
-The build separates local archive operations (`backup_core`) from TCP storage
-(`backup_network`). The network library depends on the core; the CLI, server, and
-GUI link only the libraries they use. Public APIs live in `include/backup/`;
-implementation headers stay under `src/`.
-
-Use `snake_case` for filenames, `PascalCase` for types, and `camelCase` for
-functions and fields. Keep helpers private to their implementation file, own
-resources through RAII, and report long-running work through the existing
-progress and cancellation interfaces. Split files by responsibility rather than
-adding layers for individual functions. Qt styles are embedded from
-`gui/style.qss` through the resource system.
-
-C++ formatting uses clang-format 18 and the checked-in `.clang-format`.
-Install it before configuring CMake to enable these targets:
+The code uses `snake_case` filenames, `PascalCase` types, and `camelCase` functions and fields. Formatting is defined in `.clang-format` and uses clang-format 18. Install it before configuring CMake to enable:
 
 ```bash
 cmake --build build --target format
 cmake --build build --target format-check
 ```
 
-The GitHub Actions workflow checks formatting, builds all targets, runs CTest,
-and starts the GUI with Qt's offscreen platform on Ubuntu.
+GitHub Actions checks formatting, builds the project, runs CTest, and starts the GUI with Qt's offscreen platform on Ubuntu.
 
 ## Tests
 
@@ -165,7 +150,7 @@ The script compares source and restored hashes and writes timing and memory meas
 | `src/core/` | Archive format, filesystem operations, compression, and encryption |
 | `src/network/` | Protocol I/O, accounts, storage, client, and server sessions |
 | `cli/` | Command parsing and CLI operations |
-| `gui/` | Qt widgets, pages, dialogs, and background jobs |
+| `gui/` | Qt pages, widgets, dialogs, background jobs, and styles |
 | `server/` | Server executable entry point |
 | `tests/` | Local, network, and algorithm tests |
 | `scripts/` | Build and performance-check scripts |
