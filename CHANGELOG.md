@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.1 — 2026-09-16
+
+- Fix the Windows/WSL build script to create a fresh build copy without deleting
+  existing repositories. Honor GUEST_DIR and reject existing or unsafe targets.
+- Resolve Windows source paths with WSL's wslpath, keep screenshots inside the
+  build directory, and print a correctly quoted GUI command for the build user.
+- Keep the GCC 13 cstdint fix and LF shell-script checkouts from the team update.
+- Add isolated WSL-script regression tests; native Windows/WSLg still requires
+  validation on a Windows machine. Archive format and protocol are unchanged.
+
 ## 1.6.0 — 2026-09-16
 
 - Preserve ordinary-file hardlink relationships inside the selected tree;

@@ -26,6 +26,15 @@ Course requirements, design, test cases, and outstanding team deliverables are i
 `docs/course-checklist.md`. The adjacent delivery output contains historical
 artifacts and must be regenerated before submission.
 
+Version 1.6.1 fixes the Windows + WSL2 build workflow. From Git Bash, run
+`bash scripts/build-wsl.sh` with a configured Ubuntu-24.04 distribution and
+non-root `builder` account. `DISTRO` and `USER_NAME` can override those defaults.
+The script creates a unique Linux-side build directory and prints its location
+and GUI launch command. Alternatively set `GUEST_DIR` to a **new absolute WSL
+path with an existing parent**, outside `/mnt` and the source tree. Existing
+targets are rejected and never cleared. Failed builds are retained for diagnosis;
+remove only the specific build directory when no longer needed.
+
 ## Build
 
 Requires Linux, a C++17 compiler with filesystem support, CMake 3.16+, and POSIX threads. Qt 6 Widgets is optional. The CLI, server, and core tests do not require Qt or external compression and cryptography libraries.

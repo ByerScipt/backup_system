@@ -67,13 +67,15 @@
   `ctest --test-dir build --output-on-failure`；GUI 用
   `QT_QPA_PLATFORM=offscreen BACKUP_GUI_CAPTURE=/tmp/backup-studio.png ./build/backup-gui`
   验证启动。
-- 构建必须落在 ext4 文件系统（`~/backup_system`），不要用 `/mnt/*`：DrvFs 无法
+- 构建副本放在 Linux 文件系统；脚本默认创建独立目录，也可通过 `GUEST_DIR` 指定
+  尚不存在的绝对路径。保留已有目录，失败时保留构建副本供诊断。不要用 `/mnt/*`：DrvFs 无法
   表达 Unix 权限与属主，硬链接/ inode 语义也与 CI 不一致，会让权限类用例失真。
 - 依赖：`build-essential cmake ninja-build pkg-config qt6-base-dev qt6-base-dev-tools
   qt6-wayland libgl1-mesa-dev clang-format-18 fonts-noto-cjk`。构建账户必须是非 root
   （权限用例以普通用户运行），且 UID 宜为 1000 以匹配 WSLg 运行时目录属主。
-- GUI 可直接用 WSLg 显示：`wsl -d Ubuntu-24.04 -- ~/backup_system/build/backup-gui`；
-  xcb、wayland、offscreen 三种平台插件均已验证可渲染并截图。
+- GUI 使用构建脚本末尾输出的 Git Bash 启动命令，账户与构建时一致；
+  路径由 WSL 内 shell 解析，避免 Git Bash 展开 Windows 用户的主目录。
+  Windows/WSLg 交互运行需在实际 Windows 机器验收。
 - 上游 1.6.0 的 `cli/arguments.hpp` 使用了 `uint16_t` 但未包含 `<cstdint>`，
   在 GCC 13 上 CLI 无法编译；已补该头文件，构建与 CI 均需要它。
 - MSYS2 的 msys（Cygwin）环境只是无 WSL 时的后备手段：需要

@@ -22,6 +22,8 @@ jobs:
         run: cmake --build build --parallel 2
       - name: Test
         run: ctest --test-dir build --output-on-failure
+      - name: Test WSL launcher in isolation
+        run: python3 tests/test_build_wsl.py
       - name: Start GUI
         env:
           QT_QPA_PLATFORM: offscreen
