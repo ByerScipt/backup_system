@@ -1,8 +1,9 @@
 BasedOnStyle: LLVM
 IndentWidth: 4
-ColumnLimit: 100
+ColumnLimit: 80
 AccessModifierOffset: -4
-BreakBeforeBraces: Attach
+BreakBeforeBraces: Allman
+InsertBraces: true
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false

@@ -1,5 +1,6 @@
 #pragma once
 class QMainWindow;
-namespace backup::gui {
+namespace backup::gui
+{
 QMainWindow* createMainWindow();
 }

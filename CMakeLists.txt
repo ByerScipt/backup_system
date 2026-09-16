@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(backup_system VERSION 1.5.0 LANGUAGES CXX)
+project(backup_system VERSION 1.6.0 LANGUAGES CXX)
 
 option(BACKUP_BUILD_GUI "Build the optional Qt6 GUI" ON)
 option(BACKUP_BUILD_TESTS "Build automated tests" ON)
@@ -82,9 +82,13 @@ if(BACKUP_BUILD_TESTS)
         tests/test_security.cpp
         tests/test_network.cpp
         tests/test_crypto_vectors.cpp
+        tests/test_filesystem.cpp
+        tests/test_sync.cpp
     )
     target_include_directories(backup-tests PRIVATE tests src)
     target_link_libraries(backup-tests PRIVATE backup_network)
+    # Inject failures at the operating-system boundary, not inside backup_core.
+    target_link_options(backup-tests PRIVATE "-Wl,--wrap=fsync")
     target_compile_options(backup-tests PRIVATE ${BACKUP_WARNINGS})
     add_test(NAME backup-tests COMMAND backup-tests)
 endif()

@@ -1,6 +1,9 @@
 #ifndef BACKUP_CORE_HPP
 #define BACKUP_CORE_HPP
 
+// Synchronous archive API shared by the CLI, GUI and remote workflows.
+// Format details and filesystem helpers remain private to backup_core.
+
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -8,17 +11,29 @@
 #include <string>
 #include <vector>
 
-namespace backup {
+namespace backup
+{
 
-enum class PackAlgorithm : uint8_t { Stream = 1, Index = 2 };
-enum class CompressionAlgorithm : uint8_t { None = 0, Rle = 1, Huffman = 2 };
-enum class EncryptionAlgorithm : uint8_t {
+enum class PackAlgorithm : uint8_t
+{
+    Stream = 1,
+    Index = 2
+};
+enum class CompressionAlgorithm : uint8_t
+{
+    None = 0,
+    Rle = 1,
+    Huffman = 2
+};
+enum class EncryptionAlgorithm : uint8_t
+{
     None = 0,
     ChaCha20 = 3,
     Aes256 = 4
 }; // ids 1-2 retired with the legacy XOR/Vigenere ciphers
 
-struct ProgressEvent {
+struct ProgressEvent
+{
     std::string stage;
     uint64_t completed = 0;
     uint64_t total = 0;
@@ -27,7 +42,10 @@ struct ProgressEvent {
 
 using ProgressCallback = std::function<void(const ProgressEvent&)>;
 
-struct BackupOptions {
+// Callbacks execute on the calling thread. A non-null cancel pointer must
+// remain alive until the operation returns; true requests cancellation.
+struct BackupOptions
+{
     PackAlgorithm pack = PackAlgorithm::Stream;
     CompressionAlgorithm compression = CompressionAlgorithm::None;
     EncryptionAlgorithm encryption = EncryptionAlgorithm::None;
@@ -36,14 +54,18 @@ struct BackupOptions {
     std::atomic_bool* cancel = nullptr;
 };
 
-struct RestoreOptions {
+struct RestoreOptions
+{
     std::string password;
     bool overwrite = false;
     ProgressCallback progress;
     std::atomic_bool* cancel = nullptr;
 };
 
-struct BackupResult {
+struct BackupResult
+{
+    // False includes cancellation or incomplete metadata restoration. Earlier
+    // restored entries may remain; restore is not a whole-tree transaction.
     bool success = false;
     std::string message;
     uint64_t entryCount = 0;
@@ -51,7 +73,8 @@ struct BackupResult {
     uint64_t outputBytes = 0;
 };
 
-struct ArchiveInfo {
+struct ArchiveInfo
+{
     uint16_t version = 0;
     PackAlgorithm pack = PackAlgorithm::Stream;
     CompressionAlgorithm compression = CompressionAlgorithm::None;
@@ -62,30 +85,43 @@ struct ArchiveInfo {
     std::array<uint8_t, 32> encodedDigest{};
 };
 
-struct ArchiveEntryInfo {
+struct ArchiveEntryInfo
+{
     std::string path;
     std::string type;
     uint64_t size = 0;
 };
 
-struct RestorePreview {
+struct RestorePreview
+{
     std::vector<ArchiveEntryInfo> entries;
     std::vector<std::string> conflicts;
 };
 
-class BackupEngine {
+class BackupEngine
+{
 public:
-    static BackupResult create(const std::string& sourceDirectory, const std::string& archivePath,
+    // Archives an existing directory into a new path outside that directory.
+    // Returns failure on scan/read/encode/write errors. Parent fsync can fail
+    // after publication; in that case message says the archive already exists.
+    static BackupResult create(const std::string& sourceDirectory,
+                               const std::string& archivePath,
                                const BackupOptions& options);
 
+    // Restores under DEST/<source-directory-name>, rejecting conflicts unless
+    // overwrite is explicit. Ownership/timestamps require OS permission.
     static BackupResult restore(const std::string& archivePath,
                                 const std::string& destinationDirectory,
                                 const RestoreOptions& options);
 
+    // Decodes and validates without extraction; throws std::exception on error.
+    // Conflicts are a snapshot, not a reservation of destination paths.
     static RestorePreview preview(const std::string& archivePath,
                                   const std::string& destinationDirectory,
                                   const std::string& password = {});
 
+    // Checks header and encoded checksum only, without a password. Throws on
+    // failure; it does not establish that decoded entry metadata is valid.
     static ArchiveInfo inspect(const std::string& archivePath);
 };
 

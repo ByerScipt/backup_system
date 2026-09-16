@@ -14,10 +14,13 @@
 #include <stdexcept>
 #include <utility>
 
-namespace backup::gui {
+namespace backup::gui
+{
 
-void addAlgorithmRows(QFormLayout* form, QComboBox*& pack, QComboBox*& compression,
-                      QComboBox*& encryption, QLineEdit*& key) {
+void addAlgorithmRows(QFormLayout* form, QComboBox*& pack,
+                      QComboBox*& compression, QComboBox*& encryption,
+                      QLineEdit*& key)
+{
     pack = new QComboBox;
     pack->addItem("顺序归档  ·  Stream", "stream");
     pack->addItem("中央索引  ·  Index", "index");
@@ -35,8 +38,8 @@ void addAlgorithmRows(QFormLayout* form, QComboBox*& pack, QComboBox*& compressi
     encryption->addItem("不加密  ·  None", "none");
     encryption->addItem("流密码  ·  ChaCha20", "chacha20");
     encryption->addItem("分组密码  ·  AES-256 CTR", "aes256");
-    encryption->setToolTip(
-        "ChaCha20（RFC 8439）与 AES-256 CTR 均为现代密码，密钥由口令经盐值迭代派生。");
+    encryption->setToolTip("ChaCha20（RFC 8439）与 AES-256 CTR "
+                           "均为现代密码，密钥由口令经盐值迭代派生。");
     form->addRow("加密算法", encryption);
 
     key = new QLineEdit;
@@ -46,26 +49,33 @@ void addAlgorithmRows(QFormLayout* form, QComboBox*& pack, QComboBox*& compressi
     key->setEnabled(false);
     form->addRow("归档密钥", key);
 
-    QObject::connect(encryption, &QComboBox::currentIndexChanged, key, [encryption, key]() {
-        key->setEnabled(encryption->currentData().toString() != "none");
-    });
+    QObject::connect(
+        encryption, &QComboBox::currentIndexChanged, key, [encryption, key]()
+        { key->setEnabled(encryption->currentData().toString() != "none"); });
 }
 
-AlgorithmValues snapshotAlgorithms(QComboBox* pack, QComboBox* compression, QComboBox* encryption,
-                                   QLineEdit* key) {
+AlgorithmValues snapshotAlgorithms(QComboBox* pack, QComboBox* compression,
+                                   QComboBox* encryption, QLineEdit* key)
+{
     AlgorithmValues values{
         parsePackAlgorithm(pack->currentData().toString().toStdString()),
-        parseCompressionAlgorithm(compression->currentData().toString().toStdString()),
-        parseEncryptionAlgorithm(encryption->currentData().toString().toStdString()),
+        parseCompressionAlgorithm(
+            compression->currentData().toString().toStdString()),
+        parseEncryptionAlgorithm(
+            encryption->currentData().toString().toStdString()),
         key->text().toStdString()};
-    if (values.encryption != EncryptionAlgorithm::None && values.password.empty()) {
+    if (values.encryption != EncryptionAlgorithm::None &&
+        values.password.empty())
+    {
         throw std::runtime_error("启用加密后必须填写归档密钥");
     }
     return values;
 }
 
-BackupOptions algorithmOptions(const AlgorithmValues& values, std::atomic_bool* cancel,
-                               ProgressCallback progress) {
+BackupOptions algorithmOptions(const AlgorithmValues& values,
+                               std::atomic_bool* cancel,
+                               ProgressCallback progress)
+{
     BackupOptions options;
     options.pack = values.pack;
     options.compression = values.compression;
@@ -76,7 +86,8 @@ BackupOptions algorithmOptions(const AlgorithmValues& values, std::atomic_bool* 
     return options;
 }
 
-ServerFields addServerRows(QFormLayout* form) {
+ServerFields addServerRows(QFormLayout* form)
+{
     ServerFields fields;
     fields.host = new QLineEdit("127.0.0.1");
     fields.host->setClearButtonEnabled(true);
@@ -92,7 +103,8 @@ ServerFields addServerRows(QFormLayout* form) {
     portRow->setSpacing(7);
     auto* decreasePort = new QPushButton("−");
     auto* increasePort = new QPushButton("+");
-    for (auto* button : {decreasePort, increasePort}) {
+    for (auto* button : {decreasePort, increasePort})
+    {
         button->setObjectName("stepButton");
         button->setAutoRepeat(true);
         button->setAutoRepeatDelay(350);
@@ -102,8 +114,10 @@ ServerFields addServerRows(QFormLayout* form) {
     increasePort->setToolTip("端口加 1");
     decreasePort->setAccessibleName("减少端口");
     increasePort->setAccessibleName("增加端口");
-    QObject::connect(decreasePort, &QPushButton::clicked, fields.port, &QSpinBox::stepDown);
-    QObject::connect(increasePort, &QPushButton::clicked, fields.port, &QSpinBox::stepUp);
+    QObject::connect(decreasePort, &QPushButton::clicked, fields.port,
+                     &QSpinBox::stepDown);
+    QObject::connect(increasePort, &QPushButton::clicked, fields.port,
+                     &QSpinBox::stepUp);
     portRow->addWidget(fields.port, 1);
     portRow->addWidget(decreasePort);
     portRow->addWidget(increasePort);
@@ -122,23 +136,29 @@ ServerFields addServerRows(QFormLayout* form) {
     return fields;
 }
 
-ServerValues snapshotServer(const ServerFields& fields) {
-    if (fields.host->text().trimmed().isEmpty() || fields.username->text().trimmed().isEmpty() ||
-        fields.password->text().isEmpty()) {
+ServerValues snapshotServer(const ServerFields& fields)
+{
+    if (fields.host->text().trimmed().isEmpty() ||
+        fields.username->text().trimmed().isEmpty() ||
+        fields.password->text().isEmpty())
+    {
         throw std::runtime_error("服务器、用户名和账号密码不能为空");
     }
     return {fields.host->text().trimmed().toStdString(),
             static_cast<uint16_t>(fields.port->value()),
-            fields.username->text().trimmed().toStdString(), fields.password->text().toStdString()};
+            fields.username->text().trimmed().toStdString(),
+            fields.password->text().toStdString()};
 }
 
-network::BackupClient makeClient(const ServerValues& values) {
+network::BackupClient makeClient(const ServerValues& values)
+{
     return {values.host, values.port, values.username, values.password};
 }
 
-QString temporaryArchivePath() {
-    return QDir::tempPath() + "/backup-gui-" + QUuid::createUuid().toString(QUuid::WithoutBraces) +
-           ".bak";
+QString temporaryArchivePath()
+{
+    return QDir::tempPath() + "/backup-gui-" +
+           QUuid::createUuid().toString(QUuid::WithoutBraces) + ".bak";
 }
 
 } // namespace backup::gui

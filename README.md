@@ -13,6 +13,19 @@ The project implements its archive format, compression, and encryption without e
 
 The GUI uses Chinese labels; CLI commands and messages are in English.
 
+Version 1.6.0 preserves ordinary-file hard links within the source tree. New
+archives use BKP2 format version 2; the reader also accepts version 1 archives
+using supported algorithms. Older applications reject version 2 archives.
+Metadata restoration errors now fail the operation instead of silently reporting
+success. Entries already restored may remain after a failure.
+The restored timestamps are atime and mtime; ctime is recorded but cannot be
+restored, and creation time (btime), ACLs and extended attributes are not supported.
+
+Course requirements, design, test cases, and outstanding team deliverables are in
+`docs/requirements.md`, `docs/design.md`, `docs/test-report.md`, and
+`docs/course-checklist.md`. The adjacent delivery output contains historical
+artifacts and must be regenerated before submission.
+
 ## Build
 
 Requires Linux, a C++17 compiler with filesystem support, CMake 3.16+, and POSIX threads. Qt 6 Widgets is optional. The CLI, server, and core tests do not require Qt or external compression and cryptography libraries.
@@ -109,7 +122,9 @@ Replace `BACKUP_ID` with the ID returned by upload or listing. Account passwords
 
 ## Development
 
-The code uses `snake_case` filenames, `PascalCase` types, and `camelCase` functions and fields. Formatting is defined in `.clang-format` and uses clang-format 18. Install it before configuring CMake to enable:
+The code uses `snake_case` filenames, `PascalCase` types, and `camelCase` functions and fields. `AGENTS.md` records team conventions. Formatting uses clang-format 18,
+four spaces, an 80-column limit, Allman braces, and braces around control flow.
+Install it before configuring CMake to enable:
 
 ```bash
 cmake --build build --target format

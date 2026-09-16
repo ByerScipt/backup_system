@@ -22,11 +22,14 @@
 #include <algorithm>
 #include <cmath>
 
-namespace backup::gui {
+namespace backup::gui
+{
 
-class MainWindow : public QMainWindow {
+class MainWindow : public QMainWindow
+{
 public:
-    MainWindow() {
+    MainWindow()
+    {
         scaleTimer_.setSingleShot(true);
         scaleTimer_.setInterval(70);
         QObject::connect(&scaleTimer_, &QTimer::timeout, this,
@@ -64,13 +67,15 @@ public:
 
         auto* navigation = new QButtonGroup(this);
         navigation->setExclusive(true);
-        auto addSection = [this](const QString& text) {
+        auto addSection = [this](const QString& text)
+        {
             auto* label = new QLabel(text);
             label->setObjectName("navSection");
             sidebarLayout_->addSpacing(7);
             sidebarLayout_->addWidget(label);
         };
-        auto addNavigation = [&](int index, const QString& text) {
+        auto addNavigation = [&](int index, const QString& text)
+        {
             auto* button = new QPushButton(text);
             button->setObjectName("navButton");
             button->setCheckable(true);
@@ -109,14 +114,18 @@ public:
         const QStringList titles = {"本地备份", "本地还原", "远程备份",
                                     "远程还原", "备份历史", "账号管理"};
 
-        QObject::connect(navigation, &QButtonGroup::idClicked, this, [=](int index) {
-            pages->setCurrentIndex(index);
-            pageTitle->setText(titles.at(index));
-        });
+        QObject::connect(navigation, &QButtonGroup::idClicked, this,
+                         [=](int index)
+                         {
+                             pages->setCurrentIndex(index);
+                             pageTitle->setText(titles.at(index));
+                         });
         bool pageFromEnvironment = false;
-        const int initialPage =
-            qEnvironmentVariableIntValue("BACKUP_GUI_PAGE", &pageFromEnvironment);
-        if (pageFromEnvironment && initialPage >= 0 && initialPage < pages->count()) {
+        const int initialPage = qEnvironmentVariableIntValue(
+            "BACKUP_GUI_PAGE", &pageFromEnvironment);
+        if (pageFromEnvironment && initialPage >= 0 &&
+            initialPage < pages->count())
+        {
             navigation->button(initialPage)->click();
         }
 
@@ -127,17 +136,21 @@ public:
     }
 
 protected:
-    void resizeEvent(QResizeEvent* event) override {
+    void resizeEvent(QResizeEvent* event) override
+    {
         QMainWindow::resizeEvent(event);
         scaleTimer_.start();
     }
 
-    void showEvent(QShowEvent* event) override {
+    void showEvent(QShowEvent* event) override
+    {
         QMainWindow::showEvent(event);
-        if (!screenSignalsConnected_ && windowHandle()) {
+        if (!screenSignalsConnected_ && windowHandle())
+        {
             screenSignalsConnected_ = true;
             QObject::connect(windowHandle(), &QWindow::screenChanged, this,
-                             [this](QScreen* screen) {
+                             [this](QScreen* screen)
+                             {
                                  watchScreen(screen);
                                  appliedScale_ = 0.0;
                                  applyResponsiveTheme();
@@ -149,10 +162,13 @@ protected:
     }
 
 private:
-    qreal responsiveScale() const {
+    qreal responsiveScale() const
+    {
         bool hasOverride = false;
-        const qreal overrideScale = qEnvironmentVariable("BACKUP_GUI_SCALE").toDouble(&hasOverride);
-        if (hasOverride) {
+        const qreal overrideScale =
+            qEnvironmentVariable("BACKUP_GUI_SCALE").toDouble(&hasOverride);
+        if (hasOverride)
+        {
             return std::clamp(overrideScale, 0.9, 2.0);
         }
         const qreal widthRatio = width() / 1180.0;
@@ -160,44 +176,58 @@ private:
         return std::clamp(std::min(widthRatio, heightRatio), 1.0, 1.5);
     }
 
-    void watchScreen(QScreen* currentScreen) {
+    void watchScreen(QScreen* currentScreen)
+    {
         QObject::disconnect(dpiConnection_);
         if (!currentScreen)
+        {
             return;
-        dpiConnection_ = QObject::connect(currentScreen, &QScreen::logicalDotsPerInchChanged, this,
-                                          [this](qreal) {
-                                              appliedScale_ = 0.0;
-                                              applyResponsiveTheme();
-                                          });
+        }
+        dpiConnection_ = QObject::connect(
+            currentScreen, &QScreen::logicalDotsPerInchChanged, this,
+            [this](qreal)
+            {
+                appliedScale_ = 0.0;
+                applyResponsiveTheme();
+            });
     }
 
-    void applyResponsiveTheme() {
+    void applyResponsiveTheme()
+    {
         const qreal scale = responsiveScale();
         if (std::abs(scale - appliedScale_) < 0.01)
+        {
             return;
+        }
         appliedScale_ = scale;
         setStyleSheet(applicationStyle(scale));
 
-        const auto pixels = [scale](int value) {
-            return qRound(static_cast<qreal>(value) * scale);
-        };
+        const auto pixels = [scale](int value)
+        { return qRound(static_cast<qreal>(value) * scale); };
         sidebar_->setFixedWidth(pixels(224));
-        sidebarLayout_->setContentsMargins(pixels(18), pixels(24), pixels(18), pixels(20));
+        sidebarLayout_->setContentsMargins(pixels(18), pixels(24), pixels(18),
+                                           pixels(20));
         sidebarLayout_->setSpacing(pixels(7));
-        contentLayout_->setContentsMargins(pixels(30), pixels(24), pixels(30), pixels(24));
+        contentLayout_->setContentsMargins(pixels(30), pixels(24), pixels(30),
+                                           pixels(24));
         contentLayout_->setSpacing(pixels(18));
 
-        for (auto* card : findChildren<QFrame*>("card")) {
-            if (auto* layout = qobject_cast<QVBoxLayout*>(card->layout())) {
-                layout->setContentsMargins(pixels(20), pixels(18), pixels(20), pixels(18));
+        for (auto* card : findChildren<QFrame*>("card"))
+        {
+            if (auto* layout = qobject_cast<QVBoxLayout*>(card->layout()))
+            {
+                layout->setContentsMargins(pixels(20), pixels(18), pixels(20),
+                                           pixels(18));
                 layout->setSpacing(pixels(12));
             }
         }
-        for (auto* form : findChildren<QFormLayout*>()) {
+        for (auto* form : findChildren<QFormLayout*>())
+        {
             form->setHorizontalSpacing(pixels(18));
             form->setVerticalSpacing(pixels(11));
         }
-        for (auto* badge : findChildren<QLabel*>("numberBadge")) {
+        for (auto* badge : findChildren<QLabel*>("numberBadge"))
+        {
             badge->setFixedSize(pixels(32), pixels(32));
         }
     }
@@ -211,7 +241,8 @@ private:
     bool screenSignalsConnected_ = false;
 };
 
-QMainWindow* createMainWindow() {
+QMainWindow* createMainWindow()
+{
     return new MainWindow;
 }
 

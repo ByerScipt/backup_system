@@ -6,11 +6,22 @@
 #include <string>
 #include <vector>
 
-int main() {
-    try {
+int main(int argc, char* argv[])
+{
+    try
+    {
         std::cout << "[1/4] SHA-256 and cipher known-answer vectors\n";
         testSha256();
         testCryptoVectors();
+        testUnreadableSource();
+        testMetadataFailure();
+        testSyncFailure();
+        testHardLinks();
+        if (argc == 2 && std::string(argv[1]) == "--filesystem")
+        {
+            std::cout << "Filesystem regression tests passed.\n";
+            return 0;
+        }
         TempDirectory temp;
         fs::path source = temp.path / "testsrc";
         createFixture(source);
@@ -20,11 +31,14 @@ int main() {
         auto archives = testAllCombinations(temp.path, source, fixturePaths);
         std::cout << "[3/4] corruption, bounds, conflicts, and path races\n";
         testFailureModes(temp.path, source, archives);
-        std::cout << "[4/4] account-isolated network roundtrip and session recycling\n";
+        std::cout << "[4/4] account-isolated network roundtrip and session "
+                     "recycling\n";
         testNetwork(temp.path, archives.front().path);
         std::cout << "All backup-system tests passed.\n";
         return 0;
-    } catch (const std::exception& error) {
+    }
+    catch (const std::exception& error)
+    {
         std::cerr << "TEST FAILURE: " << error.what() << '\n';
         return 1;
     }

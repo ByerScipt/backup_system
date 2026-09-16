@@ -27,9 +27,11 @@
 #include <stdexcept>
 #include <vector>
 
-namespace backup::gui {
+namespace backup::gui
+{
 
-QWidget* remoteBackupPage() {
+QWidget* remoteBackupPage()
+{
     Page page = makePage();
     auto* top = new QHBoxLayout;
     top->setSpacing(14);
@@ -43,7 +45,8 @@ QWidget* remoteBackupPage() {
     auto* archiveForm = makeForm();
     QLineEdit* source;
     QPushButton* browse;
-    archiveForm->addRow("源目录", pathRow(source, browse, "选择需要上传的目录"));
+    archiveForm->addRow("源目录",
+                        pathRow(source, browse, "选择需要上传的目录"));
     auto* name = new QLineEdit;
     name->setClearButtonEnabled(true);
     name->setPlaceholderText("可选的易读名称");
@@ -61,61 +64,86 @@ QWidget* remoteBackupPage() {
     JobControls controls = addJobControls(task.body, "构建并上传");
     page.layout->addWidget(task.frame, 1);
 
-    QObject::connect(browse, &QPushButton::clicked, page.widget, [=]() {
-        const QString value =
-            selectDirectory(page.widget, "Select Source Directory", source->text());
-        if (!value.isEmpty())
-            source->setText(value);
-    });
-    QObject::connect(controls.start, &QPushButton::clicked, page.widget, [=]() {
-        const QString src = source->text().trimmed();
-        const QString backupName = name->text().trimmed();
-        if (src.isEmpty()) {
-            QMessageBox::warning(page.widget, "Input Error", "请选择源目录。");
-            return;
-        }
-
-        AlgorithmValues algorithms;
-        ServerValues serverValues;
-        try {
-            algorithms = snapshotAlgorithms(pack, compression, encryption, key);
-            serverValues = snapshotServer(server);
-        } catch (const std::exception& error) {
-            QMessageBox::warning(page.widget, "Input Error", QString::fromUtf8(error.what()));
-            return;
-        }
-
-        startJob(page.widget, controls,
-                 [=](std::atomic_bool* cancel, const ProgressCallback& progress) {
-                     const QString temporary = temporaryArchivePath();
-                     struct Cleanup {
-                         QString path;
-                         ~Cleanup() {
-                             QFile::remove(path);
+    QObject::connect(browse, &QPushButton::clicked, page.widget,
+                     [=]()
+                     {
+                         const QString value = selectDirectory(
+                             page.widget, "Select Source Directory",
+                             source->text());
+                         if (!value.isEmpty())
+                         {
+                             source->setText(value);
                          }
-                     } cleanup{temporary};
+                     });
+    QObject::connect(
+        controls.start, &QPushButton::clicked, page.widget,
+        [=]()
+        {
+            const QString src = source->text().trimmed();
+            const QString backupName = name->text().trimmed();
+            if (src.isEmpty())
+            {
+                QMessageBox::warning(page.widget, "Input Error",
+                                     "请选择源目录。");
+                return;
+            }
 
-                     auto options = algorithmOptions(algorithms, cancel, progress);
-                     auto created =
-                         BackupEngine::create(src.toStdString(), temporary.toStdString(), options);
-                     if (!created.success) {
-                         throw std::runtime_error(created.message);
-                     }
+            AlgorithmValues algorithms;
+            ServerValues serverValues;
+            try
+            {
+                algorithms =
+                    snapshotAlgorithms(pack, compression, encryption, key);
+                serverValues = snapshotServer(server);
+            }
+            catch (const std::exception& error)
+            {
+                QMessageBox::warning(page.widget, "Input Error",
+                                     QString::fromUtf8(error.what()));
+                return;
+            }
 
-                     auto client = makeClient(serverValues);
-                     std::string id;
-                     std::string error;
-                     if (!client.upload(temporary.toStdString(), backupName.toStdString(), id,
-                                        error, progress, cancel)) {
-                         throw std::runtime_error(error);
-                     }
-                     return QString("远程备份完成 · ID %1").arg(QString::fromStdString(id));
-                 });
-    });
+            startJob(
+                page.widget, controls,
+                [=](std::atomic_bool* cancel, const ProgressCallback& progress)
+                {
+                    const QString temporary = temporaryArchivePath();
+                    struct Cleanup
+                    {
+                        QString path;
+                        ~Cleanup()
+                        {
+                            QFile::remove(path);
+                        }
+                    } cleanup{temporary};
+
+                    auto options =
+                        algorithmOptions(algorithms, cancel, progress);
+                    auto created = BackupEngine::create(
+                        src.toStdString(), temporary.toStdString(), options);
+                    if (!created.success)
+                    {
+                        throw std::runtime_error(created.message);
+                    }
+
+                    auto client = makeClient(serverValues);
+                    std::string id;
+                    std::string error;
+                    if (!client.upload(temporary.toStdString(),
+                                       backupName.toStdString(), id, error,
+                                       progress, cancel))
+                    {
+                        throw std::runtime_error(error);
+                    }
+                    return QString("远程备份完成 · ID %1")
+                        .arg(QString::fromStdString(id));
+                });
+        });
     return page.widget;
 }
 
-QWidget* remoteRestorePage() {
+QWidget* remoteRestorePage()
+{
     Page page = makePage();
     auto* top = new QHBoxLayout;
     top->setSpacing(14);
@@ -125,7 +153,8 @@ QWidget* remoteRestorePage() {
     const ServerFields server = addServerRows(serverForm);
     connection.body->addLayout(serverForm);
 
-    Card restoreCard = makeCard("还原配置", "填写备份 ID、目标目录和归档密钥。");
+    Card restoreCard =
+        makeCard("还原配置", "填写备份 ID、目标目录和归档密钥。");
     auto* restoreForm = makeForm();
     auto* id = new QLineEdit;
     id->setClearButtonEnabled(true);
@@ -133,7 +162,8 @@ QWidget* remoteRestorePage() {
     restoreForm->addRow("备份 ID", id);
     QLineEdit* destination;
     QPushButton* browse;
-    restoreForm->addRow("目标目录", pathRow(destination, browse, "选择还原目标目录"));
+    restoreForm->addRow("目标目录",
+                        pathRow(destination, browse, "选择还原目标目录"));
     auto* key = new QLineEdit;
     key->setEchoMode(QLineEdit::Password);
     key->setClearButtonEnabled(true);
@@ -151,69 +181,95 @@ QWidget* remoteRestorePage() {
     JobControls controls = addJobControls(task.body, "下载并还原");
     page.layout->addWidget(task.frame, 1);
 
-    QObject::connect(browse, &QPushButton::clicked, page.widget, [=]() {
-        const QString value =
-            selectDirectory(page.widget, "Select Destination Directory", destination->text());
-        if (!value.isEmpty())
-            destination->setText(value);
-    });
-    QObject::connect(controls.start, &QPushButton::clicked, page.widget, [=]() {
-        const QString backupId = id->text().trimmed();
-        const QString dest = destination->text().trimmed();
-        const QString password = key->text();
-        const bool allowOverwrite = overwrite->isChecked();
-        if (backupId.isEmpty() || dest.isEmpty()) {
-            QMessageBox::warning(page.widget, "Input Error", "请填写备份 ID 和目标目录。");
-            return;
-        }
+    QObject::connect(browse, &QPushButton::clicked, page.widget,
+                     [=]()
+                     {
+                         const QString value = selectDirectory(
+                             page.widget, "Select Destination Directory",
+                             destination->text());
+                         if (!value.isEmpty())
+                         {
+                             destination->setText(value);
+                         }
+                     });
+    QObject::connect(
+        controls.start, &QPushButton::clicked, page.widget,
+        [=]()
+        {
+            const QString backupId = id->text().trimmed();
+            const QString dest = destination->text().trimmed();
+            const QString password = key->text();
+            const bool allowOverwrite = overwrite->isChecked();
+            if (backupId.isEmpty() || dest.isEmpty())
+            {
+                QMessageBox::warning(page.widget, "Input Error",
+                                     "请填写备份 ID 和目标目录。");
+                return;
+            }
 
-        ServerValues serverValues;
-        try {
-            serverValues = snapshotServer(server);
-        } catch (const std::exception& error) {
-            QMessageBox::warning(page.widget, "Input Error", QString::fromUtf8(error.what()));
-            return;
-        }
-        if (allowOverwrite &&
-            QMessageBox::question(page.widget, "Confirm Overwrite",
-                                  "目标中已有的同名文件会被替换，是否继续？") != QMessageBox::Yes) {
-            return;
-        }
+            ServerValues serverValues;
+            try
+            {
+                serverValues = snapshotServer(server);
+            }
+            catch (const std::exception& error)
+            {
+                QMessageBox::warning(page.widget, "Input Error",
+                                     QString::fromUtf8(error.what()));
+                return;
+            }
+            if (allowOverwrite &&
+                QMessageBox::question(
+                    page.widget, "Confirm Overwrite",
+                    "目标中已有的同名文件会被替换，是否继续？") !=
+                    QMessageBox::Yes)
+            {
+                return;
+            }
 
-        startJob(
-            page.widget, controls, [=](std::atomic_bool* cancel, const ProgressCallback& progress) {
-                const QString temporary = temporaryArchivePath();
-                struct Cleanup {
-                    QString path;
-                    ~Cleanup() {
-                        QFile::remove(path);
+            startJob(
+                page.widget, controls,
+                [=](std::atomic_bool* cancel, const ProgressCallback& progress)
+                {
+                    const QString temporary = temporaryArchivePath();
+                    struct Cleanup
+                    {
+                        QString path;
+                        ~Cleanup()
+                        {
+                            QFile::remove(path);
+                        }
+                    } cleanup{temporary};
+
+                    auto client = makeClient(serverValues);
+                    std::string error;
+                    if (!client.download(backupId.toStdString(),
+                                         temporary.toStdString(), error,
+                                         progress, cancel))
+                    {
+                        throw std::runtime_error(error);
                     }
-                } cleanup{temporary};
 
-                auto client = makeClient(serverValues);
-                std::string error;
-                if (!client.download(backupId.toStdString(), temporary.toStdString(), error,
-                                     progress, cancel)) {
-                    throw std::runtime_error(error);
-                }
-
-                RestoreOptions options;
-                options.password = password.toStdString();
-                options.overwrite = allowOverwrite;
-                options.cancel = cancel;
-                options.progress = progress;
-                auto restored =
-                    BackupEngine::restore(temporary.toStdString(), dest.toStdString(), options);
-                if (!restored.success) {
-                    throw std::runtime_error(restored.message);
-                }
-                return QString("远程还原完成 · %1 个条目").arg(restored.entryCount);
-            });
-    });
+                    RestoreOptions options;
+                    options.password = password.toStdString();
+                    options.overwrite = allowOverwrite;
+                    options.cancel = cancel;
+                    options.progress = progress;
+                    auto restored = BackupEngine::restore(
+                        temporary.toStdString(), dest.toStdString(), options);
+                    if (!restored.success)
+                    {
+                        throw std::runtime_error(restored.message);
+                    }
+                    return QString("远程还原完成 · %1 个条目")
+                        .arg(restored.entryCount);
+                });
+        });
     return page.widget;
 }
 
-QWidget* remoteListPage() {
+QWidget* remoteListPage()
+{
     Page page = makePage();
     auto* top = new QHBoxLayout;
     top->setSpacing(14);
@@ -223,15 +279,18 @@ QWidget* remoteListPage() {
     const ServerFields server = addServerRows(serverForm);
     connection.body->addLayout(serverForm);
     connection.body->addStretch();
-    connection.body->addWidget(makeHint("提示：双击表格中的任意行可复制备份 ID。"));
+    connection.body->addWidget(
+        makeHint("提示：双击表格中的任意行可复制备份 ID。"));
 
     Card listCard = makeCard("备份历史");
     auto* table = new QTableWidget(0, 4);
     table->setHorizontalHeaderLabels({"备份 ID", "名称", "大小", "创建时间"});
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setSectionResizeMode(
+        2, QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setSectionResizeMode(
+        3, QHeaderView::ResizeToContents);
     table->verticalHeader()->setVisible(false);
     table->setAlternatingRowColors(true);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -250,48 +309,71 @@ QWidget* remoteListPage() {
     page.layout->addWidget(task.frame, 2);
 
     auto entries = std::make_shared<std::vector<network::RemoteBackupEntry>>();
-    QObject::connect(controls.start, &QPushButton::clicked, page.widget, [=]() {
-        ServerValues serverValues;
-        try {
-            serverValues = snapshotServer(server);
-        } catch (const std::exception& error) {
-            QMessageBox::warning(page.widget, "Input Error", QString::fromUtf8(error.what()));
-            return;
-        }
+    QObject::connect(
+        controls.start, &QPushButton::clicked, page.widget,
+        [=]()
+        {
+            ServerValues serverValues;
+            try
+            {
+                serverValues = snapshotServer(server);
+            }
+            catch (const std::exception& error)
+            {
+                QMessageBox::warning(page.widget, "Input Error",
+                                     QString::fromUtf8(error.what()));
+                return;
+            }
 
-        startJob(
-            page.widget, controls,
-            [=](std::atomic_bool*, const ProgressCallback&) {
-                auto client = makeClient(serverValues);
-                std::string error;
-                *entries = client.list(error);
-                if (!error.empty())
-                    throw std::runtime_error(error);
-                return QString("已同步 %1 个备份").arg(entries->size());
-            },
-            [=]() {
-                table->setSortingEnabled(false);
-                table->setRowCount(static_cast<int>(entries->size()));
-                for (int row = 0; row < table->rowCount(); ++row) {
-                    const auto& entry = (*entries)[static_cast<size_t>(row)];
-                    table->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(entry.id)));
-                    table->setItem(row, 1,
-                                   new QTableWidgetItem(entry.name.empty()
-                                                            ? "未命名备份"
-                                                            : QString::fromStdString(entry.name)));
-                    table->setItem(row, 2, new QTableWidgetItem(formatBytes(entry.size)));
-                    table->setItem(row, 3,
-                                   new QTableWidgetItem(QDateTime::fromSecsSinceEpoch(
-                                                            static_cast<qint64>(entry.timestamp))
-                                                            .toString("yyyy-MM-dd  HH:mm")));
-                }
-                table->setSortingEnabled(true);
-            });
-    });
+            startJob(
+                page.widget, controls,
+                [=](std::atomic_bool*, const ProgressCallback&)
+                {
+                    auto client = makeClient(serverValues);
+                    std::string error;
+                    *entries = client.list(error);
+                    if (!error.empty())
+                    {
+                        throw std::runtime_error(error);
+                    }
+                    return QString("已同步 %1 个备份").arg(entries->size());
+                },
+                [=]()
+                {
+                    table->setSortingEnabled(false);
+                    table->setRowCount(static_cast<int>(entries->size()));
+                    for (int row = 0; row < table->rowCount(); ++row)
+                    {
+                        const auto& entry =
+                            (*entries)[static_cast<size_t>(row)];
+                        table->setItem(row, 0,
+                                       new QTableWidgetItem(
+                                           QString::fromStdString(entry.id)));
+                        table->setItem(
+                            row, 1,
+                            new QTableWidgetItem(
+                                entry.name.empty()
+                                    ? "未命名备份"
+                                    : QString::fromStdString(entry.name)));
+                        table->setItem(
+                            row, 2,
+                            new QTableWidgetItem(formatBytes(entry.size)));
+                        table->setItem(
+                            row, 3,
+                            new QTableWidgetItem(
+                                QDateTime::fromSecsSinceEpoch(
+                                    static_cast<qint64>(entry.timestamp))
+                                    .toString("yyyy-MM-dd  HH:mm")));
+                    }
+                    table->setSortingEnabled(true);
+                });
+        });
 
     QObject::connect(table, &QTableWidget::cellDoubleClicked, page.widget,
-                     [table, controls](int row, int) {
-                         if (auto* item = table->item(row, 0)) {
+                     [table, controls](int row, int)
+                     {
+                         if (auto* item = table->item(row, 0))
+                         {
                              QApplication::clipboard()->setText(item->text());
                              appendLog(controls.log, "已复制备份 ID");
                          }

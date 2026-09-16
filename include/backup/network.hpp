@@ -1,15 +1,20 @@
 #ifndef BACKUP_NETWORK_HPP
 #define BACKUP_NETWORK_HPP
 
+// Account-isolated archive transfers over NBKP/TCP (no TLS). Archive passwords
+// belong to backup_core and are independent of these account credentials.
+
 #include "backup/core.hpp"
 
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace backup::network {
+namespace backup::network
+{
 
-struct ServerConfig {
+struct ServerConfig
+{
     uint16_t port = 8848;
     std::string storagePath = "./server_data";
     uint32_t maxConnections = 32;
@@ -18,7 +23,8 @@ struct ServerConfig {
     static ServerConfig load(const std::string& path);
 };
 
-struct RemoteBackupEntry {
+struct RemoteBackupEntry
+{
     std::string id;
     std::string name;
     uint64_t timestamp = 0;
@@ -26,9 +32,12 @@ struct RemoteBackupEntry {
     std::string digest;
 };
 
-class BackupServer {
+class BackupServer
+{
 public:
     explicit BackupServer(ServerConfig config);
+    // Blocks until stop() or a startup failure; run on a dedicated thread.
+    // Keep this object alive until run() has returned and its thread is joined.
     bool run();
     void stop();
 
@@ -38,17 +47,24 @@ private:
     std::atomic_int listenFd_{-1};
 };
 
-class BackupClient {
+class BackupClient
+{
 public:
-    BackupClient(std::string host, uint16_t port, std::string username, std::string password);
+    BackupClient(std::string host, uint16_t port, std::string username,
+                 std::string password);
 
+    // Synchronous calls: false/non-empty error indicates failure. On list(),
+    // empty results mean "no backups" only if error is empty. Progress runs on
+    // the caller's thread; cancel must live until the transfer returns.
     bool registerUser(std::string& error);
     bool upload(const std::string& archivePath, const std::string& displayName,
-                std::string& backupId, std::string& error, ProgressCallback progress = {},
+                std::string& backupId, std::string& error,
+                ProgressCallback progress = {},
                 std::atomic_bool* cancel = nullptr);
     std::vector<RemoteBackupEntry> list(std::string& error);
-    bool download(const std::string& backupId, const std::string& outputPath, std::string& error,
-                  ProgressCallback progress = {}, std::atomic_bool* cancel = nullptr);
+    bool download(const std::string& backupId, const std::string& outputPath,
+                  std::string& error, ProgressCallback progress = {},
+                  std::atomic_bool* cancel = nullptr);
 
 private:
     std::string host_;

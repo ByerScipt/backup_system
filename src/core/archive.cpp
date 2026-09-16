@@ -1,18 +1,25 @@
 #include "internal.hpp"
 
-namespace backup {
-namespace detail {
+namespace backup
+{
+namespace detail
+{
 
 void writeArchiveHeader(std::ostream& out, const ArchiveInfo& info,
-                        const std::array<uint8_t, 16>& salt) {
+                        const std::array<uint8_t, 16>& salt)
+{
     writeExact(out, kArchiveMagic.data(), kArchiveMagic.size());
     writeU16(out, kArchiveVersion);
     writeU16(out, kArchiveHeaderSize);
     uint32_t flags = 1u;
     if (info.compression != CompressionAlgorithm::None)
+    {
         flags |= 2u;
+    }
     if (info.encryption != EncryptionAlgorithm::None)
+    {
         flags |= 4u;
+    }
     writeU32(out, flags);
     writeU8(out, static_cast<uint8_t>(info.pack));
     writeU8(out, static_cast<uint8_t>(info.compression));
@@ -25,19 +32,24 @@ void writeArchiveHeader(std::ostream& out, const ArchiveInfo& info,
     writeExact(out, info.encodedDigest.data(), info.encodedDigest.size());
 }
 
-ParsedHeader readArchiveHeader(std::istream& in) {
+ParsedHeader readArchiveHeader(std::istream& in)
+{
     ParsedHeader parsed;
     std::array<char, 4> magic{};
     readExact(in, magic.data(), magic.size());
     ensure(magic == kArchiveMagic, "invalid archive magic; expected BKP2");
     parsed.info.version = readU16(in);
-    ensure(parsed.info.version == kArchiveVersion, "unsupported archive version");
-    ensure(readU16(in) == kArchiveHeaderSize, "unsupported archive header size");
+    ensure(parsed.info.version == 1 || parsed.info.version == kArchiveVersion,
+           "unsupported archive version");
+    ensure(readU16(in) == kArchiveHeaderSize,
+           "unsupported archive header size");
     uint32_t flags = readU32(in);
-    uint8_t pack = readU8(in), compression = readU8(in), encryption = readU8(in);
+    uint8_t pack = readU8(in), compression = readU8(in),
+            encryption = readU8(in);
     ensure(readU8(in) == 0, "non-zero archive reserved byte");
     ensure(pack == 1 || pack == 2, "invalid pack algorithm identifier");
-    ensure(compression <= 2 && (encryption == 0 || encryption == 3 || encryption == 4),
+    ensure(compression <= 2 &&
+               (encryption == 0 || encryption == 3 || encryption == 4),
            "invalid transform algorithm identifier");
     ensure(encryption != 1 && encryption != 2,
            "legacy XOR/Vigenere archives are no longer supported");
@@ -50,28 +62,38 @@ ParsedHeader readArchiveHeader(std::istream& in) {
     parsed.info.packedSize = readU64(in);
     parsed.info.encodedSize = readU64(in);
     readExact(in, parsed.salt.data(), parsed.salt.size());
-    readExact(in, parsed.info.packedDigest.data(), parsed.info.packedDigest.size());
-    readExact(in, parsed.info.encodedDigest.data(), parsed.info.encodedDigest.size());
+    readExact(in, parsed.info.packedDigest.data(),
+              parsed.info.packedDigest.size());
+    readExact(in, parsed.info.encodedDigest.data(),
+              parsed.info.encodedDigest.size());
     return parsed;
 }
 
-ParsedHeader readArchiveHeader(const fs::path& path) {
+ParsedHeader readArchiveHeader(const fs::path& path)
+{
     std::ifstream in(path, std::ios::binary);
     ensure(in.good(), "cannot open archive: " + path.string());
     ParsedHeader parsed = readArchiveHeader(in);
     uint64_t size = fileSizeChecked(path);
-    ensure(size >= kArchiveHeaderSize && parsed.info.encodedSize == size - kArchiveHeaderSize,
+    ensure(size >= kArchiveHeaderSize &&
+               parsed.info.encodedSize == size - kArchiveHeaderSize,
            "archive payload size does not match header");
     return parsed;
 }
 
 void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
-                        const DecodedArchiveConsumer& consumer) {
+                        const DecodedArchiveConsumer& consumer)
+{
     ParsedHeader header = readArchiveHeader(archive);
     if (header.info.encryption != EncryptionAlgorithm::None)
-        ensure(!options.password.empty(), "archive is encrypted; a password is required");
-    auto encodedDigest = shaFileRange(archive, kArchiveHeaderSize, header.info.encodedSize);
-    ensure(encodedDigest == header.info.encodedDigest, "archive payload checksum mismatch");
+    {
+        ensure(!options.password.empty(),
+               "archive is encrypted; a password is required");
+    }
+    auto encodedDigest =
+        shaFileRange(archive, kArchiveHeaderSize, header.info.encodedSize);
+    ensure(encodedDigest == header.info.encodedDigest,
+           "archive payload checksum mismatch");
 
     TempFile encoded;
     {
@@ -79,26 +101,37 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
         std::ofstream out(encoded.path(), std::ios::binary | std::ios::trunc);
         ensure(in.good() && out.good(), "cannot prepare restore payload");
         in.seekg(kArchiveHeaderSize);
-        copyBytes(in, out, header.info.encodedSize, options.progress, "read-archive",
-                  options.cancel);
+        copyBytes(in, out, header.info.encodedSize, options.progress,
+                  "read-archive", options.cancel);
     }
     TempFile compressed;
-    cryptStage(encoded.path(), compressed.path(), header.info.encryption, options.password,
-               header.salt, options.progress, options.cancel, "decrypt");
+    cryptStage(encoded.path(), compressed.path(), header.info.encryption,
+               options.password, header.salt, options.progress, options.cancel,
+               "decrypt");
     TempFile packed;
     decompressStage(compressed.path(), packed.path(), header.info.compression,
                     header.info.packedSize, options);
     ensure(fileSizeChecked(packed.path()) == header.info.packedSize,
            "decoded packed size mismatch (wrong password or damaged archive)");
-    ensure(shaFileRange(packed.path(), 0, UINT64_MAX) == header.info.packedDigest,
+    ensure(shaFileRange(packed.path(), 0, UINT64_MAX) ==
+               header.info.packedDigest,
            "decoded checksum mismatch (wrong password or damaged archive)");
 
     auto entries = readPackedEntries(packed.path(), header.info.pack);
+    if (header.info.version == 1)
+    {
+        ensure(std::none_of(entries.begin(), entries.end(),
+                            [](const Entry& entry)
+                            { return entry.type == EntryType::Hardlink; }),
+               "hardlinks require archive version 2");
+    }
     consumer(header, packed.path(), entries);
 }
 
-std::string entryTypeName(EntryType type) {
-    switch (type) {
+std::string entryTypeName(EntryType type)
+{
+    switch (type)
+    {
     case EntryType::Regular:
         return "file";
     case EntryType::Directory:
@@ -113,6 +146,8 @@ std::string entryTypeName(EntryType type) {
         return "block-device";
     case EntryType::Socket:
         return "unix-socket";
+    case EntryType::Hardlink:
+        return "hardlink";
     }
     return "unknown";
 }

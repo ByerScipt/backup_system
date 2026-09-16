@@ -36,16 +36,20 @@
 
 namespace fs = std::filesystem;
 
-namespace backup {
-namespace network {
-namespace detail {
+namespace backup
+{
+namespace network
+{
+namespace detail
+{
 
 inline constexpr uint16_t kProtocolVersion = 1;
 inline constexpr uint32_t kMaxPayload = 1024 * 1024;
 inline constexpr size_t kChunkSize = 512 * 1024;
 inline constexpr std::array<char, 4> kMagic{{'N', 'B', 'K', 'P'}};
 
-enum class MessageType : uint16_t {
+enum class MessageType : uint16_t
+{
     RegisterRequest = 1,
     RegisterResponse = 2,
     LoginStart = 3,
@@ -66,48 +70,59 @@ enum class MessageType : uint16_t {
     Error = 255
 };
 
-struct NetError : std::runtime_error {
+struct NetError : std::runtime_error
+{
     using std::runtime_error::runtime_error;
 };
 
 void ensure(bool condition, const std::string& message);
 void checkCancelled(std::atomic_bool* cancel);
-void reportProgress(const ProgressCallback& progress, const std::string& stage, uint64_t completed,
-                    uint64_t total);
+void reportProgress(const ProgressCallback& progress, const std::string& stage,
+                    uint64_t completed, uint64_t total);
 
-class Socket {
+class Socket
+{
 public:
     Socket() = default;
     explicit Socket(int fd) : fd_(fd) {}
-    ~Socket() {
+    ~Socket()
+    {
         close();
     }
     Socket(const Socket&) = delete;
     Socket& operator=(const Socket&) = delete;
-    Socket(Socket&& other) noexcept : fd_(other.fd_) {
+    Socket(Socket&& other) noexcept : fd_(other.fd_)
+    {
         other.fd_ = -1;
     }
-    Socket& operator=(Socket&& other) noexcept {
-        if (this != &other) {
+    Socket& operator=(Socket&& other) noexcept
+    {
+        if (this != &other)
+        {
             close();
             fd_ = other.fd_;
             other.fd_ = -1;
         }
         return *this;
     }
-    int get() const {
+    int get() const
+    {
         return fd_;
     }
-    bool valid() const {
+    bool valid() const
+    {
         return fd_ >= 0;
     }
-    int release() {
+    int release()
+    {
         int value = fd_;
         fd_ = -1;
         return value;
     }
-    void close() {
-        if (fd_ >= 0) {
+    void close()
+    {
+        if (fd_ >= 0)
+        {
             ::close(fd_);
             fd_ = -1;
         }
@@ -124,7 +139,8 @@ void putU32(std::vector<uint8_t>& out, uint32_t value);
 void putU64(std::vector<uint8_t>& out, uint64_t value);
 void putString(std::vector<uint8_t>& out, const std::string& value);
 
-class Reader {
+class Reader
+{
 public:
     explicit Reader(const std::vector<uint8_t>& data) : data_(data) {}
     uint8_t u8();
@@ -141,7 +157,8 @@ private:
     void need(size_t n) const;
 };
 
-struct Frame {
+struct Frame
+{
     MessageType type = MessageType::Error;
     uint32_t requestId = 0;
     std::vector<uint8_t> payload;
@@ -156,7 +173,8 @@ Socket connectTo(const std::string& host, uint16_t port);
 
 // auth helpers
 std::vector<uint8_t> randomBytes(size_t count);
-std::array<uint8_t, 32> verifierFor(const std::string& password, const std::vector<uint8_t>& salt);
+std::array<uint8_t, 32> verifierFor(const std::string& password,
+                                    const std::vector<uint8_t>& salt);
 std::array<uint8_t, 32> proofFor(const std::array<uint8_t, 32>& verifier,
                                  const std::vector<uint8_t>& nonce);
 bool validUsername(const std::string& value);
@@ -164,7 +182,8 @@ bool validBackupId(const std::string& value);
 std::string randomId();
 void commitFileNoReplace(const fs::path& temporary, const fs::path& output);
 
-struct UserRecord {
+struct UserRecord
+{
     std::string name;
     std::array<uint8_t, 16> salt{};
     std::array<uint8_t, 32> verifier{};
@@ -175,8 +194,10 @@ void saveUsers(const fs::path& storage, const std::vector<UserRecord>& users);
 fs::path userDirectory(const fs::path& storage, const std::string& username);
 void writeMeta(const fs::path& path, const RemoteBackupEntry& entry);
 RemoteBackupEntry readMeta(const fs::path& path, const std::string& id);
-std::vector<RemoteBackupEntry> listEntries(const fs::path& storage, const std::string& username);
-std::optional<UserRecord> findUser(const fs::path& storage, const std::string& name);
+std::vector<RemoteBackupEntry> listEntries(const fs::path& storage,
+                                           const std::string& username);
+std::optional<UserRecord> findUser(const fs::path& storage,
+                                   const std::string& name);
 void setTimeouts(int fd, uint32_t seconds);
 void handleSession(int fd, ServerConfig config);
 
