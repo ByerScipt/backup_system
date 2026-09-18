@@ -10,12 +10,24 @@ int main(int argc, char* argv[])
 {
     try
     {
+        if (argc == 2 && std::string(argv[1]) == "--network")
+        {
+            testNetworkFailures();
+            TempDirectory temp;
+            const auto archive = temp.path / "network-fixture.bak";
+            writeBytes(archive, {'t', 'e', 's', 't'});
+            testNetwork(temp.path, archive);
+            return 0;
+        }
         std::cout << "[1/4] SHA-256 and cipher known-answer vectors\n";
         testSha256();
         testCryptoVectors();
         testUnreadableSource();
         testMetadataFailure();
         testSyncFailure();
+        testPipelineIo();
+        testSourceFifoRace();
+        testCancellation();
         testHardLinks();
         if (argc == 2 && std::string(argv[1]) == "--filesystem")
         {
@@ -33,6 +45,7 @@ int main(int argc, char* argv[])
         testFailureModes(temp.path, source, archives);
         std::cout << "[4/4] account-isolated network roundtrip and session "
                      "recycling\n";
+        testNetworkFailures();
         testNetwork(temp.path, archives.front().path);
         std::cout << "All backup-system tests passed.\n";
         return 0;

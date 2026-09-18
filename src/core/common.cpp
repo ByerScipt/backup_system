@@ -43,6 +43,14 @@ void readExact(std::istream& in, void* data, size_t size)
     ensure(in.good(), "truncated or unreadable input stream");
 }
 
+void closeOutput(std::ofstream& out)
+{
+    // Buffered writes can succeed until close flushes the final block.
+    out.close();
+    ensure(out.good(),
+           "failed to close output stream (disk full or I/O error)");
+}
+
 void writeU8(std::ostream& out, uint8_t value)
 {
     writeExact(out, &value, 1);

@@ -77,6 +77,44 @@ void testNetwork(const fs::path& workspace, const fs::path& archive)
                                     "alice-password");
         check(alice.registerUser(error), "Alice registration failed: " + error);
         check(error.empty(), "successful registration retained a stale error");
+        if (::geteuid() != 0)
+        {
+            const auto database = workspace / "server-data/users.db";
+            const auto original = readBytes(database);
+            check(::chmod(database.c_str(), 0000) == 0,
+                  "cannot restrict account database fixture");
+            network::BackupClient other("127.0.0.1", port, "other", "password");
+            const bool registered = other.registerUser(error);
+            check(::chmod(database.c_str(), 0600) == 0,
+                  "cannot unlock account database fixture");
+            check(!registered && !error.empty(),
+                  "unreadable account database was treated as empty");
+            check(readBytes(database) == original,
+                  "registration replaced the unreadable account database");
+        }
+        {
+            const auto database = workspace / "server-data/users.db";
+            const auto original = readBytes(database);
+            auto trailing = original;
+            trailing.push_back(0);
+            auto duplicate = original;
+            duplicate[4] = 2;
+            duplicate.insert(duplicate.end(), original.begin() + 8,
+                             original.end());
+            auto invalidLength = original;
+            invalidLength[8] = 65;
+            for (const auto& damaged : {trailing, duplicate, invalidLength})
+            {
+                writeBytes(database, damaged);
+                network::BackupClient other("127.0.0.1", port, "other",
+                                            "password");
+                const bool registered = other.registerUser(error);
+                const auto after = readBytes(database);
+                writeBytes(database, original);
+                check(!registered && !error.empty() && after == damaged,
+                      "registration overwrote a malformed account database");
+            }
+        }
         testLoginRequestId(port);
         error.clear();
         check(!alice.registerUser(error),

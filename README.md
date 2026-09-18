@@ -13,27 +13,21 @@ The project implements its archive format, compression, and encryption without e
 
 The GUI uses Chinese labels; CLI commands and messages are in English.
 
-Version 1.6.0 preserves ordinary-file hard links within the source tree. New
+Closing the GUI cancels all active jobs and waits for cleanup.
+Client socket waits time out after 30 seconds;
+DNS resolution still follows the system resolver's timeout. Cancellation does
+not roll back already restored entries or server-side actions already committed.
+
+Ordinary-file hard links within the source tree are preserved. New
 archives use BKP2 format version 2; the reader also accepts version 1 archives
 using supported algorithms. Older applications reject version 2 archives.
-Metadata restoration errors now fail the operation instead of silently reporting
-success. Entries already restored may remain after a failure.
+Metadata restoration errors fail the operation. Entries already restored may
+remain after a failure.
 The restored timestamps are atime and mtime; ctime is recorded but cannot be
 restored, and creation time (btime), ACLs and extended attributes are not supported.
 
-Course requirements, design, test cases, and outstanding team deliverables are in
-`docs/requirements.md`, `docs/design.md`, `docs/test-report.md`, and
-`docs/course-checklist.md`. The adjacent delivery output contains historical
+Version history is in [CHANGELOG.md](CHANGELOG.md). The adjacent delivery output contains historical
 artifacts and must be regenerated before submission.
-
-Version 1.6.1 fixes the Windows + WSL2 build workflow. From Git Bash, run
-`bash scripts/build-wsl.sh` with a configured Ubuntu-24.04 distribution and
-non-root `builder` account. `DISTRO` and `USER_NAME` can override those defaults.
-The script creates a unique Linux-side build directory and prints its location
-and GUI launch command. Alternatively set `GUEST_DIR` to a **new absolute WSL
-path with an existing parent**, outside `/mnt` and the source tree. Existing
-targets are rejected and never cleared. Failed builds are retained for diagnosis;
-remove only the specific build directory when no longer needed.
 
 ## Build
 
@@ -140,8 +134,6 @@ cmake --build build --target format
 cmake --build build --target format-check
 ```
 
-GitHub Actions checks formatting, builds the project, runs CTest, and starts the GUI with Qt's offscreen platform on Ubuntu.
-
 ## Tests
 
 ```bash
@@ -154,6 +146,10 @@ The CTest suite covers:
 - Complete directory-tree round trips for all 18 packing, compression, and encryption combinations.
 - Incorrect passwords, damaged and truncated archives, size bounds, invalid paths, overwrite conflicts, restore previews, and destination path races.
 - Account isolation, upload/download round trips, interrupted uploads, cancelled transfers, request ID validation, session recycling, and persistence across server restarts.
+- Buffered disk-full failures, source-to-FIFO races, final-stage cancellation,
+  unreadable/malformed account stores, unresponsive peers and malformed responses.
+- CLI numeric/option validation when Python 3 is available, and multi-job window
+  closing/cancellation when Qt 6 is available (offscreen; not desktop acceptance).
 
 Fixtures include regular files, empty directories, symbolic links, FIFOs, and Unix socket nodes.
 

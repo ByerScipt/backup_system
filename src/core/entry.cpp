@@ -262,7 +262,9 @@ void validateSourceHardlink(const Entry& entry)
 void copySourceFile(const Entry& e, std::ostream& out, uint64_t& completed,
                     uint64_t total, const BackupOptions& options)
 {
-    int flags = O_RDONLY | O_CLOEXEC;
+    // A scan-time regular file may have become a FIFO. Do not block before
+    // fstat can reject the replacement; O_NONBLOCK has no effect on files.
+    int flags = O_RDONLY | O_CLOEXEC | O_NONBLOCK;
 #ifdef O_NOFOLLOW
     flags |= O_NOFOLLOW;
 #endif

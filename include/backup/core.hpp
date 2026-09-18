@@ -116,9 +116,12 @@ public:
 
     // Decodes and validates without extraction; throws std::exception on error.
     // Conflicts are a snapshot, not a reservation of destination paths.
+    // Progress and cancel follow the same lifetime rules as RestoreOptions.
     static RestorePreview preview(const std::string& archivePath,
                                   const std::string& destinationDirectory,
-                                  const std::string& password = {});
+                                  const std::string& password = {},
+                                  ProgressCallback progress = {},
+                                  std::atomic_bool* cancel = nullptr);
 
     // Checks header and encoded checksum only, without a password. Throws on
     // failure; it does not establish that decoded entry metadata is valid.
@@ -127,8 +130,10 @@ public:
 
 std::array<uint8_t, 32> sha256(const std::vector<uint8_t>& data);
 std::array<uint8_t, 32> sha256(const std::string& data);
+// Throws on read/range errors or cancellation. cancel must outlive the call.
 std::array<uint8_t, 32> sha256File(const std::string& path, uint64_t offset = 0,
-                                   uint64_t length = UINT64_MAX);
+                                   uint64_t length = UINT64_MAX,
+                                   std::atomic_bool* cancel = nullptr);
 std::string hexDigest(const std::array<uint8_t, 32>& digest);
 
 std::string toString(PackAlgorithm value);

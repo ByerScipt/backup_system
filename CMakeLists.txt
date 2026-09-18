@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(backup_system VERSION 1.6.1 LANGUAGES CXX)
+project(backup_system VERSION 1.6.2 LANGUAGES CXX)
 
 option(BACKUP_BUILD_GUI "Build the optional Qt6 GUI" ON)
 option(BACKUP_BUILD_TESTS "Build automated tests" ON)
@@ -84,6 +84,9 @@ if(BACKUP_BUILD_TESTS)
         tests/test_crypto_vectors.cpp
         tests/test_filesystem.cpp
         tests/test_sync.cpp
+        tests/test_pipeline_io.cpp
+        tests/test_cancellation.cpp
+        tests/test_network_failures.cpp
     )
     target_include_directories(backup-tests PRIVATE tests src)
     target_link_libraries(backup-tests PRIVATE backup_network)
@@ -91,6 +94,21 @@ if(BACKUP_BUILD_TESTS)
     target_link_options(backup-tests PRIVATE "-Wl,--wrap=fsync")
     target_compile_options(backup-tests PRIVATE ${BACKUP_WARNINGS})
     add_test(NAME backup-tests COMMAND backup-tests)
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME backup-cli-tests COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cli.py
+            $<TARGET_FILE:backup-cli> $<TARGET_FILE:backup-server>)
+    endif()
+    if(TARGET backup-gui)
+        add_executable(backup-gui-tests tests/test_gui_jobs.cpp gui/widgets.cpp
+            gui/pages_local.cpp gui/forms.cpp gui/dialogs.cpp)
+        target_include_directories(backup-gui-tests PRIVATE gui)
+        target_link_libraries(backup-gui-tests PRIVATE backup_network Qt6::Widgets)
+        target_compile_options(backup-gui-tests PRIVATE ${BACKUP_WARNINGS})
+        add_test(NAME backup-gui-tests COMMAND backup-gui-tests)
+        set_tests_properties(backup-gui-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 10)
+    endif()
 endif()
 
 install(TARGETS backup-cli backup-server RUNTIME DESTINATION bin)

@@ -2,6 +2,7 @@
 #include <QClipboard>
 
 #include <QApplication>
+#include <QCloseEvent>
 #include <QDateTime>
 #include <QFormLayout>
 #include <QFrame>
@@ -30,6 +31,95 @@
 
 namespace backup::gui
 {
+
+namespace
+{
+// One guard per top-level window: closing cancels every page's job and leaves
+// the event loop alive until workers have cleaned up their temporary files.
+class JobWindowGuard final : public QObject
+{
+public:
+    explicit JobWindowGuard(QWidget* window) : QObject(window), window_(window)
+    {
+        window->installEventFilter(this);
+        connect(qApp, &QCoreApplication::aboutToQuit, this,
+                [this]() { joinAll(); });
+    }
+    ~JobWindowGuard() override
+    {
+        joinAll();
+    }
+
+    void add(QThread* thread, std::shared_ptr<std::atomic_bool> cancelled)
+    {
+        jobs_.push_back({thread, std::move(cancelled)});
+        connect(thread, &QThread::finished, this,
+                [this, thread]()
+                {
+                    thread->wait();
+                    jobs_.erase(std::remove_if(jobs_.begin(), jobs_.end(),
+                                               [thread](const ActiveJob& job) {
+                                                   return job.thread == thread;
+                                               }),
+                                jobs_.end());
+                    if (closePending_ && jobs_.empty())
+                    {
+                        window_->close();
+                    }
+                });
+    }
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (watched == window_ && event->type() == QEvent::Close &&
+            !jobs_.empty())
+        {
+            closePending_ = true;
+            for (const auto& job : jobs_)
+            {
+                job.cancelled->store(true);
+            }
+            static_cast<QCloseEvent*>(event)->ignore();
+            return true;
+        }
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    struct ActiveJob
+    {
+        QThread* thread;
+        std::shared_ptr<std::atomic_bool> cancelled;
+    };
+    void joinAll()
+    {
+        for (const auto& job : jobs_)
+        {
+            job.cancelled->store(true);
+        }
+        for (const auto& job : jobs_)
+        {
+            job.thread->wait();
+        }
+    }
+    QWidget* window_;
+    bool closePending_ = false;
+    std::vector<ActiveJob> jobs_;
+};
+
+JobWindowGuard* jobGuard(QWidget* window)
+{
+    for (QObject* child : window->children())
+    {
+        if (auto* guard = dynamic_cast<JobWindowGuard*>(child))
+        {
+            return guard;
+        }
+    }
+    return new JobWindowGuard(window);
+}
+} // namespace
 
 Page makePage()
 {
@@ -274,13 +364,16 @@ void startJob(QWidget* owner, const JobControls& controls, Job job,
                     safeCancel->setEnabled(false);
                     safeOwner->setProperty("jobRunning", false);
                     safeProgress->setValue(ok ? 100 : 0);
-                    safeProgress->setFormat(ok ? "任务完成" : "任务失败");
+                    const bool wasCancelled = !ok && cancelled->load();
+                    safeProgress->setFormat(
+                        ok ? "任务完成"
+                           : (wasCancelled ? "任务已取消" : "任务失败"));
                     appendLog(safeLog, (ok ? "✓  " : "✕  ") + message);
                     if (ok && afterSuccess)
                     {
                         afterSuccess();
                     }
-                    if (!ok)
+                    if (!ok && !wasCancelled)
                     {
                         QMessageBox::critical(safeOwner, "Task Failed",
                                               message);
@@ -288,6 +381,7 @@ void startJob(QWidget* owner, const JobControls& controls, Job job,
                 },
                 Qt::QueuedConnection);
         });
+    jobGuard(owner->window())->add(thread, cancelled);
     QObject::connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     thread->start();
 }
@@ -338,17 +432,29 @@ QString stageName(const QString& stage)
     {
         return "恢复元数据";
     }
-    if (stage == "upload")
+    if (stage == "network-upload")
     {
         return "上传归档";
     }
-    if (stage == "download")
+    if (stage == "network-download")
     {
         return "下载归档";
     }
     if (stage == "conflict-preview")
     {
         return "冲突预检";
+    }
+    if (stage == "compress-copy" || stage == "decompress-copy")
+    {
+        return "复制未压缩数据";
+    }
+    if (stage == "read-archive")
+    {
+        return "读取归档";
+    }
+    if (stage == "finalize")
+    {
+        return "生成最终归档";
     }
     return stage;
 }

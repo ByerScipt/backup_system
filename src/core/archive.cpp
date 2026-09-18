@@ -84,14 +84,15 @@ ParsedHeader readArchiveHeader(const fs::path& path)
 void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
                         const DecodedArchiveConsumer& consumer)
 {
+    checkCancelled(options.cancel);
     ParsedHeader header = readArchiveHeader(archive);
     if (header.info.encryption != EncryptionAlgorithm::None)
     {
         ensure(!options.password.empty(),
                "archive is encrypted; a password is required");
     }
-    auto encodedDigest =
-        shaFileRange(archive, kArchiveHeaderSize, header.info.encodedSize);
+    auto encodedDigest = shaFileRange(archive, kArchiveHeaderSize,
+                                      header.info.encodedSize, options.cancel);
     ensure(encodedDigest == header.info.encodedDigest,
            "archive payload checksum mismatch");
 
@@ -103,6 +104,7 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
         in.seekg(kArchiveHeaderSize);
         copyBytes(in, out, header.info.encodedSize, options.progress,
                   "read-archive", options.cancel);
+        closeOutput(out);
     }
     TempFile compressed;
     cryptStage(encoded.path(), compressed.path(), header.info.encryption,
@@ -113,7 +115,7 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
                     header.info.packedSize, options);
     ensure(fileSizeChecked(packed.path()) == header.info.packedSize,
            "decoded packed size mismatch (wrong password or damaged archive)");
-    ensure(shaFileRange(packed.path(), 0, UINT64_MAX) ==
+    ensure(shaFileRange(packed.path(), 0, UINT64_MAX, options.cancel) ==
                header.info.packedDigest,
            "decoded checksum mismatch (wrong password or damaged archive)");
 
@@ -125,6 +127,7 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
                             { return entry.type == EntryType::Hardlink; }),
                "hardlinks require archive version 2");
     }
+    checkCancelled(options.cancel);
     consumer(header, packed.path(), entries);
 }
 

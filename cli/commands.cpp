@@ -55,6 +55,20 @@ BackupOptions backupOptions(const Arguments& args)
     return options;
 }
 
+RestoreOptions restoreOptions(const Arguments& args, const std::string& archive)
+{
+    const auto info = BackupEngine::inspect(archive);
+    RestoreOptions options;
+    options.overwrite = hasFlag(args, "--overwrite");
+    options.progress = progressReport;
+    if (info.encryption != EncryptionAlgorithm::None)
+    {
+        options.password =
+            secretFrom(args.options, "--key-file", "Archive key: ");
+    }
+    return options;
+}
+
 std::string temporaryArchive()
 {
     std::string pattern =
@@ -108,15 +122,7 @@ int localRestore(const Arguments& args)
     {
         throw std::runtime_error("restore requires one ARCHIVE");
     }
-    ArchiveInfo info = BackupEngine::inspect(args.positional[0]);
-    RestoreOptions options;
-    options.overwrite = hasFlag(args, "--overwrite");
-    options.progress = progressReport;
-    if (info.encryption != EncryptionAlgorithm::None)
-    {
-        options.password =
-            secretFrom(args.options, "--key-file", "Archive key: ");
-    }
+    const auto options = restoreOptions(args, args.positional[0]);
     auto result = BackupEngine::restore(
         args.positional[0], requiredOption(args.options, "-d"), options);
     std::cerr << '\n';
@@ -227,15 +233,7 @@ int remoteRestore(const Arguments& args)
     {
         throw std::runtime_error(error);
     }
-    ArchiveInfo info = BackupEngine::inspect(temp);
-    RestoreOptions options;
-    options.overwrite = hasFlag(args, "--overwrite");
-    options.progress = progressReport;
-    if (info.encryption != EncryptionAlgorithm::None)
-    {
-        options.password =
-            secretFrom(args.options, "--key-file", "Archive key: ");
-    }
+    const auto options = restoreOptions(args, temp);
     auto restored = BackupEngine::restore(
         temp, requiredOption(args.options, "-d"), options);
     std::cerr << '\n';

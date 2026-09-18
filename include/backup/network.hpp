@@ -55,13 +55,19 @@ public:
 
     // Synchronous calls: false/non-empty error indicates failure. On list(),
     // empty results mean "no backups" only if error is empty. Progress runs on
-    // the caller's thread; cancel must live until the transfer returns.
-    bool registerUser(std::string& error);
+    // the caller's thread; cancel must live until the call returns. Socket
+    // connect/read/write waits time out after 30 seconds and poll cancellation.
+    // DNS resolution remains subject to the system resolver's timeout.
+    bool registerUser(std::string& error, std::atomic_bool* cancel = nullptr);
+    // Clears backupId on entry and sets it only after a validated
+    // acknowledgement. A lost/cancelled acknowledgement cannot undo a
+    // server-side commit.
     bool upload(const std::string& archivePath, const std::string& displayName,
                 std::string& backupId, std::string& error,
                 ProgressCallback progress = {},
                 std::atomic_bool* cancel = nullptr);
-    std::vector<RemoteBackupEntry> list(std::string& error);
+    std::vector<RemoteBackupEntry> list(std::string& error,
+                                        std::atomic_bool* cancel = nullptr);
     bool download(const std::string& backupId, const std::string& outputPath,
                   std::string& error, ProgressCallback progress = {},
                   std::atomic_bool* cancel = nullptr);

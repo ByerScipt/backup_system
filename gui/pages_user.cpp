@@ -102,11 +102,11 @@ QWidget* userPage()
             }
 
             startJob(page.widget, controls,
-                     [=](std::atomic_bool*, const ProgressCallback&)
+                     [=](std::atomic_bool* cancel, const ProgressCallback&)
                      {
                          auto client = makeClient(serverValues);
                          std::string error;
-                         if (!client.registerUser(error))
+                         if (!client.registerUser(error, cancel))
                          {
                              throw std::runtime_error(error);
                          }

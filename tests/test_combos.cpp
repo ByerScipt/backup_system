@@ -35,6 +35,9 @@ testAllCombinations(const fs::path& workspace, const fs::path& source,
                 options.pack = pack;
                 options.compression = compression;
                 options.encryption = encryption;
+                bool encryptProgress = false;
+                options.progress = [&](const ProgressEvent& event)
+                { encryptProgress |= event.stage == "encrypt"; };
                 if (encryption != EncryptionAlgorithm::None)
                 {
                     options.password = "correct horse battery staple";
@@ -43,6 +46,7 @@ testAllCombinations(const fs::path& workspace, const fs::path& source,
                                                     archive.string(), options);
                 check(created.success,
                       "combination backup failed: " + created.message);
+                check(encryptProgress, "backup omitted the encrypt stage");
                 auto info = BackupEngine::inspect(archive.string());
                 check(info.pack == pack && info.compression == compression &&
                           info.encryption == encryption,
@@ -52,10 +56,14 @@ testAllCombinations(const fs::path& workspace, const fs::path& source,
                     workspace / ("restore-" + std::to_string(number));
                 RestoreOptions restore;
                 restore.password = options.password;
+                bool decryptProgress = false;
+                restore.progress = [&](const ProgressEvent& event)
+                { decryptProgress |= event.stage == "decrypt"; };
                 auto restored = BackupEngine::restore(
                     archive.string(), destination.string(), restore);
                 check(restored.success,
                       "combination restore failed: " + restored.message);
+                check(decryptProgress, "restore omitted the decrypt stage");
                 compareCompleteTree(destination / source.filename(),
                                     fixturePaths, expected);
                 archives.push_back({archive, pack, compression, encryption});

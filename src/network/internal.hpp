@@ -17,6 +17,7 @@
 #include <mutex>
 #include <optional>
 #include <random>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <thread>
@@ -30,6 +31,7 @@
 #endif
 #include <netdb.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -132,8 +134,10 @@ private:
     int fd_ = -1;
 };
 
-void sendAll(int fd, const uint8_t* data, size_t size);
-bool receiveAll(int fd, uint8_t* data, size_t size, bool allowCleanEof = false);
+void sendAll(int fd, const uint8_t* data, size_t size,
+             std::atomic_bool* cancel = nullptr);
+bool receiveAll(int fd, uint8_t* data, size_t size, bool allowCleanEof = false,
+                std::atomic_bool* cancel = nullptr);
 void putU16(std::vector<uint8_t>& out, uint16_t value);
 void putU32(std::vector<uint8_t>& out, uint32_t value);
 void putU64(std::vector<uint8_t>& out, uint64_t value);
@@ -165,11 +169,13 @@ struct Frame
 };
 
 void sendFrame(int fd, MessageType type, uint32_t requestId,
-               const std::vector<uint8_t>& payload = {});
-std::optional<Frame> receiveFrame(int fd);
+               const std::vector<uint8_t>& payload = {},
+               std::atomic_bool* cancel = nullptr);
+std::optional<Frame> receiveFrame(int fd, std::atomic_bool* cancel = nullptr);
 void sendError(int fd, uint32_t requestId, const std::string& message);
 std::string errorFromFrame(const Frame& frame);
-Socket connectTo(const std::string& host, uint16_t port);
+Socket connectTo(const std::string& host, uint16_t port,
+                 std::atomic_bool* cancel = nullptr);
 
 // auth helpers
 std::vector<uint8_t> randomBytes(size_t count);

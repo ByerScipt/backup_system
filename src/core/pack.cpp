@@ -15,6 +15,7 @@ void packStream(const std::vector<Entry>& entries, const fs::path& output,
     uint64_t completed = 0;
     for (const auto& entry : entries)
     {
+        checkCancelled(options.cancel);
         if (entry.type == EntryType::Hardlink)
         {
             validateSourceHardlink(entry);
@@ -26,6 +27,7 @@ void packStream(const std::vector<Entry>& entries, const fs::path& output,
             copySourceFile(entry, out, completed, inputBytes, options);
         }
     }
+    closeOutput(out);
 }
 
 void packIndex(std::vector<Entry> entries, const fs::path& output,
@@ -37,6 +39,7 @@ void packIndex(std::vector<Entry> entries, const fs::path& output,
     uint64_t completed = 0;
     for (auto& entry : entries)
     {
+        checkCancelled(options.cancel);
         if (entry.type == EntryType::Hardlink)
         {
             validateSourceHardlink(entry);
@@ -52,6 +55,7 @@ void packIndex(std::vector<Entry> entries, const fs::path& output,
     writeU32(out, static_cast<uint32_t>(entries.size()));
     for (const auto& entry : entries)
     {
+        checkCancelled(options.cancel);
         writeEntryMetadata(out, entry, true);
     }
     uint64_t centralEnd = static_cast<uint64_t>(out.tellp());
@@ -60,6 +64,7 @@ void packIndex(std::vector<Entry> entries, const fs::path& output,
     writeU64(out, centralEnd - centralOffset);
     writeU32(out, static_cast<uint32_t>(entries.size()));
     writeU32(out, 0);
+    closeOutput(out);
 }
 
 std::vector<Entry> readStreamEntries(std::ifstream& in, uint64_t size)

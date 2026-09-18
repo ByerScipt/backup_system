@@ -55,6 +55,7 @@ void handleUpload(int fd, uint32_t requestId, const Frame& start,
                "upload request identifier changed");
         if (frame->type == MessageType::UploadEnd)
         {
+            ensure(frame->payload.empty(), "upload end has trailing data");
             break;
         }
         ensure(frame->type == MessageType::UploadChunk,
@@ -70,6 +71,7 @@ void handleUpload(int fd, uint32_t requestId, const Frame& start,
         received += frame->payload.size();
     }
     out.close();
+    ensure(out.good(), "cannot close uploaded archive");
     ensure(received == declaredSize,
            "uploaded size does not match declaration");
     ensure(sha256File(temp.string()) == declaredDigest,

@@ -2,11 +2,56 @@
 #include "commands.hpp"
 
 #include <iostream>
+#include <map>
+#include <set>
 #include <stdexcept>
 #include <string>
 
 namespace
 {
+
+void validateArguments(const std::string& command, const Arguments& args)
+{
+    static const std::map<std::string, std::set<std::string>> allowed{
+        {"backup", {"-o", "--pack", "--compress", "--encrypt", "--key-file"}},
+        {"restore", {"-d", "--key-file", "--overwrite"}},
+        {"inspect", {}},
+        {"user", {"--server", "--username", "--account-password-file"}},
+        {"remote-backup",
+         {"--server", "--username", "--account-password-file", "--name",
+          "--pack", "--compress", "--encrypt", "--key-file"}},
+        {"remote-list", {"--server", "--username", "--account-password-file"}},
+        {"remote-restore",
+         {"--server", "--username", "--account-password-file", "-d",
+          "--key-file", "--overwrite"}}};
+    auto found = allowed.find(command);
+    if (found == allowed.end())
+    {
+        throw std::runtime_error("unknown command: " + command);
+    }
+    auto validate = [&](const std::string& option)
+    {
+        if (found->second.count(option) == 0)
+        {
+            throw std::runtime_error("unsupported option for " + command +
+                                     ": " + option);
+        }
+    };
+    for (const auto& option : args.options)
+    {
+        validate(option.first);
+    }
+    for (const auto& flag : args.flags)
+    {
+        validate(flag);
+    }
+    // Other commands validate their required operand in the command handler.
+    if ((command == "user" || command == "remote-list") &&
+        !args.positional.empty())
+    {
+        throw std::runtime_error(command + " accepts no positional arguments");
+    }
+}
 
 void usage()
 {
@@ -56,9 +101,12 @@ int main(int argc, char* argv[])
             {
                 throw std::runtime_error("only 'user register' is supported");
             }
-            return registerUser(parseArgs(argc, argv, 3));
+            Arguments args = parseArgs(argc, argv, 3);
+            validateArguments(command, args);
+            return registerUser(args);
         }
         Arguments args = parseArgs(argc, argv, 2);
+        validateArguments(command, args);
         if (command == "backup")
         {
             return localBackup(args);

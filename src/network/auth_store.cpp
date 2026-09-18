@@ -82,7 +82,14 @@ std::vector<UserRecord> loadUsers(const fs::path& storage)
     std::ifstream in(path, std::ios::binary);
     if (!in)
     {
-        return users;
+        struct stat state
+        {
+        };
+        if (::lstat(path.c_str(), &state) != 0 && errno == ENOENT)
+        {
+            return users;
+        }
+        throw NetError("cannot read existing user database");
     }
     std::array<char, 4> magic{};
     in.read(magic.data(), 4);
@@ -96,12 +103,14 @@ std::vector<UserRecord> loadUsers(const fs::path& storage)
                      (static_cast<uint32_t>(b[2]) << 16) |
                      (static_cast<uint32_t>(b[3]) << 24);
     ensure(count <= 100000, "user database count exceeds limit");
+    std::set<std::string> names;
     for (uint32_t i = 0; i < count; ++i)
     {
         uint8_t nbuf[2]{};
         in.read(reinterpret_cast<char*>(nbuf), 2);
         ensure(in.good(), "truncated user database");
         uint16_t n = nbuf[0] | (nbuf[1] << 8);
+        ensure(n > 0 && n <= 64, "invalid user database name length");
         UserRecord u;
         u.name.resize(n);
         in.read(u.name.data(), n);
@@ -109,13 +118,17 @@ std::vector<UserRecord> loadUsers(const fs::path& storage)
         in.read(reinterpret_cast<char*>(u.verifier.data()), u.verifier.size());
         ensure(in.good() && validUsername(u.name),
                "invalid user database record");
+        ensure(names.insert(u.name).second, "duplicate user database record");
         users.push_back(u);
     }
+    ensure(in.peek() == std::char_traits<char>::eof() && !in.bad(),
+           "user database has trailing or unreadable data");
     return users;
 }
 
 void saveUsers(const fs::path& storage, const std::vector<UserRecord>& users)
 {
+    ensure(users.size() <= 100000, "user database count exceeds limit");
     fs::create_directories(storage);
     fs::path temp = storage / (".users-" + randomId() + ".tmp");
     std::ofstream out(temp, std::ios::binary | std::ios::trunc);

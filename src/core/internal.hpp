@@ -68,6 +68,7 @@ void report(const ProgressCallback& callback, const std::string& stage,
 
 // ---- io ----
 void writeExact(std::ostream& out, const void* data, size_t size);
+void closeOutput(std::ofstream& out);
 void readExact(std::istream& in, void* data, size_t size);
 void writeU8(std::ostream& out, uint8_t value);
 void writeU16(std::ostream& out, uint16_t value);
@@ -109,7 +110,8 @@ private:
 
 // ---- sha ----
 std::array<uint8_t, 32> shaFileRange(const fs::path& path, uint64_t offset,
-                                     uint64_t length);
+                                     uint64_t length,
+                                     std::atomic_bool* cancel = nullptr);
 
 // ---- entry / scan ----
 enum class EntryType : uint8_t

@@ -21,6 +21,7 @@ void copyFileStage(const fs::path& input, const fs::path& output,
     std::ofstream out(output, std::ios::binary | std::ios::trunc);
     ensure(in.good() && out.good(), "cannot open pipeline stage");
     copyBytes(in, out, fileSizeChecked(input), progress, stage, cancel);
+    closeOutput(out);
 }
 
 void compressStage(const fs::path& input, const fs::path& output,
@@ -154,6 +155,9 @@ void rleCompress(const fs::path& input, const fs::path& output,
         flushRun(runByte, runLength);
     }
     flushLiterals();
+    ensure(!in.bad() && completed == originalSize,
+           "cannot read complete RLE input");
+    closeOutput(out);
 }
 
 void rleDecompress(const fs::path& input, const fs::path& output,
@@ -194,8 +198,9 @@ void rleDecompress(const fs::path& input, const fs::path& output,
         produced += count;
         report(options.progress, "decompress-rle", produced, originalSize);
     }
-    ensure(in.peek() == std::char_traits<char>::eof(),
+    ensure(in.peek() == std::char_traits<char>::eof() && !in.bad(),
            "RLE stream has trailing data");
+    closeOutput(out);
 }
 
 } // namespace detail

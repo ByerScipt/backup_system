@@ -327,11 +327,11 @@ QWidget* remoteListPage()
 
             startJob(
                 page.widget, controls,
-                [=](std::atomic_bool*, const ProgressCallback&)
+                [=](std::atomic_bool* cancel, const ProgressCallback&)
                 {
                     auto client = makeClient(serverValues);
                     std::string error;
-                    *entries = client.list(error);
+                    *entries = client.list(error, cancel);
                     if (!error.empty())
                     {
                         throw std::runtime_error(error);

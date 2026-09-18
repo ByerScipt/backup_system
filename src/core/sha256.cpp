@@ -149,8 +149,9 @@ private:
 };
 
 std::array<uint8_t, 32> shaFileRange(const fs::path& path, uint64_t offset,
-                                     uint64_t length)
+                                     uint64_t length, std::atomic_bool* cancel)
 {
+    checkCancelled(cancel);
     std::ifstream in(path, std::ios::binary);
     ensure(in.good(), "cannot open file for SHA-256: " + path.string());
     uint64_t total = static_cast<uint64_t>(fs::file_size(path));
@@ -168,6 +169,7 @@ std::array<uint8_t, 32> shaFileRange(const fs::path& path, uint64_t offset,
     uint64_t done = 0;
     while (done < count)
     {
+        checkCancelled(cancel);
         size_t take = static_cast<size_t>(
             std::min<uint64_t>(buffer.size(), count - done));
         readExact(in, buffer.data(), take);
@@ -199,9 +201,9 @@ std::array<uint8_t, 32> sha256(const std::string& data)
 }
 
 std::array<uint8_t, 32> sha256File(const std::string& path, uint64_t offset,
-                                   uint64_t length)
+                                   uint64_t length, std::atomic_bool* cancel)
 {
-    return detail::shaFileRange(path, offset, length);
+    return detail::shaFileRange(path, offset, length, cancel);
 }
 
 std::string hexDigest(const std::array<uint8_t, 32>& digest)

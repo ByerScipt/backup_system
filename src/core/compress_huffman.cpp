@@ -196,7 +196,8 @@ public:
     }
     bool hasOnlyZeroPaddingAndEof()
     {
-        return current_ == 0 && in_.peek() == std::char_traits<char>::eof();
+        return current_ == 0 && in_.peek() == std::char_traits<char>::eof() &&
+               !in_.bad();
     }
 
 private:
@@ -227,6 +228,8 @@ void huffmanCompress(const fs::path& input, const fs::path& output,
         counted += got;
         report(options.progress, "huffman-count", counted, originalSize);
     }
+    ensure(!first.bad() && counted == originalSize,
+           "cannot read complete Huffman input");
     auto lengths = buildHuffmanLengths(frequencies);
     auto codes = canonicalCodes(lengths);
 
@@ -255,6 +258,9 @@ void huffmanCompress(const fs::path& input, const fs::path& output,
         report(options.progress, "compress-huffman", completed, originalSize);
     }
     writer.finish();
+    ensure(!second.bad() && completed == originalSize,
+           "cannot reread complete Huffman input");
+    closeOutput(out);
 }
 
 void huffmanDecompress(const fs::path& input, const fs::path& output,
@@ -310,8 +316,9 @@ void huffmanDecompress(const fs::path& input, const fs::path& output,
            "Huffman symbol table does not match declared size");
     if (originalSize == 0)
     {
-        ensure(in.peek() == std::char_traits<char>::eof(),
+        ensure(in.peek() == std::char_traits<char>::eof() && !in.bad(),
                "empty Huffman stream has trailing data");
+        closeOutput(out);
         return;
     }
     BitReader reader(in);
@@ -347,6 +354,7 @@ void huffmanDecompress(const fs::path& input, const fs::path& output,
     report(options.progress, "decompress-huffman", produced, originalSize);
     ensure(reader.hasOnlyZeroPaddingAndEof(),
            "Huffman stream has non-zero padding or trailing data");
+    closeOutput(out);
 }
 } // namespace detail
 } // namespace backup

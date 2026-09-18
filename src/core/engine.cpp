@@ -11,6 +11,7 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
     BackupResult result;
     try
     {
+        detail::checkCancelled(options.cancel);
         if (options.encryption != EncryptionAlgorithm::None)
         {
             detail::ensure(!options.password.empty(),
@@ -58,7 +59,8 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
         info.compression = options.compression;
         info.encryption = options.encryption;
         info.packedSize = detail::fileSizeChecked(packed.path());
-        info.packedDigest = detail::shaFileRange(packed.path(), 0, UINT64_MAX);
+        info.packedDigest =
+            detail::shaFileRange(packed.path(), 0, UINT64_MAX, options.cancel);
 
         detail::TempFile compressed;
         detail::compressStage(packed.path(), compressed.path(),
@@ -70,7 +72,7 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
                            options.progress, options.cancel, "encrypt");
         info.encodedSize = detail::fileSizeChecked(encoded.path());
         info.encodedDigest =
-            detail::shaFileRange(encoded.path(), 0, UINT64_MAX);
+            detail::shaFileRange(encoded.path(), 0, UINT64_MAX, options.cancel);
 
         detail::TempFile finalTemp(canonicalParent);
         std::ofstream out(finalTemp.path(), std::ios::binary | std::ios::trunc);
@@ -90,6 +92,7 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
                        "cannot synchronize final archive");
         detail::ensure(::close(fd.release()) == 0,
                        "cannot close synchronized final archive");
+        detail::checkCancelled(options.cancel);
         detail::commitFileNoReplace(finalTemp.path(), canonicalOutput);
         detail::UniqueFd parentFd(::open(canonicalParent.c_str(),
                                          O_RDONLY | O_DIRECTORY | O_CLOEXEC));
@@ -134,6 +137,7 @@ BackupResult BackupEngine::restore(const std::string& archivePath,
                                        entries, options, outputBytes);
                 result.entryCount = entries.size();
             });
+        detail::checkCancelled(options.cancel);
         result.success = true;
         result.message = "restore completed";
         result.inputBytes = detail::fileSizeChecked(archive);
@@ -148,11 +152,16 @@ BackupResult BackupEngine::restore(const std::string& archivePath,
 
 RestorePreview BackupEngine::preview(const std::string& archivePath,
                                      const std::string& destinationDirectory,
-                                     const std::string& password)
+                                     const std::string& password,
+                                     ProgressCallback progress,
+                                     std::atomic_bool* cancel)
 {
+    detail::checkCancelled(cancel);
     fs::path archive = fs::canonical(archivePath);
     RestoreOptions options;
     options.password = password;
+    options.progress = std::move(progress);
+    options.cancel = cancel;
     RestorePreview preview;
     detail::withDecodedArchive(
         archive, options,
@@ -177,6 +186,7 @@ RestorePreview BackupEngine::preview(const std::string& archivePath,
             preview.entries.reserve(entries.size());
             for (const auto& entry : entries)
             {
+                detail::checkCancelled(cancel);
                 preview.entries.push_back({entry.path,
                                            detail::entryTypeName(entry.type),
                                            entry.size});

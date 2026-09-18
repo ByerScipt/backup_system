@@ -385,6 +385,7 @@ void extractEntries(const fs::path& packed, const fs::path& destination,
                    "cannot close restored file");
             outputBytes += entry.size;
         }
+        checkCancelled(options.cancel);
         commitNodeAt(parent.get(), temporary, target, options.overwrite);
         cleanup.keep();
         report(options.progress, "restore-entry", outputBytes, 0, entry.path);
@@ -395,6 +396,7 @@ void extractEntries(const fs::path& packed, const fs::path& destination,
               { return pathDepth(a->path) > pathDepth(b->path); });
     for (const Entry* entry : directories)
     {
+        checkCancelled(options.cancel);
         UniqueFd parent = openParentDirectory(destinationFd.get(), entry->path);
         std::string name = fs::path(entry->path).filename().string();
         applyMetadataAt(parent.get(), name, *entry,

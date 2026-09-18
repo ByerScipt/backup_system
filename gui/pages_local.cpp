@@ -202,11 +202,11 @@ QWidget* localRestorePage()
             previewControls.start = previewButton;
             startJob(
                 page.widget, previewControls,
-                [=](std::atomic_bool*, const ProgressCallback&)
+                [=](std::atomic_bool* cancel, const ProgressCallback& progress)
                 {
                     *previewResult = BackupEngine::preview(
                         input.toStdString(), dest.toStdString(),
-                        password.toStdString());
+                        password.toStdString(), progress, cancel);
                     return QString("预检完成 · %1 个条目 · %2 个冲突")
                         .arg(previewResult->entries.size())
                         .arg(previewResult->conflicts.size());
@@ -258,24 +258,26 @@ QWidget* localRestorePage()
                 page.widget, controls,
                 [=](std::atomic_bool* cancel, const ProgressCallback& progress)
                 {
-                    auto resultPreview = BackupEngine::preview(
-                        input.toStdString(), dest.toStdString(),
-                        password.toStdString());
-                    if (!resultPreview.conflicts.empty())
+                    // Explicit overwrite needs no automatic conflict preview;
+                    // restore still validates the archive before extraction.
+                    if (!allowOverwrite)
                     {
-                        QStringList lines;
-                        for (size_t i = 0;
-                             i < std::min<size_t>(
-                                     resultPreview.conflicts.size(), 20);
-                             ++i)
+                        auto resultPreview = BackupEngine::preview(
+                            input.toStdString(), dest.toStdString(),
+                            password.toStdString(), progress, cancel);
+                        if (!resultPreview.conflicts.empty())
                         {
-                            lines << QString::fromStdString(
-                                resultPreview.conflicts[i]);
-                        }
-                        progress({"conflict-preview", 0, 0,
-                                  lines.join("；").toStdString()});
-                        if (!allowOverwrite)
-                        {
+                            QStringList lines;
+                            for (size_t i = 0;
+                                 i < std::min<size_t>(
+                                         resultPreview.conflicts.size(), 20);
+                                 ++i)
+                            {
+                                lines << QString::fromStdString(
+                                    resultPreview.conflicts[i]);
+                            }
+                            progress({"conflict-preview", 0, 0,
+                                      lines.join("；").toStdString()});
                             throw std::runtime_error(
                                 "目标存在 " +
                                 std::to_string(resultPreview.conflicts.size()) +

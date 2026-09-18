@@ -72,6 +72,10 @@ void testCryptoVectors();
 void testUnreadableSource();
 void testMetadataFailure();
 void testSyncFailure();
+void testPipelineIo();
+void testCancellation();
+void testSourceFifoRace();
+void testNetworkFailures();
 void testHardLinks();
 std::vector<BuiltArchive>
 testAllCombinations(const fs::path& workspace, const fs::path& source,

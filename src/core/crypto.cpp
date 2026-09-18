@@ -311,43 +311,24 @@ void cryptStage(const fs::path& input, const fs::path& output,
                algorithm == EncryptionAlgorithm::ChaCha20 ||
                algorithm == EncryptionAlgorithm::Aes256,
            "unsupported encryption algorithm");
-    static_cast<void>(stage);
     std::ifstream in(input, std::ios::binary);
     std::ofstream out(output, std::ios::binary | std::ios::trunc);
     ensure(in.good() && out.good(), "cannot open encryption pipeline stage");
-    uint64_t total = fileSizeChecked(input), completed = 0, position = 0;
+    uint64_t total = fileSizeChecked(input), position = 0;
     if (algorithm == EncryptionAlgorithm::None)
     {
-        copyBytes(in, out, total, progress, "crypt-copy", cancel);
+        copyBytes(in, out, total, progress, stage, cancel);
+        closeOutput(out);
         return;
     }
     auto key = deriveKey(password, salt);
     std::vector<uint8_t> buffer(kBufferSize);
-    const char* stageName = algorithm == EncryptionAlgorithm::ChaCha20
-                                ? "crypt-chacha20"
-                                : "crypt-aes256";
+    std::array<uint8_t, 12> nonce{};
     if (algorithm == EncryptionAlgorithm::ChaCha20)
     {
         // 32-bit block counter covers 256 GiB per archive; stay well inside it.
         ensure(total < (1ULL << 38), "archive exceeds the ChaCha20 size limit");
-        std::array<uint8_t, 12> nonce{};
         std::copy(salt.begin(), salt.begin() + 12, nonce.begin());
-        while (in)
-        {
-            checkCancelled(cancel);
-            in.read(reinterpret_cast<char*>(buffer.data()),
-                    static_cast<std::streamsize>(buffer.size()));
-            size_t got = static_cast<size_t>(in.gcount());
-            if (got)
-            {
-                chacha20Xor(key, nonce, position, buffer.data(), got);
-                writeExact(out, buffer.data(), got);
-            }
-            position += got;
-            completed += got;
-            report(progress, stageName, completed, total);
-        }
-        return;
     }
     while (in)
     {
@@ -357,13 +338,22 @@ void cryptStage(const fs::path& input, const fs::path& output,
         size_t got = static_cast<size_t>(in.gcount());
         if (got)
         {
-            aes256CtrXor(key, salt, position, buffer.data(), got);
+            if (algorithm == EncryptionAlgorithm::ChaCha20)
+            {
+                chacha20Xor(key, nonce, position, buffer.data(), got);
+            }
+            else
+            {
+                aes256CtrXor(key, salt, position, buffer.data(), got);
+            }
             writeExact(out, buffer.data(), got);
         }
         position += got;
-        completed += got;
-        report(progress, stageName, completed, total);
+        report(progress, stage, position, total);
     }
+    ensure(!in.bad() && position == total,
+           "cannot read complete encryption input");
+    closeOutput(out);
 }
 
 std::array<uint8_t, 16> randomSalt()

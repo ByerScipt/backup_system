@@ -49,13 +49,64 @@ void commitFileNoReplace(const fs::path& temporary, const fs::path& output)
     static_cast<void>(::unlink(temporary.c_str()));
 }
 
-void sendAll(int fd, const uint8_t* data, size_t size)
+namespace
 {
+using Clock = std::chrono::steady_clock;
+
+Clock::time_point ioDeadline(int fd, int option)
+{
+    timeval timeout{};
+    socklen_t size = sizeof(timeout);
+    ensure(::getsockopt(fd, SOL_SOCKET, option, &timeout, &size) == 0,
+           "cannot inspect socket timeout");
+    auto duration = std::chrono::seconds(timeout.tv_sec) +
+                    std::chrono::microseconds(timeout.tv_usec);
+    if (duration.count() == 0)
+    {
+        duration = std::chrono::seconds(30);
+    }
+    return Clock::now() + duration;
+}
+
+void waitReady(int fd, short events, Clock::time_point deadline,
+               std::atomic_bool* cancel)
+{
+    for (;;)
+    {
+        checkCancelled(cancel);
+        auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             deadline - Clock::now())
+                             .count();
+        ensure(remaining > 0, "network operation timed out");
+        pollfd state{fd, events, 0};
+        int result = ::poll(
+            &state, 1, static_cast<int>(std::min<int64_t>(remaining, 100)));
+        if (result < 0 && errno == EINTR)
+        {
+            continue;
+        }
+        ensure(result >= 0 && !(state.revents & POLLNVAL),
+               "network poll failed");
+        if (result > 0)
+        {
+            checkCancelled(cancel);
+            return; // recv/send reports hangup and socket errors precisely.
+        }
+    }
+}
+} // namespace
+
+void sendAll(int fd, const uint8_t* data, size_t size, std::atomic_bool* cancel)
+{
+    const auto deadline = ioDeadline(fd, SO_SNDTIMEO);
     size_t sent = 0;
     while (sent < size)
     {
-        ssize_t n = ::send(fd, data + sent, size - sent, MSG_NOSIGNAL);
-        if (n < 0 && errno == EINTR)
+        waitReady(fd, POLLOUT, deadline, cancel);
+        ssize_t n =
+            ::send(fd, data + sent, size - sent, MSG_NOSIGNAL | MSG_DONTWAIT);
+        if (n < 0 &&
+            (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
         {
             continue;
         }
@@ -64,13 +115,17 @@ void sendAll(int fd, const uint8_t* data, size_t size)
     }
 }
 
-bool receiveAll(int fd, uint8_t* data, size_t size, bool allowCleanEof)
+bool receiveAll(int fd, uint8_t* data, size_t size, bool allowCleanEof,
+                std::atomic_bool* cancel)
 {
+    const auto deadline = ioDeadline(fd, SO_RCVTIMEO);
     size_t received = 0;
     while (received < size)
     {
-        ssize_t n = ::recv(fd, data + received, size - received, 0);
-        if (n < 0 && errno == EINTR)
+        waitReady(fd, POLLIN, deadline, cancel);
+        ssize_t n = ::recv(fd, data + received, size - received, MSG_DONTWAIT);
+        if (n < 0 &&
+            (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
         {
             continue;
         }
@@ -111,7 +166,7 @@ void putString(std::vector<uint8_t>& out, const std::string& value)
 }
 
 void sendFrame(int fd, MessageType type, uint32_t requestId,
-               const std::vector<uint8_t>& payload)
+               const std::vector<uint8_t>& payload, std::atomic_bool* cancel)
 {
     ensure(payload.size() <= kMaxPayload, "network frame exceeds size limit");
     std::vector<uint8_t> header;
@@ -120,17 +175,17 @@ void sendFrame(int fd, MessageType type, uint32_t requestId,
     putU16(header, static_cast<uint16_t>(type));
     putU32(header, requestId);
     putU32(header, static_cast<uint32_t>(payload.size()));
-    sendAll(fd, header.data(), header.size());
+    sendAll(fd, header.data(), header.size(), cancel);
     if (!payload.empty())
     {
-        sendAll(fd, payload.data(), payload.size());
+        sendAll(fd, payload.data(), payload.size(), cancel);
     }
 }
 
-std::optional<Frame> receiveFrame(int fd)
+std::optional<Frame> receiveFrame(int fd, std::atomic_bool* cancel)
 {
     std::array<uint8_t, 16> header{};
-    if (!receiveAll(fd, header.data(), header.size(), true))
+    if (!receiveAll(fd, header.data(), header.size(), true, cancel))
     {
         return std::nullopt;
     }
@@ -149,7 +204,7 @@ std::optional<Frame> receiveFrame(int fd)
     frame.payload.resize(size);
     if (size)
     {
-        receiveAll(fd, frame.payload.data(), size);
+        receiveAll(fd, frame.payload.data(), size, false, cancel);
     }
     return frame;
 }
@@ -169,8 +224,12 @@ std::string errorFromFrame(const Frame& frame)
     return value;
 }
 
-Socket connectTo(const std::string& host, uint16_t port)
+Socket connectTo(const std::string& host, uint16_t port,
+                 std::atomic_bool* cancel)
 {
+    checkCancelled(cancel);
+    ensure(!host.empty() && host.find('\0') == std::string::npos && port != 0,
+           "invalid server address or port");
     addrinfo hints{};
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -178,22 +237,39 @@ Socket connectTo(const std::string& host, uint16_t port)
     std::string service = std::to_string(port);
     ensure(getaddrinfo(host.c_str(), service.c_str(), &hints, &result) == 0,
            "cannot resolve server address");
+    std::unique_ptr<addrinfo, decltype(&freeaddrinfo)> addresses(result,
+                                                                 freeaddrinfo);
+    const auto deadline = Clock::now() + std::chrono::seconds(30);
     Socket socket;
     for (addrinfo* p = result; p; p = p->ai_next)
     {
-        int fd = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (fd < 0)
+        checkCancelled(cancel);
+        Socket candidate(
+            ::socket(p->ai_family, p->ai_socktype, p->ai_protocol));
+        if (!candidate.valid())
         {
             continue;
         }
-        if (::connect(fd, p->ai_addr, p->ai_addrlen) == 0)
+        int fd = candidate.get();
+        int flags = ::fcntl(fd, F_GETFL, 0);
+        ensure(flags >= 0 && ::fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0,
+               "cannot configure client socket");
+        int connected = ::connect(fd, p->ai_addr, p->ai_addrlen);
+        if (connected != 0 && errno == EINPROGRESS)
         {
-            socket = Socket(fd);
+            waitReady(fd, POLLOUT, deadline, cancel);
+            int error = 0;
+            socklen_t length = sizeof(error);
+            ensure(::getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &length) == 0,
+                   "cannot inspect connection result");
+            connected = error == 0 ? 0 : -1;
+        }
+        if (connected == 0)
+        {
+            socket = std::move(candidate);
             break;
         }
-        ::close(fd);
     }
-    freeaddrinfo(result);
     ensure(socket.valid(), "cannot connect to backup server");
     return socket;
 }

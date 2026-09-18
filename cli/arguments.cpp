@@ -1,6 +1,7 @@
 #include "arguments.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -17,6 +18,10 @@ Arguments parseArgs(int argc, char* argv[], int start)
         std::string value = argv[i];
         if (value == "--overwrite")
         {
+            if (hasFlag(result, value))
+            {
+                throw std::runtime_error("duplicate option: " + value);
+            }
             result.flags.push_back(value);
         }
         else if (value == "-o" || value == "-d" || value == "--pack" ||
@@ -29,7 +34,10 @@ Arguments parseArgs(int argc, char* argv[], int start)
             {
                 throw std::runtime_error("missing value for option: " + value);
             }
-            result.options[value] = argv[++i];
+            if (!result.options.emplace(value, argv[++i]).second)
+            {
+                throw std::runtime_error("duplicate option: " + value);
+            }
         }
         else if (!value.empty() && value[0] == '-')
         {
@@ -67,8 +75,11 @@ std::pair<std::string, uint16_t> parseServer(const std::string& address)
     {
         throw std::runtime_error("server must use HOST:PORT format");
     }
-    unsigned long port = std::stoul(address.substr(colon + 1));
-    if (port == 0 || port > 65535)
+    uint32_t port = 0;
+    const char* end = address.data() + address.size();
+    auto parsed = std::from_chars(address.data() + colon + 1, end, port);
+    if (parsed.ec != std::errc{} || parsed.ptr != end || port == 0 ||
+        port > 65535)
     {
         throw std::runtime_error("server port is out of range");
     }
