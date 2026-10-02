@@ -5,8 +5,7 @@ COPY . .
 RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBACKUP_BUILD_GUI=OFF && cmake --build build -j2
 
 FROM ubuntu:24.04
-COPY --from=build /src/build/backup-cli /usr/local/bin/backup-cli
-COPY --from=build /src/build/backup-server /usr/local/bin/backup-server
+COPY --from=build /src/bin/backup-cli /usr/local/bin/backup-cli
+COPY --from=build /src/bin/backup-server /usr/local/bin/backup-server
 EXPOSE 8848
 ENTRYPOINT ["backup-server"]
-

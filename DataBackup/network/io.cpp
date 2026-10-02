@@ -1,0 +1,310 @@
+#include "internal.hpp"
+
+namespace backup::network::detail
+{
+
+void ensure(bool condition, const std::string& message)
+{
+    if (!condition)
+    {
+        throw NetError(message);
+    }
+}
+
+void checkCancelled(std::atomic_bool* cancel)
+{
+    ensure(cancel == nullptr || !cancel->load(), "network operation cancelled");
+}
+
+void reportProgress(const ProgressCallback& progress, const std::string& stage,
+                    uint64_t completed, uint64_t total)
+{
+    if (progress)
+    {
+        progress({stage, completed, total, {}});
+    }
+}
+
+namespace
+{
+using Clock = std::chrono::steady_clock;
+
+Clock::time_point ioDeadline(int fd, int option)
+{
+    timeval timeout{};
+    socklen_t size = sizeof(timeout);
+    ensure(::getsockopt(fd, SOL_SOCKET, option, &timeout, &size) == 0,
+           "cannot inspect socket timeout");
+    auto duration = std::chrono::seconds(timeout.tv_sec) +
+                    std::chrono::microseconds(timeout.tv_usec);
+    if (duration.count() == 0)
+    {
+        duration = std::chrono::seconds(30);
+    }
+    return Clock::now() + duration;
+}
+
+void waitReady(int fd, short events, Clock::time_point deadline,
+               std::atomic_bool* cancel)
+{
+    for (;;)
+    {
+        checkCancelled(cancel);
+        auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             deadline - Clock::now())
+                             .count();
+        ensure(remaining > 0, "network operation timed out");
+        pollfd state{fd, events, 0};
+        int result = ::poll(
+            &state, 1, static_cast<int>(std::min<int64_t>(remaining, 100)));
+        if (result < 0 && errno == EINTR)
+        {
+            continue;
+        }
+        ensure(result >= 0 && !(state.revents & POLLNVAL),
+               "network poll failed");
+        if (result > 0)
+        {
+            checkCancelled(cancel);
+            return; // recv/send reports hangup and socket errors precisely.
+        }
+    }
+}
+} // namespace
+
+void sendAll(int fd, const uint8_t* data, size_t size, std::atomic_bool* cancel)
+{
+    const auto deadline = ioDeadline(fd, SO_SNDTIMEO);
+    size_t sent = 0;
+    while (sent < size)
+    {
+        waitReady(fd, POLLOUT, deadline, cancel);
+        ssize_t n =
+            ::send(fd, data + sent, size - sent, MSG_NOSIGNAL | MSG_DONTWAIT);
+        if (n < 0 &&
+            (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
+        {
+            continue;
+        }
+        ensure(n > 0, "network send failed");
+        sent += static_cast<size_t>(n);
+    }
+}
+
+bool receiveAll(int fd, uint8_t* data, size_t size, bool allowCleanEof,
+                std::atomic_bool* cancel)
+{
+    const auto deadline = ioDeadline(fd, SO_RCVTIMEO);
+    size_t received = 0;
+    while (received < size)
+    {
+        waitReady(fd, POLLIN, deadline, cancel);
+        ssize_t n = ::recv(fd, data + received, size - received, MSG_DONTWAIT);
+        if (n < 0 &&
+            (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
+        {
+            continue;
+        }
+        if (n == 0 && received == 0 && allowCleanEof)
+        {
+            return false;
+        }
+        ensure(n > 0, "network connection closed unexpectedly");
+        received += static_cast<size_t>(n);
+    }
+    return true;
+}
+
+void putU16(std::vector<uint8_t>& out, uint16_t value)
+{
+    out.push_back(static_cast<uint8_t>(value >> 8));
+    out.push_back(static_cast<uint8_t>(value));
+}
+void putU32(std::vector<uint8_t>& out, uint32_t value)
+{
+    for (int i = 3; i >= 0; --i)
+    {
+        out.push_back(static_cast<uint8_t>(value >> (i * 8)));
+    }
+}
+void putU64(std::vector<uint8_t>& out, uint64_t value)
+{
+    for (int i = 7; i >= 0; --i)
+    {
+        out.push_back(static_cast<uint8_t>(value >> (i * 8)));
+    }
+}
+void putString(std::vector<uint8_t>& out, const std::string& value)
+{
+    ensure(value.size() <= 65535, "network string is too long");
+    putU16(out, static_cast<uint16_t>(value.size()));
+    out.insert(out.end(), value.begin(), value.end());
+}
+
+void sendFrame(int fd, MessageType type, uint32_t requestId,
+               const std::vector<uint8_t>& payload, std::atomic_bool* cancel)
+{
+    ensure(payload.size() <= kMaxPayload, "network frame exceeds size limit");
+    std::vector<uint8_t> header;
+    header.insert(header.end(), kMagic.begin(), kMagic.end());
+    putU16(header, kProtocolVersion);
+    putU16(header, static_cast<uint16_t>(type));
+    putU32(header, requestId);
+    putU32(header, static_cast<uint32_t>(payload.size()));
+    sendAll(fd, header.data(), header.size(), cancel);
+    if (!payload.empty())
+    {
+        sendAll(fd, payload.data(), payload.size(), cancel);
+    }
+}
+
+std::optional<Frame> receiveFrame(int fd, std::atomic_bool* cancel)
+{
+    std::array<uint8_t, 16> header{};
+    if (!receiveAll(fd, header.data(), header.size(), true, cancel))
+    {
+        return std::nullopt;
+    }
+    ensure(std::equal(kMagic.begin(), kMagic.end(), header.begin()),
+           "invalid network frame magic");
+    std::vector<uint8_t> hv(header.begin() + 4, header.end());
+    Reader reader(hv);
+    ensure(reader.u16() == kProtocolVersion,
+           "network protocol version mismatch");
+    Frame frame;
+    frame.type = static_cast<MessageType>(reader.u16());
+    frame.requestId = reader.u32();
+    uint32_t size = reader.u32();
+    reader.end();
+    ensure(size <= kMaxPayload, "network payload exceeds size limit");
+    frame.payload.resize(size);
+    if (size)
+    {
+        receiveAll(fd, frame.payload.data(), size, false, cancel);
+    }
+    return frame;
+}
+
+void sendError(int fd, uint32_t requestId, const std::string& message)
+{
+    std::vector<uint8_t> payload;
+    putString(payload, message);
+    sendFrame(fd, MessageType::Error, requestId, payload);
+}
+
+std::string errorFromFrame(const Frame& frame)
+{
+    Reader r(frame.payload);
+    std::string value = r.string();
+    r.end();
+    return value;
+}
+
+Socket connectTo(const std::string& host, uint16_t port,
+                 std::atomic_bool* cancel)
+{
+    checkCancelled(cancel);
+    ensure(!host.empty() && host.find('\0') == std::string::npos && port != 0,
+           "invalid server address or port");
+    addrinfo hints{};
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    addrinfo* result = nullptr;
+    std::string service = std::to_string(port);
+    ensure(getaddrinfo(host.c_str(), service.c_str(), &hints, &result) == 0,
+           "cannot resolve server address");
+    std::unique_ptr<addrinfo, decltype(&freeaddrinfo)> addresses(result,
+                                                                 freeaddrinfo);
+    const auto deadline = Clock::now() + std::chrono::seconds(30);
+    Socket socket;
+    for (addrinfo* p = result; p; p = p->ai_next)
+    {
+        checkCancelled(cancel);
+        Socket candidate(
+            ::socket(p->ai_family, p->ai_socktype, p->ai_protocol));
+        if (!candidate.valid())
+        {
+            continue;
+        }
+        int fd = candidate.get();
+        int flags = ::fcntl(fd, F_GETFL, 0);
+        ensure(flags >= 0 && ::fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0,
+               "cannot configure client socket");
+        int connected = ::connect(fd, p->ai_addr, p->ai_addrlen);
+        if (connected != 0 && errno == EINPROGRESS)
+        {
+            waitReady(fd, POLLOUT, deadline, cancel);
+            int error = 0;
+            socklen_t length = sizeof(error);
+            ensure(::getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &length) == 0,
+                   "cannot inspect connection result");
+            connected = error == 0 ? 0 : -1;
+        }
+        if (connected == 0)
+        {
+            socket = std::move(candidate);
+            break;
+        }
+    }
+    ensure(socket.valid(), "cannot connect to backup server");
+    return socket;
+}
+
+uint8_t Reader::u8()
+{
+    need(1);
+    return data_[offset_++];
+}
+uint16_t Reader::u16()
+{
+    need(2);
+    uint16_t v = (data_[offset_] << 8) | data_[offset_ + 1];
+    offset_ += 2;
+    return v;
+}
+uint32_t Reader::u32()
+{
+    need(4);
+    uint32_t v = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+        v = (v << 8) | data_[offset_++];
+    }
+    return v;
+}
+uint64_t Reader::u64()
+{
+    need(8);
+    uint64_t v = 0;
+    for (int i = 0; i < 8; ++i)
+    {
+        v = (v << 8) | data_[offset_++];
+    }
+    return v;
+}
+std::string Reader::string()
+{
+    uint16_t n = u16();
+    need(n);
+    std::string v(reinterpret_cast<const char*>(data_.data() + offset_), n);
+    offset_ += n;
+    ensure(v.find('\0') == std::string::npos, "network string contains NUL");
+    return v;
+}
+std::vector<uint8_t> Reader::bytes(size_t n)
+{
+    need(n);
+    auto a = data_.begin() + static_cast<ptrdiff_t>(offset_);
+    offset_ += n;
+    return {a, a + static_cast<ptrdiff_t>(n)};
+}
+void Reader::end() const
+{
+    ensure(offset_ == data_.size(), "network message has trailing data");
+}
+void Reader::need(size_t n) const
+{
+    ensure(offset_ + n <= data_.size(), "truncated network message");
+}
+
+} // namespace backup::network::detail

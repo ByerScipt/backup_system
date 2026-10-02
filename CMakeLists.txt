@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
-project(backup_system VERSION 1.6.2 LANGUAGES CXX)
+project(backup_system VERSION 1.7.0 LANGUAGES CXX)
 
 option(BACKUP_BUILD_GUI "Build the optional Qt6 GUI" ON)
 option(BACKUP_BUILD_TESTS "Build automated tests" ON)
+
+# Match the reference layout; callers can override this for isolated builds.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin" CACHE PATH
+    "Directory for executables")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_INSTALL_RPATH "")
@@ -12,26 +17,26 @@ find_package(Threads REQUIRED)
 set(BACKUP_WARNINGS -Wall -Wextra -Wpedantic)
 
 add_library(backup_core STATIC
-    src/core/common.cpp
-    src/core/sha256.cpp
-    src/core/entry.cpp
-    src/core/pack.cpp
-    src/core/compress_rle.cpp
-    src/core/compress_huffman.cpp
-    src/core/crypto.cpp
-    src/core/archive.cpp
-    src/core/restore.cpp
-    src/core/engine.cpp
+    DataBackup/core/common.cpp
+    DataBackup/core/sha256.cpp
+    DataBackup/core/entry.cpp
+    DataBackup/core/pack.cpp
+    DataBackup/core/compress_rle.cpp
+    DataBackup/core/compress_huffman.cpp
+    DataBackup/core/crypto.cpp
+    DataBackup/core/archive.cpp
+    DataBackup/core/restore.cpp
+    DataBackup/core/engine.cpp
 )
-target_include_directories(backup_core PUBLIC include)
+target_include_directories(backup_core PUBLIC libs)
 target_compile_features(backup_core PUBLIC cxx_std_17)
 
 add_library(backup_network STATIC
-    src/network/io.cpp
-    src/network/auth_store.cpp
-    src/network/server.cpp
-    src/network/session.cpp
-    src/network/client.cpp
+    DataBackup/network/io.cpp
+    DataBackup/network/auth_store.cpp
+    DataBackup/network/server.cpp
+    DataBackup/network/session.cpp
+    DataBackup/network/client.cpp
 )
 target_link_libraries(backup_network PUBLIC backup_core Threads::Threads)
 target_compile_options(backup_network PRIVATE ${BACKUP_WARNINGS})
@@ -39,34 +44,34 @@ target_compile_options(backup_network PRIVATE ${BACKUP_WARNINGS})
 target_compile_definitions(backup_core PUBLIC BACKUP_SYSTEM_VERSION="${PROJECT_VERSION}")
 target_compile_options(backup_core PRIVATE ${BACKUP_WARNINGS})
 
-add_executable(backup-cli cli/main.cpp cli/arguments.cpp cli/commands.cpp)
-target_include_directories(backup-cli PRIVATE cli)
+add_executable(backup-cli DataBackup/cli/main.cpp DataBackup/cli/arguments.cpp DataBackup/cli/commands.cpp)
+target_include_directories(backup-cli PRIVATE DataBackup/cli)
 target_link_libraries(backup-cli PRIVATE backup_network)
 target_compile_options(backup-cli PRIVATE ${BACKUP_WARNINGS})
 
-add_executable(backup-server server/main.cpp)
+add_executable(backup-server DataBackup/server.cpp)
 target_link_libraries(backup-server PRIVATE backup_network)
 target_compile_options(backup-server PRIVATE ${BACKUP_WARNINGS})
 
 if(BACKUP_BUILD_GUI)
     find_package(Qt6 COMPONENTS Widgets QUIET)
     if(Qt6_FOUND)
-        add_executable(backup-gui
-            gui/main.cpp
-            gui/main_window.cpp
-            gui/theme.cpp
-            gui/widgets.cpp
-            gui/forms.cpp
-            gui/dialogs.cpp
-            gui/pages_local.cpp
-            gui/pages_remote.cpp
-            gui/pages_user.cpp
-            gui/resources.qrc
+        add_library(backup_ui OBJECT
+            GUI/main_window.cpp
+            GUI/widgets.cpp
+            GUI/forms.cpp
+            GUI/pages_local.cpp
+            GUI/pages_remote.cpp
+            GUI/pages_access.cpp
+            GUI/resources.qrc
         )
-        target_include_directories(backup-gui PRIVATE gui)
-        target_link_libraries(backup-gui PRIVATE backup_network Qt6::Widgets)
+        target_include_directories(backup_ui PUBLIC GUI)
+        target_link_libraries(backup_ui PUBLIC backup_network Qt6::Widgets)
+        target_compile_options(backup_ui PRIVATE ${BACKUP_WARNINGS})
+        set_target_properties(backup_ui PROPERTIES AUTOMOC ON AUTORCC ON)
+        add_executable(backup-gui GUI/main.cpp)
+        target_link_libraries(backup-gui PRIVATE backup_ui)
         target_compile_options(backup-gui PRIVATE ${BACKUP_WARNINGS})
-        set_target_properties(backup-gui PROPERTIES AUTOMOC ON AUTORCC ON)
         install(TARGETS backup-gui RUNTIME DESTINATION bin)
     else()
         message(WARNING "Qt6 Widgets was not found; backup-gui will not be built")
@@ -76,19 +81,17 @@ endif()
 if(BACKUP_BUILD_TESTS)
     enable_testing()
     add_executable(backup-tests
-        tests/test_main.cpp
-        tests/helpers.cpp
-        tests/test_combos.cpp
-        tests/test_security.cpp
-        tests/test_network.cpp
-        tests/test_crypto_vectors.cpp
-        tests/test_filesystem.cpp
-        tests/test_sync.cpp
-        tests/test_pipeline_io.cpp
-        tests/test_cancellation.cpp
-        tests/test_network_failures.cpp
+        test/test_main.cpp
+        test/helpers.cpp
+        test/test_combos.cpp
+        test/test_security.cpp
+        test/test_network.cpp
+        test/test_crypto_vectors.cpp
+        test/test_filesystem.cpp
+        test/test_io.cpp
+        test/test_network_failures.cpp
     )
-    target_include_directories(backup-tests PRIVATE tests src)
+    target_include_directories(backup-tests PRIVATE test DataBackup)
     target_link_libraries(backup-tests PRIVATE backup_network)
     # Inject failures at the operating-system boundary, not inside backup_core.
     target_link_options(backup-tests PRIVATE "-Wl,--wrap=fsync")
@@ -97,17 +100,17 @@ if(BACKUP_BUILD_TESTS)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
         add_test(NAME backup-cli-tests COMMAND ${Python3_EXECUTABLE}
-            ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cli.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/test_cli.py
             $<TARGET_FILE:backup-cli> $<TARGET_FILE:backup-server>)
     endif()
     if(TARGET backup-gui)
-        add_executable(backup-gui-tests tests/test_gui_jobs.cpp gui/widgets.cpp
-            gui/pages_local.cpp gui/forms.cpp gui/dialogs.cpp)
-        target_include_directories(backup-gui-tests PRIVATE gui)
-        target_link_libraries(backup-gui-tests PRIVATE backup_network Qt6::Widgets)
+        find_package(Qt6 COMPONENTS Test Network REQUIRED)
+        add_executable(backup-gui-tests test/test_gui_jobs.cpp)
+        target_link_libraries(backup-gui-tests PRIVATE backup_ui Qt6::Test Qt6::Network)
+        add_dependencies(backup-gui-tests backup-server)
         target_compile_options(backup-gui-tests PRIVATE ${BACKUP_WARNINGS})
         add_test(NAME backup-gui-tests COMMAND backup-gui-tests)
-        set_tests_properties(backup-gui-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 10)
+        set_tests_properties(backup-gui-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
     endif()
 endif()
 
@@ -116,8 +119,8 @@ install(TARGETS backup-cli backup-server RUNTIME DESTINATION bin)
 find_program(CLANG_FORMAT NAMES clang-format-18 clang-format)
 if(CLANG_FORMAT)
     file(GLOB_RECURSE FORMAT_SOURCES CONFIGURE_DEPENDS
-        include/*.hpp src/*.hpp src/*.cpp cli/*.hpp cli/*.cpp
-        gui/*.hpp gui/*.cpp server/*.cpp tests/*.hpp tests/*.cpp
+        libs/*.hpp DataBackup/*.hpp DataBackup/*.cpp
+        GUI/*.hpp GUI/*.cpp test/*.hpp test/*.cpp
     )
     add_custom_target(format
         COMMAND ${CLANG_FORMAT} -i ${FORMAT_SOURCES}

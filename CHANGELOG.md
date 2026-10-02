@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.7.0 — 2026-10-02
+
+- Match the course layout: DataBackup, GUI, libs, test, Utils, exp and bin;
+  add a CMake-backed Makefile, root databackup.conf and editable StarUML overview.
+  Update editor, CI, Docker and WSL paths; remove duplicate scripts and diagrams.
+- Fix server shutdown with idle/partial sessions by propagating cancellation.
+  Reject malformed/unknown configuration settings and empty storage paths.
+- Synchronize account records, metadata and uploaded archives before publication;
+  synchronize containing directories and clean staging files on failure.
+- Redesign the six Qt pages with compact neutral styling and native controls;
+  correct Chinese labels, disabled actions and file-dialog/sidebar styling.
+- Share remote connection fields in memory; add history search, typed size/date
+  sorting, full-ID copy and selected-backup restore. Clear history on account
+  changes and ignore stale listing responses.
+- Consolidate resource ownership, path pickers, GUI build objects and filesystem
+  regression tests; remove redundant small files and directory nesting.
+- Add real-server GUI workflow, configuration, storage-sync and prompt-shutdown
+  regressions. BKP2 format and NBKP protocol versions remain unchanged.
+
+
 ## 1.6.2 — 2026-09-18
 
 - Consolidate cipher streaming and CLI restore-option handling; skip redundant

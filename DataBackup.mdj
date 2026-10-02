@@ -1,0 +1,3379 @@
+{
+  "_type": "Project",
+  "_id": "backup-studio-project",
+  "name": "Backup Studio",
+  "documentation": "Version 1.7.0 public interface overview. Executable logic is defined by the C++ source; this model omits private helpers and is not a complete API contract.",
+  "ownedElements": [
+    {
+      "_type": "UMLModel",
+      "_id": "backup-studio-model",
+      "_parent": {
+        "$ref": "backup-studio-project"
+      },
+      "name": "Public interfaces",
+      "ownedElements": [
+        {
+          "_type": "UMLClassDiagram",
+          "_id": "backup-studio-interfaces",
+          "_parent": {
+            "$ref": "backup-studio-model"
+          },
+          "name": "Backup and network interfaces",
+          "visible": true,
+          "defaultDiagram": true,
+          "ownedViews": [
+            {
+              "_type": "UMLClassView",
+              "_id": "view-BackupOptions-0",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "class-BackupOptions"
+              },
+              "subViews": [
+                {
+                  "_type": "UMLNameCompartmentView",
+                  "_id": "view-BackupOptions-1",
+                  "_parent": {
+                    "$ref": "view-BackupOptions-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupOptions"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupOptions-2",
+                      "_parent": {
+                        "$ref": "view-BackupOptions-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 45,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupOptions-3",
+                      "_parent": {
+                        "$ref": "view-BackupOptions-1"
+                      },
+                      "visible": true,
+                      "font": "Arial;13;1",
+                      "parentStyle": true,
+                      "left": 45,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "BackupOptions",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupOptions-4",
+                      "_parent": {
+                        "$ref": "view-BackupOptions-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 45,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupOptions-5",
+                      "_parent": {
+                        "$ref": "view-BackupOptions-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 45,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 40,
+                  "top": 30,
+                  "width": 300,
+                  "height": 28,
+                  "autoResize": false,
+                  "stereotypeLabel": {
+                    "$ref": "view-BackupOptions-2"
+                  },
+                  "nameLabel": {
+                    "$ref": "view-BackupOptions-3"
+                  },
+                  "namespaceLabel": {
+                    "$ref": "view-BackupOptions-4"
+                  },
+                  "propertyLabel": {
+                    "$ref": "view-BackupOptions-5"
+                  }
+                },
+                {
+                  "_type": "UMLAttributeCompartmentView",
+                  "_id": "view-BackupOptions-6",
+                  "_parent": {
+                    "$ref": "view-BackupOptions-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupOptions"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupOptions-pack-view",
+                      "_parent": {
+                        "$ref": "view-BackupOptions-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupOptions-pack"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 63,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ pack: PackAlgorithm"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupOptions-compression-view",
+                      "_parent": {
+                        "$ref": "view-BackupOptions-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupOptions-compression"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 81,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ compression: CompressionAlgorithm"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupOptions-encryption-view",
+                      "_parent": {
+                        "$ref": "view-BackupOptions-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupOptions-encryption"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 99,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ encryption: EncryptionAlgorithm"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupOptions-password-view",
+                      "_parent": {
+                        "$ref": "view-BackupOptions-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupOptions-password"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 117,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ password: std::string"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupOptions-progress-view",
+                      "_parent": {
+                        "$ref": "view-BackupOptions-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupOptions-progress"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 135,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ progress: ProgressCallback"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupOptions-cancel-view",
+                      "_parent": {
+                        "$ref": "view-BackupOptions-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupOptions-cancel"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 153,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ cancel: std::atomic_bool*"
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 40,
+                  "top": 58,
+                  "width": 300,
+                  "height": 118,
+                  "autoResize": false
+                },
+                {
+                  "_type": "UMLOperationCompartmentView",
+                  "_id": "view-BackupOptions-7",
+                  "_parent": {
+                    "$ref": "view-BackupOptions-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupOptions"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 40,
+                  "top": 176,
+                  "width": 300,
+                  "height": 10,
+                  "autoResize": false,
+                  "subViews": []
+                },
+                {
+                  "_type": "UMLTemplateParameterCompartmentView",
+                  "_id": "view-BackupOptions-8",
+                  "_parent": {
+                    "$ref": "view-BackupOptions-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupOptions"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": -200,
+                  "top": -176,
+                  "width": 10,
+                  "height": 10,
+                  "autoResize": false
+                }
+              ],
+              "visible": true,
+              "font": "Arial;13;0",
+              "parentStyle": false,
+              "left": 40,
+              "top": 30,
+              "width": 300,
+              "height": 146,
+              "autoResize": false,
+              "stereotypeDisplay": "label",
+              "showVisibility": true,
+              "showNamespace": false,
+              "showProperty": true,
+              "showType": true,
+              "nameCompartment": {
+                "$ref": "view-BackupOptions-1"
+              },
+              "wordWrap": false,
+              "suppressAttributes": false,
+              "suppressOperations": true,
+              "showMultiplicity": true,
+              "showOperationSignature": false,
+              "attributeCompartment": {
+                "$ref": "view-BackupOptions-6"
+              },
+              "operationCompartment": {
+                "$ref": "view-BackupOptions-7"
+              },
+              "templateParameterCompartment": {
+                "$ref": "view-BackupOptions-8"
+              }
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "view-RestoreOptions-0",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "class-RestoreOptions"
+              },
+              "subViews": [
+                {
+                  "_type": "UMLNameCompartmentView",
+                  "_id": "view-RestoreOptions-1",
+                  "_parent": {
+                    "$ref": "view-RestoreOptions-0"
+                  },
+                  "model": {
+                    "$ref": "class-RestoreOptions"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-RestoreOptions-2",
+                      "_parent": {
+                        "$ref": "view-RestoreOptions-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-RestoreOptions-3",
+                      "_parent": {
+                        "$ref": "view-RestoreOptions-1"
+                      },
+                      "visible": true,
+                      "font": "Arial;13;1",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "RestoreOptions",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-RestoreOptions-4",
+                      "_parent": {
+                        "$ref": "view-RestoreOptions-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-RestoreOptions-5",
+                      "_parent": {
+                        "$ref": "view-RestoreOptions-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 390,
+                  "top": 30,
+                  "width": 300,
+                  "height": 28,
+                  "autoResize": false,
+                  "stereotypeLabel": {
+                    "$ref": "view-RestoreOptions-2"
+                  },
+                  "nameLabel": {
+                    "$ref": "view-RestoreOptions-3"
+                  },
+                  "namespaceLabel": {
+                    "$ref": "view-RestoreOptions-4"
+                  },
+                  "propertyLabel": {
+                    "$ref": "view-RestoreOptions-5"
+                  }
+                },
+                {
+                  "_type": "UMLAttributeCompartmentView",
+                  "_id": "view-RestoreOptions-6",
+                  "_parent": {
+                    "$ref": "view-RestoreOptions-0"
+                  },
+                  "model": {
+                    "$ref": "class-RestoreOptions"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-RestoreOptions-password-view",
+                      "_parent": {
+                        "$ref": "view-RestoreOptions-6"
+                      },
+                      "model": {
+                        "$ref": "class-RestoreOptions-password"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 63,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ password: std::string"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-RestoreOptions-overwrite-view",
+                      "_parent": {
+                        "$ref": "view-RestoreOptions-6"
+                      },
+                      "model": {
+                        "$ref": "class-RestoreOptions-overwrite"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 81,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ overwrite: bool"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-RestoreOptions-progress-view",
+                      "_parent": {
+                        "$ref": "view-RestoreOptions-6"
+                      },
+                      "model": {
+                        "$ref": "class-RestoreOptions-progress"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 99,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ progress: ProgressCallback"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-RestoreOptions-cancel-view",
+                      "_parent": {
+                        "$ref": "view-RestoreOptions-6"
+                      },
+                      "model": {
+                        "$ref": "class-RestoreOptions-cancel"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 117,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ cancel: std::atomic_bool*"
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 390,
+                  "top": 58,
+                  "width": 300,
+                  "height": 82,
+                  "autoResize": false
+                },
+                {
+                  "_type": "UMLOperationCompartmentView",
+                  "_id": "view-RestoreOptions-7",
+                  "_parent": {
+                    "$ref": "view-RestoreOptions-0"
+                  },
+                  "model": {
+                    "$ref": "class-RestoreOptions"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 390,
+                  "top": 140,
+                  "width": 300,
+                  "height": 10,
+                  "autoResize": false,
+                  "subViews": []
+                },
+                {
+                  "_type": "UMLTemplateParameterCompartmentView",
+                  "_id": "view-RestoreOptions-8",
+                  "_parent": {
+                    "$ref": "view-RestoreOptions-0"
+                  },
+                  "model": {
+                    "$ref": "class-RestoreOptions"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": -200,
+                  "top": -176,
+                  "width": 10,
+                  "height": 10,
+                  "autoResize": false
+                }
+              ],
+              "visible": true,
+              "font": "Arial;13;0",
+              "parentStyle": false,
+              "left": 390,
+              "top": 30,
+              "width": 300,
+              "height": 110,
+              "autoResize": false,
+              "stereotypeDisplay": "label",
+              "showVisibility": true,
+              "showNamespace": false,
+              "showProperty": true,
+              "showType": true,
+              "nameCompartment": {
+                "$ref": "view-RestoreOptions-1"
+              },
+              "wordWrap": false,
+              "suppressAttributes": false,
+              "suppressOperations": true,
+              "showMultiplicity": true,
+              "showOperationSignature": false,
+              "attributeCompartment": {
+                "$ref": "view-RestoreOptions-6"
+              },
+              "operationCompartment": {
+                "$ref": "view-RestoreOptions-7"
+              },
+              "templateParameterCompartment": {
+                "$ref": "view-RestoreOptions-8"
+              }
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "view-BackupResult-0",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "class-BackupResult"
+              },
+              "subViews": [
+                {
+                  "_type": "UMLNameCompartmentView",
+                  "_id": "view-BackupResult-1",
+                  "_parent": {
+                    "$ref": "view-BackupResult-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupResult"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupResult-2",
+                      "_parent": {
+                        "$ref": "view-BackupResult-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 745,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupResult-3",
+                      "_parent": {
+                        "$ref": "view-BackupResult-1"
+                      },
+                      "visible": true,
+                      "font": "Arial;13;1",
+                      "parentStyle": true,
+                      "left": 745,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "BackupResult",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupResult-4",
+                      "_parent": {
+                        "$ref": "view-BackupResult-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 745,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupResult-5",
+                      "_parent": {
+                        "$ref": "view-BackupResult-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 745,
+                      "top": 37,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 740,
+                  "top": 30,
+                  "width": 300,
+                  "height": 28,
+                  "autoResize": false,
+                  "stereotypeLabel": {
+                    "$ref": "view-BackupResult-2"
+                  },
+                  "nameLabel": {
+                    "$ref": "view-BackupResult-3"
+                  },
+                  "namespaceLabel": {
+                    "$ref": "view-BackupResult-4"
+                  },
+                  "propertyLabel": {
+                    "$ref": "view-BackupResult-5"
+                  }
+                },
+                {
+                  "_type": "UMLAttributeCompartmentView",
+                  "_id": "view-BackupResult-6",
+                  "_parent": {
+                    "$ref": "view-BackupResult-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupResult"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupResult-success-view",
+                      "_parent": {
+                        "$ref": "view-BackupResult-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupResult-success"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 63,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ success: bool"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupResult-message-view",
+                      "_parent": {
+                        "$ref": "view-BackupResult-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupResult-message"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 81,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ message: std::string"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupResult-entryCount-view",
+                      "_parent": {
+                        "$ref": "view-BackupResult-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupResult-entryCount"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 99,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ entryCount: uint64_t"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupResult-inputBytes-view",
+                      "_parent": {
+                        "$ref": "view-BackupResult-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupResult-inputBytes"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 117,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ inputBytes: uint64_t"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupResult-outputBytes-view",
+                      "_parent": {
+                        "$ref": "view-BackupResult-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupResult-outputBytes"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 135,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ outputBytes: uint64_t"
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 740,
+                  "top": 58,
+                  "width": 300,
+                  "height": 100,
+                  "autoResize": false
+                },
+                {
+                  "_type": "UMLOperationCompartmentView",
+                  "_id": "view-BackupResult-7",
+                  "_parent": {
+                    "$ref": "view-BackupResult-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupResult"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 740,
+                  "top": 158,
+                  "width": 300,
+                  "height": 10,
+                  "autoResize": false,
+                  "subViews": []
+                },
+                {
+                  "_type": "UMLTemplateParameterCompartmentView",
+                  "_id": "view-BackupResult-8",
+                  "_parent": {
+                    "$ref": "view-BackupResult-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupResult"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": -200,
+                  "top": -176,
+                  "width": 10,
+                  "height": 10,
+                  "autoResize": false
+                }
+              ],
+              "visible": true,
+              "font": "Arial;13;0",
+              "parentStyle": false,
+              "left": 740,
+              "top": 30,
+              "width": 300,
+              "height": 128,
+              "autoResize": false,
+              "stereotypeDisplay": "label",
+              "showVisibility": true,
+              "showNamespace": false,
+              "showProperty": true,
+              "showType": true,
+              "nameCompartment": {
+                "$ref": "view-BackupResult-1"
+              },
+              "wordWrap": false,
+              "suppressAttributes": false,
+              "suppressOperations": true,
+              "showMultiplicity": true,
+              "showOperationSignature": false,
+              "attributeCompartment": {
+                "$ref": "view-BackupResult-6"
+              },
+              "operationCompartment": {
+                "$ref": "view-BackupResult-7"
+              },
+              "templateParameterCompartment": {
+                "$ref": "view-BackupResult-8"
+              }
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "view-BackupEngine-0",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "class-BackupEngine"
+              },
+              "subViews": [
+                {
+                  "_type": "UMLNameCompartmentView",
+                  "_id": "view-BackupEngine-1",
+                  "_parent": {
+                    "$ref": "view-BackupEngine-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupEngine"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupEngine-2",
+                      "_parent": {
+                        "$ref": "view-BackupEngine-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 267,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupEngine-3",
+                      "_parent": {
+                        "$ref": "view-BackupEngine-1"
+                      },
+                      "visible": true,
+                      "font": "Arial;13;1",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 267,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "BackupEngine",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupEngine-4",
+                      "_parent": {
+                        "$ref": "view-BackupEngine-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 267,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupEngine-5",
+                      "_parent": {
+                        "$ref": "view-BackupEngine-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 267,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 390,
+                  "top": 260,
+                  "width": 300,
+                  "height": 28,
+                  "autoResize": false,
+                  "stereotypeLabel": {
+                    "$ref": "view-BackupEngine-2"
+                  },
+                  "nameLabel": {
+                    "$ref": "view-BackupEngine-3"
+                  },
+                  "namespaceLabel": {
+                    "$ref": "view-BackupEngine-4"
+                  },
+                  "propertyLabel": {
+                    "$ref": "view-BackupEngine-5"
+                  }
+                },
+                {
+                  "_type": "UMLAttributeCompartmentView",
+                  "_id": "view-BackupEngine-6",
+                  "_parent": {
+                    "$ref": "view-BackupEngine-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupEngine"
+                  },
+                  "subViews": [],
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 390,
+                  "top": 288,
+                  "width": 300,
+                  "height": 10,
+                  "autoResize": false
+                },
+                {
+                  "_type": "UMLOperationCompartmentView",
+                  "_id": "view-BackupEngine-7",
+                  "_parent": {
+                    "$ref": "view-BackupEngine-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupEngine"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 390,
+                  "top": 288,
+                  "width": 300,
+                  "height": 82,
+                  "autoResize": false,
+                  "subViews": [
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupEngine-create-view",
+                      "_parent": {
+                        "$ref": "view-BackupEngine-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupEngine-create"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 293,
+                      "width": 290,
+                      "height": 18,
+                      "underline": true,
+                      "text": "+ create"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupEngine-restore-view",
+                      "_parent": {
+                        "$ref": "view-BackupEngine-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupEngine-restore"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 311,
+                      "width": 290,
+                      "height": 18,
+                      "underline": true,
+                      "text": "+ restore"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupEngine-preview-view",
+                      "_parent": {
+                        "$ref": "view-BackupEngine-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupEngine-preview"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 329,
+                      "width": 290,
+                      "height": 18,
+                      "underline": true,
+                      "text": "+ preview"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupEngine-inspect-view",
+                      "_parent": {
+                        "$ref": "view-BackupEngine-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupEngine-inspect"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 347,
+                      "width": 290,
+                      "height": 18,
+                      "underline": true,
+                      "text": "+ inspect"
+                    }
+                  ]
+                },
+                {
+                  "_type": "UMLTemplateParameterCompartmentView",
+                  "_id": "view-BackupEngine-8",
+                  "_parent": {
+                    "$ref": "view-BackupEngine-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupEngine"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": -200,
+                  "top": -176,
+                  "width": 10,
+                  "height": 10,
+                  "autoResize": false
+                }
+              ],
+              "visible": true,
+              "font": "Arial;13;0",
+              "parentStyle": false,
+              "left": 390,
+              "top": 260,
+              "width": 300,
+              "height": 110,
+              "autoResize": false,
+              "stereotypeDisplay": "label",
+              "showVisibility": true,
+              "showNamespace": false,
+              "showProperty": true,
+              "showType": true,
+              "nameCompartment": {
+                "$ref": "view-BackupEngine-1"
+              },
+              "wordWrap": false,
+              "suppressAttributes": true,
+              "suppressOperations": false,
+              "showMultiplicity": true,
+              "showOperationSignature": false,
+              "attributeCompartment": {
+                "$ref": "view-BackupEngine-6"
+              },
+              "operationCompartment": {
+                "$ref": "view-BackupEngine-7"
+              },
+              "templateParameterCompartment": {
+                "$ref": "view-BackupEngine-8"
+              }
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "view-BackupClient-0",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "class-BackupClient"
+              },
+              "subViews": [
+                {
+                  "_type": "UMLNameCompartmentView",
+                  "_id": "view-BackupClient-1",
+                  "_parent": {
+                    "$ref": "view-BackupClient-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupClient"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupClient-2",
+                      "_parent": {
+                        "$ref": "view-BackupClient-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 45,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupClient-3",
+                      "_parent": {
+                        "$ref": "view-BackupClient-1"
+                      },
+                      "visible": true,
+                      "font": "Arial;13;1",
+                      "parentStyle": true,
+                      "left": 45,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "BackupClient",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupClient-4",
+                      "_parent": {
+                        "$ref": "view-BackupClient-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 45,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupClient-5",
+                      "_parent": {
+                        "$ref": "view-BackupClient-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 45,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 40,
+                  "top": 480,
+                  "width": 300,
+                  "height": 28,
+                  "autoResize": false,
+                  "stereotypeLabel": {
+                    "$ref": "view-BackupClient-2"
+                  },
+                  "nameLabel": {
+                    "$ref": "view-BackupClient-3"
+                  },
+                  "namespaceLabel": {
+                    "$ref": "view-BackupClient-4"
+                  },
+                  "propertyLabel": {
+                    "$ref": "view-BackupClient-5"
+                  }
+                },
+                {
+                  "_type": "UMLAttributeCompartmentView",
+                  "_id": "view-BackupClient-6",
+                  "_parent": {
+                    "$ref": "view-BackupClient-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupClient"
+                  },
+                  "subViews": [],
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 40,
+                  "top": 508,
+                  "width": 300,
+                  "height": 10,
+                  "autoResize": false
+                },
+                {
+                  "_type": "UMLOperationCompartmentView",
+                  "_id": "view-BackupClient-7",
+                  "_parent": {
+                    "$ref": "view-BackupClient-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupClient"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 40,
+                  "top": 508,
+                  "width": 300,
+                  "height": 100,
+                  "autoResize": false,
+                  "subViews": [
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupClient-BackupClient-view",
+                      "_parent": {
+                        "$ref": "view-BackupClient-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupClient-BackupClient"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 513,
+                      "width": 290,
+                      "height": 18,
+                      "underline": false,
+                      "text": "+ BackupClient"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupClient-registerUser-view",
+                      "_parent": {
+                        "$ref": "view-BackupClient-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupClient-registerUser"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 531,
+                      "width": 290,
+                      "height": 18,
+                      "underline": false,
+                      "text": "+ registerUser"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupClient-upload-view",
+                      "_parent": {
+                        "$ref": "view-BackupClient-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupClient-upload"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 549,
+                      "width": 290,
+                      "height": 18,
+                      "underline": false,
+                      "text": "+ upload"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupClient-list-view",
+                      "_parent": {
+                        "$ref": "view-BackupClient-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupClient-list"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 567,
+                      "width": 290,
+                      "height": 18,
+                      "underline": false,
+                      "text": "+ list"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupClient-download-view",
+                      "_parent": {
+                        "$ref": "view-BackupClient-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupClient-download"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 585,
+                      "width": 290,
+                      "height": 18,
+                      "underline": false,
+                      "text": "+ download"
+                    }
+                  ]
+                },
+                {
+                  "_type": "UMLTemplateParameterCompartmentView",
+                  "_id": "view-BackupClient-8",
+                  "_parent": {
+                    "$ref": "view-BackupClient-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupClient"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": -200,
+                  "top": -176,
+                  "width": 10,
+                  "height": 10,
+                  "autoResize": false
+                }
+              ],
+              "visible": true,
+              "font": "Arial;13;0",
+              "parentStyle": false,
+              "left": 40,
+              "top": 480,
+              "width": 300,
+              "height": 128,
+              "autoResize": false,
+              "stereotypeDisplay": "label",
+              "showVisibility": true,
+              "showNamespace": false,
+              "showProperty": true,
+              "showType": true,
+              "nameCompartment": {
+                "$ref": "view-BackupClient-1"
+              },
+              "wordWrap": false,
+              "suppressAttributes": true,
+              "suppressOperations": false,
+              "showMultiplicity": true,
+              "showOperationSignature": false,
+              "attributeCompartment": {
+                "$ref": "view-BackupClient-6"
+              },
+              "operationCompartment": {
+                "$ref": "view-BackupClient-7"
+              },
+              "templateParameterCompartment": {
+                "$ref": "view-BackupClient-8"
+              }
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "view-BackupServer-0",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "class-BackupServer"
+              },
+              "subViews": [
+                {
+                  "_type": "UMLNameCompartmentView",
+                  "_id": "view-BackupServer-1",
+                  "_parent": {
+                    "$ref": "view-BackupServer-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupServer"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupServer-2",
+                      "_parent": {
+                        "$ref": "view-BackupServer-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupServer-3",
+                      "_parent": {
+                        "$ref": "view-BackupServer-1"
+                      },
+                      "visible": true,
+                      "font": "Arial;13;1",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "BackupServer",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupServer-4",
+                      "_parent": {
+                        "$ref": "view-BackupServer-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-BackupServer-5",
+                      "_parent": {
+                        "$ref": "view-BackupServer-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 395,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 390,
+                  "top": 480,
+                  "width": 300,
+                  "height": 28,
+                  "autoResize": false,
+                  "stereotypeLabel": {
+                    "$ref": "view-BackupServer-2"
+                  },
+                  "nameLabel": {
+                    "$ref": "view-BackupServer-3"
+                  },
+                  "namespaceLabel": {
+                    "$ref": "view-BackupServer-4"
+                  },
+                  "propertyLabel": {
+                    "$ref": "view-BackupServer-5"
+                  }
+                },
+                {
+                  "_type": "UMLAttributeCompartmentView",
+                  "_id": "view-BackupServer-6",
+                  "_parent": {
+                    "$ref": "view-BackupServer-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupServer"
+                  },
+                  "subViews": [],
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 390,
+                  "top": 508,
+                  "width": 300,
+                  "height": 10,
+                  "autoResize": false
+                },
+                {
+                  "_type": "UMLOperationCompartmentView",
+                  "_id": "view-BackupServer-7",
+                  "_parent": {
+                    "$ref": "view-BackupServer-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupServer"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 390,
+                  "top": 508,
+                  "width": 300,
+                  "height": 64,
+                  "autoResize": false,
+                  "subViews": [
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupServer-BackupServer-view",
+                      "_parent": {
+                        "$ref": "view-BackupServer-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupServer-BackupServer"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 513,
+                      "width": 290,
+                      "height": 18,
+                      "underline": false,
+                      "text": "+ BackupServer"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupServer-run-view",
+                      "_parent": {
+                        "$ref": "view-BackupServer-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupServer-run"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 531,
+                      "width": 290,
+                      "height": 18,
+                      "underline": false,
+                      "text": "+ run"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupServer-stop-view",
+                      "_parent": {
+                        "$ref": "view-BackupServer-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupServer-stop"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 549,
+                      "width": 290,
+                      "height": 18,
+                      "underline": false,
+                      "text": "+ stop"
+                    }
+                  ]
+                },
+                {
+                  "_type": "UMLTemplateParameterCompartmentView",
+                  "_id": "view-BackupServer-8",
+                  "_parent": {
+                    "$ref": "view-BackupServer-0"
+                  },
+                  "model": {
+                    "$ref": "class-BackupServer"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": -200,
+                  "top": -176,
+                  "width": 10,
+                  "height": 10,
+                  "autoResize": false
+                }
+              ],
+              "visible": true,
+              "font": "Arial;13;0",
+              "parentStyle": false,
+              "left": 390,
+              "top": 480,
+              "width": 300,
+              "height": 92,
+              "autoResize": false,
+              "stereotypeDisplay": "label",
+              "showVisibility": true,
+              "showNamespace": false,
+              "showProperty": true,
+              "showType": true,
+              "nameCompartment": {
+                "$ref": "view-BackupServer-1"
+              },
+              "wordWrap": false,
+              "suppressAttributes": true,
+              "suppressOperations": false,
+              "showMultiplicity": true,
+              "showOperationSignature": false,
+              "attributeCompartment": {
+                "$ref": "view-BackupServer-6"
+              },
+              "operationCompartment": {
+                "$ref": "view-BackupServer-7"
+              },
+              "templateParameterCompartment": {
+                "$ref": "view-BackupServer-8"
+              }
+            },
+            {
+              "_type": "UMLClassView",
+              "_id": "view-ServerConfig-0",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "class-ServerConfig"
+              },
+              "subViews": [
+                {
+                  "_type": "UMLNameCompartmentView",
+                  "_id": "view-ServerConfig-1",
+                  "_parent": {
+                    "$ref": "view-ServerConfig-0"
+                  },
+                  "model": {
+                    "$ref": "class-ServerConfig"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-ServerConfig-2",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 745,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-ServerConfig-3",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-1"
+                      },
+                      "visible": true,
+                      "font": "Arial;13;1",
+                      "parentStyle": true,
+                      "left": 745,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "ServerConfig",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-ServerConfig-4",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 745,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "view-ServerConfig-5",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-1"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 745,
+                      "top": 487,
+                      "width": 290,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 740,
+                  "top": 480,
+                  "width": 300,
+                  "height": 28,
+                  "autoResize": false,
+                  "stereotypeLabel": {
+                    "$ref": "view-ServerConfig-2"
+                  },
+                  "nameLabel": {
+                    "$ref": "view-ServerConfig-3"
+                  },
+                  "namespaceLabel": {
+                    "$ref": "view-ServerConfig-4"
+                  },
+                  "propertyLabel": {
+                    "$ref": "view-ServerConfig-5"
+                  }
+                },
+                {
+                  "_type": "UMLAttributeCompartmentView",
+                  "_id": "view-ServerConfig-6",
+                  "_parent": {
+                    "$ref": "view-ServerConfig-0"
+                  },
+                  "model": {
+                    "$ref": "class-ServerConfig"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-ServerConfig-port-view",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-6"
+                      },
+                      "model": {
+                        "$ref": "class-ServerConfig-port"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 513,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ port: uint16_t"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-ServerConfig-storagePath-view",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-6"
+                      },
+                      "model": {
+                        "$ref": "class-ServerConfig-storagePath"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 531,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ storagePath: std::string"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-ServerConfig-maxConnections-view",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-6"
+                      },
+                      "model": {
+                        "$ref": "class-ServerConfig-maxConnections"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 549,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ maxConnections: uint32_t"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-ServerConfig-timeoutSeconds-view",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-6"
+                      },
+                      "model": {
+                        "$ref": "class-ServerConfig-timeoutSeconds"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 567,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ timeoutSeconds: uint32_t"
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 740,
+                  "top": 508,
+                  "width": 300,
+                  "height": 82,
+                  "autoResize": false
+                },
+                {
+                  "_type": "UMLOperationCompartmentView",
+                  "_id": "view-ServerConfig-7",
+                  "_parent": {
+                    "$ref": "view-ServerConfig-0"
+                  },
+                  "model": {
+                    "$ref": "class-ServerConfig"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 740,
+                  "top": 590,
+                  "width": 300,
+                  "height": 28,
+                  "autoResize": false,
+                  "subViews": [
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-ServerConfig-load-view",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-7"
+                      },
+                      "model": {
+                        "$ref": "class-ServerConfig-load"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 595,
+                      "width": 290,
+                      "height": 18,
+                      "underline": true,
+                      "text": "+ load"
+                    }
+                  ]
+                },
+                {
+                  "_type": "UMLTemplateParameterCompartmentView",
+                  "_id": "view-ServerConfig-8",
+                  "_parent": {
+                    "$ref": "view-ServerConfig-0"
+                  },
+                  "model": {
+                    "$ref": "class-ServerConfig"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": -200,
+                  "top": -176,
+                  "width": 10,
+                  "height": 10,
+                  "autoResize": false
+                }
+              ],
+              "visible": true,
+              "font": "Arial;13;0",
+              "parentStyle": false,
+              "left": 740,
+              "top": 480,
+              "width": 300,
+              "height": 138,
+              "autoResize": false,
+              "stereotypeDisplay": "label",
+              "showVisibility": true,
+              "showNamespace": false,
+              "showProperty": true,
+              "showType": true,
+              "nameCompartment": {
+                "$ref": "view-ServerConfig-1"
+              },
+              "wordWrap": false,
+              "suppressAttributes": false,
+              "suppressOperations": false,
+              "showMultiplicity": true,
+              "showOperationSignature": false,
+              "attributeCompartment": {
+                "$ref": "view-ServerConfig-6"
+              },
+              "operationCompartment": {
+                "$ref": "view-ServerConfig-7"
+              },
+              "templateParameterCompartment": {
+                "$ref": "view-ServerConfig-8"
+              }
+            },
+            {
+              "_type": "UMLDependencyView",
+              "_id": "dependency-BackupEngine-BackupOptions-view",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "dependency-BackupEngine-BackupOptions"
+              },
+              "tail": {
+                "$ref": "view-BackupEngine-0"
+              },
+              "head": {
+                "$ref": "view-BackupOptions-0"
+              },
+              "lineStyle": 0,
+              "points": "430:260;190:230;190:176",
+              "subViews": [
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupEngine-BackupOptions-nameLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupEngine-BackupOptions-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupEngine-BackupOptions"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupEngine-BackupOptions-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 15,
+                  "height": 14,
+                  "text": "create input"
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupEngine-BackupOptions-stereotypeLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupEngine-BackupOptions-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupEngine-BackupOptions"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupEngine-BackupOptions-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupEngine-BackupOptions-propertyLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupEngine-BackupOptions-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupEngine-BackupOptions"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupEngine-BackupOptions-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                }
+              ],
+              "nameLabel": {
+                "$ref": "dependency-BackupEngine-BackupOptions-nameLabel"
+              },
+              "stereotypeLabel": {
+                "$ref": "dependency-BackupEngine-BackupOptions-stereotypeLabel"
+              },
+              "propertyLabel": {
+                "$ref": "dependency-BackupEngine-BackupOptions-propertyLabel"
+              }
+            },
+            {
+              "_type": "UMLDependencyView",
+              "_id": "dependency-BackupEngine-RestoreOptions-view",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "dependency-BackupEngine-RestoreOptions"
+              },
+              "tail": {
+                "$ref": "view-BackupEngine-0"
+              },
+              "head": {
+                "$ref": "view-RestoreOptions-0"
+              },
+              "lineStyle": 0,
+              "points": "540:260;540:140",
+              "subViews": [
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupEngine-RestoreOptions-nameLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupEngine-RestoreOptions-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupEngine-RestoreOptions"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupEngine-RestoreOptions-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 15,
+                  "height": 14,
+                  "text": "restore input"
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupEngine-RestoreOptions-stereotypeLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupEngine-RestoreOptions-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupEngine-RestoreOptions"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupEngine-RestoreOptions-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupEngine-RestoreOptions-propertyLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupEngine-RestoreOptions-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupEngine-RestoreOptions"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupEngine-RestoreOptions-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                }
+              ],
+              "nameLabel": {
+                "$ref": "dependency-BackupEngine-RestoreOptions-nameLabel"
+              },
+              "stereotypeLabel": {
+                "$ref": "dependency-BackupEngine-RestoreOptions-stereotypeLabel"
+              },
+              "propertyLabel": {
+                "$ref": "dependency-BackupEngine-RestoreOptions-propertyLabel"
+              }
+            },
+            {
+              "_type": "UMLDependencyView",
+              "_id": "dependency-BackupEngine-BackupResult-view",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "dependency-BackupEngine-BackupResult"
+              },
+              "tail": {
+                "$ref": "view-BackupEngine-0"
+              },
+              "head": {
+                "$ref": "view-BackupResult-0"
+              },
+              "lineStyle": 0,
+              "points": "650:260;890:230;890:158",
+              "subViews": [
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupEngine-BackupResult-nameLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupEngine-BackupResult-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupEngine-BackupResult"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupEngine-BackupResult-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 15,
+                  "height": 14,
+                  "text": "create / restore result"
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupEngine-BackupResult-stereotypeLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupEngine-BackupResult-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupEngine-BackupResult"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupEngine-BackupResult-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupEngine-BackupResult-propertyLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupEngine-BackupResult-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupEngine-BackupResult"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupEngine-BackupResult-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                }
+              ],
+              "nameLabel": {
+                "$ref": "dependency-BackupEngine-BackupResult-nameLabel"
+              },
+              "stereotypeLabel": {
+                "$ref": "dependency-BackupEngine-BackupResult-stereotypeLabel"
+              },
+              "propertyLabel": {
+                "$ref": "dependency-BackupEngine-BackupResult-propertyLabel"
+              }
+            },
+            {
+              "_type": "UMLDependencyView",
+              "_id": "dependency-BackupClient-BackupServer-view",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "dependency-BackupClient-BackupServer"
+              },
+              "tail": {
+                "$ref": "view-BackupClient-0"
+              },
+              "head": {
+                "$ref": "view-BackupServer-0"
+              },
+              "lineStyle": 0,
+              "points": "340:535;390:535",
+              "subViews": [
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupClient-BackupServer-nameLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupClient-BackupServer-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupClient-BackupServer"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupClient-BackupServer-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 15,
+                  "height": 14,
+                  "text": "NBKP/TCP"
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupClient-BackupServer-stereotypeLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupClient-BackupServer-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupClient-BackupServer"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupClient-BackupServer-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupClient-BackupServer-propertyLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupClient-BackupServer-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupClient-BackupServer"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupClient-BackupServer-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                }
+              ],
+              "nameLabel": {
+                "$ref": "dependency-BackupClient-BackupServer-nameLabel"
+              },
+              "stereotypeLabel": {
+                "$ref": "dependency-BackupClient-BackupServer-stereotypeLabel"
+              },
+              "propertyLabel": {
+                "$ref": "dependency-BackupClient-BackupServer-propertyLabel"
+              }
+            },
+            {
+              "_type": "UMLDependencyView",
+              "_id": "dependency-BackupServer-ServerConfig-view",
+              "_parent": {
+                "$ref": "backup-studio-interfaces"
+              },
+              "model": {
+                "$ref": "dependency-BackupServer-ServerConfig"
+              },
+              "tail": {
+                "$ref": "view-BackupServer-0"
+              },
+              "head": {
+                "$ref": "view-ServerConfig-0"
+              },
+              "lineStyle": 0,
+              "points": "690:535;740:535",
+              "subViews": [
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupServer-ServerConfig-nameLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupServer-ServerConfig-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupServer-ServerConfig"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupServer-ServerConfig-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 15,
+                  "height": 14,
+                  "text": "configuration"
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupServer-ServerConfig-stereotypeLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupServer-ServerConfig-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupServer-ServerConfig"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupServer-ServerConfig-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "dependency-BackupServer-ServerConfig-propertyLabel",
+                  "_parent": {
+                    "$ref": "dependency-BackupServer-ServerConfig-view"
+                  },
+                  "model": {
+                    "$ref": "dependency-BackupServer-ServerConfig"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "dependency-BackupServer-ServerConfig-view"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                }
+              ],
+              "nameLabel": {
+                "$ref": "dependency-BackupServer-ServerConfig-nameLabel"
+              },
+              "stereotypeLabel": {
+                "$ref": "dependency-BackupServer-ServerConfig-stereotypeLabel"
+              },
+              "propertyLabel": {
+                "$ref": "dependency-BackupServer-ServerConfig-propertyLabel"
+              }
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "class-BackupOptions",
+          "_parent": {
+            "$ref": "backup-studio-model"
+          },
+          "name": "BackupOptions",
+          "visibility": "public",
+          "documentation": "Public interface overview. See libs/backup/core.hpp for defaults and lifetime contracts.",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupOptions-pack",
+              "_parent": {
+                "$ref": "class-BackupOptions"
+              },
+              "name": "pack",
+              "visibility": "public",
+              "type": "PackAlgorithm"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupOptions-compression",
+              "_parent": {
+                "$ref": "class-BackupOptions"
+              },
+              "name": "compression",
+              "visibility": "public",
+              "type": "CompressionAlgorithm"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupOptions-encryption",
+              "_parent": {
+                "$ref": "class-BackupOptions"
+              },
+              "name": "encryption",
+              "visibility": "public",
+              "type": "EncryptionAlgorithm"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupOptions-password",
+              "_parent": {
+                "$ref": "class-BackupOptions"
+              },
+              "name": "password",
+              "visibility": "public",
+              "type": "std::string"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupOptions-progress",
+              "_parent": {
+                "$ref": "class-BackupOptions"
+              },
+              "name": "progress",
+              "visibility": "public",
+              "type": "ProgressCallback"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupOptions-cancel",
+              "_parent": {
+                "$ref": "class-BackupOptions"
+              },
+              "name": "cancel",
+              "visibility": "public",
+              "type": "std::atomic_bool*"
+            }
+          ],
+          "operations": []
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "class-RestoreOptions",
+          "_parent": {
+            "$ref": "backup-studio-model"
+          },
+          "name": "RestoreOptions",
+          "visibility": "public",
+          "documentation": "Public interface overview. See libs/backup/core.hpp for defaults and lifetime contracts.",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-RestoreOptions-password",
+              "_parent": {
+                "$ref": "class-RestoreOptions"
+              },
+              "name": "password",
+              "visibility": "public",
+              "type": "std::string"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-RestoreOptions-overwrite",
+              "_parent": {
+                "$ref": "class-RestoreOptions"
+              },
+              "name": "overwrite",
+              "visibility": "public",
+              "type": "bool"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-RestoreOptions-progress",
+              "_parent": {
+                "$ref": "class-RestoreOptions"
+              },
+              "name": "progress",
+              "visibility": "public",
+              "type": "ProgressCallback"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-RestoreOptions-cancel",
+              "_parent": {
+                "$ref": "class-RestoreOptions"
+              },
+              "name": "cancel",
+              "visibility": "public",
+              "type": "std::atomic_bool*"
+            }
+          ],
+          "operations": []
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "class-BackupResult",
+          "_parent": {
+            "$ref": "backup-studio-model"
+          },
+          "name": "BackupResult",
+          "visibility": "public",
+          "documentation": "Public interface overview. See libs/backup/core.hpp for defaults and lifetime contracts.",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupResult-success",
+              "_parent": {
+                "$ref": "class-BackupResult"
+              },
+              "name": "success",
+              "visibility": "public",
+              "type": "bool"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupResult-message",
+              "_parent": {
+                "$ref": "class-BackupResult"
+              },
+              "name": "message",
+              "visibility": "public",
+              "type": "std::string"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupResult-entryCount",
+              "_parent": {
+                "$ref": "class-BackupResult"
+              },
+              "name": "entryCount",
+              "visibility": "public",
+              "type": "uint64_t"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupResult-inputBytes",
+              "_parent": {
+                "$ref": "class-BackupResult"
+              },
+              "name": "inputBytes",
+              "visibility": "public",
+              "type": "uint64_t"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupResult-outputBytes",
+              "_parent": {
+                "$ref": "class-BackupResult"
+              },
+              "name": "outputBytes",
+              "visibility": "public",
+              "type": "uint64_t"
+            }
+          ],
+          "operations": []
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "class-BackupEngine",
+          "_parent": {
+            "$ref": "backup-studio-model"
+          },
+          "name": "BackupEngine",
+          "visibility": "public",
+          "documentation": "Synchronous static archive API; full contracts and optional parameter defaults are defined in libs/backup/core.hpp.",
+          "attributes": [],
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupEngine-create",
+              "_parent": {
+                "$ref": "class-BackupEngine"
+              },
+              "name": "create",
+              "visibility": "public",
+              "isStatic": true,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-create-sourceDirectory",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-create"
+                  },
+                  "name": "sourceDirectory",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-create-archivePath",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-create"
+                  },
+                  "name": "archivePath",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-create-options",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-create"
+                  },
+                  "name": "options",
+                  "type": "const BackupOptions&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-create-return",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-create"
+                  },
+                  "type": "BackupResult",
+                  "direction": "return"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupEngine-restore",
+              "_parent": {
+                "$ref": "class-BackupEngine"
+              },
+              "name": "restore",
+              "visibility": "public",
+              "isStatic": true,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-restore-archivePath",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-restore"
+                  },
+                  "name": "archivePath",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-restore-destinationDirectory",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-restore"
+                  },
+                  "name": "destinationDirectory",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-restore-options",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-restore"
+                  },
+                  "name": "options",
+                  "type": "const RestoreOptions&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-restore-return",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-restore"
+                  },
+                  "type": "BackupResult",
+                  "direction": "return"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupEngine-preview",
+              "_parent": {
+                "$ref": "class-BackupEngine"
+              },
+              "name": "preview",
+              "visibility": "public",
+              "isStatic": true,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-preview-archivePath",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-preview"
+                  },
+                  "name": "archivePath",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-preview-destinationDirectory",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-preview"
+                  },
+                  "name": "destinationDirectory",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-preview-password",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-preview"
+                  },
+                  "name": "password",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-preview-progress",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-preview"
+                  },
+                  "name": "progress",
+                  "type": "ProgressCallback",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-preview-cancel",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-preview"
+                  },
+                  "name": "cancel",
+                  "type": "std::atomic_bool*",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-preview-return",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-preview"
+                  },
+                  "type": "RestorePreview",
+                  "direction": "return"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupEngine-inspect",
+              "_parent": {
+                "$ref": "class-BackupEngine"
+              },
+              "name": "inspect",
+              "visibility": "public",
+              "isStatic": true,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-inspect-archivePath",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-inspect"
+                  },
+                  "name": "archivePath",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-inspect-return",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-inspect"
+                  },
+                  "type": "ArchiveInfo",
+                  "direction": "return"
+                }
+              ]
+            }
+          ],
+          "ownedElements": [
+            {
+              "_type": "UMLDependency",
+              "_id": "dependency-BackupEngine-BackupOptions",
+              "_parent": {
+                "$ref": "class-BackupEngine"
+              },
+              "name": "create input",
+              "source": {
+                "$ref": "class-BackupEngine"
+              },
+              "target": {
+                "$ref": "class-BackupOptions"
+              }
+            },
+            {
+              "_type": "UMLDependency",
+              "_id": "dependency-BackupEngine-RestoreOptions",
+              "_parent": {
+                "$ref": "class-BackupEngine"
+              },
+              "name": "restore input",
+              "source": {
+                "$ref": "class-BackupEngine"
+              },
+              "target": {
+                "$ref": "class-RestoreOptions"
+              }
+            },
+            {
+              "_type": "UMLDependency",
+              "_id": "dependency-BackupEngine-BackupResult",
+              "_parent": {
+                "$ref": "class-BackupEngine"
+              },
+              "name": "create / restore result",
+              "source": {
+                "$ref": "class-BackupEngine"
+              },
+              "target": {
+                "$ref": "class-BackupResult"
+              }
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "class-BackupClient",
+          "_parent": {
+            "$ref": "backup-studio-model"
+          },
+          "name": "BackupClient",
+          "visibility": "public",
+          "documentation": "Public interface overview. See libs/backup/network.hpp for defaults and lifetime contracts.",
+          "attributes": [],
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupClient-BackupClient",
+              "_parent": {
+                "$ref": "class-BackupClient"
+              },
+              "name": "BackupClient",
+              "visibility": "public",
+              "isStatic": false,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-BackupClient-host",
+                  "_parent": {
+                    "$ref": "class-BackupClient-BackupClient"
+                  },
+                  "name": "host",
+                  "type": "std::string",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-BackupClient-port",
+                  "_parent": {
+                    "$ref": "class-BackupClient-BackupClient"
+                  },
+                  "name": "port",
+                  "type": "uint16_t",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-BackupClient-username",
+                  "_parent": {
+                    "$ref": "class-BackupClient-BackupClient"
+                  },
+                  "name": "username",
+                  "type": "std::string",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-BackupClient-password",
+                  "_parent": {
+                    "$ref": "class-BackupClient-BackupClient"
+                  },
+                  "name": "password",
+                  "type": "std::string",
+                  "direction": "in"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupClient-registerUser",
+              "_parent": {
+                "$ref": "class-BackupClient"
+              },
+              "name": "registerUser",
+              "visibility": "public",
+              "isStatic": false,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-registerUser-error",
+                  "_parent": {
+                    "$ref": "class-BackupClient-registerUser"
+                  },
+                  "name": "error",
+                  "type": "std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-registerUser-cancel",
+                  "_parent": {
+                    "$ref": "class-BackupClient-registerUser"
+                  },
+                  "name": "cancel",
+                  "type": "std::atomic_bool*",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-registerUser-return",
+                  "_parent": {
+                    "$ref": "class-BackupClient-registerUser"
+                  },
+                  "type": "bool",
+                  "direction": "return"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupClient-upload",
+              "_parent": {
+                "$ref": "class-BackupClient"
+              },
+              "name": "upload",
+              "visibility": "public",
+              "isStatic": false,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-upload-archivePath",
+                  "_parent": {
+                    "$ref": "class-BackupClient-upload"
+                  },
+                  "name": "archivePath",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-upload-displayName",
+                  "_parent": {
+                    "$ref": "class-BackupClient-upload"
+                  },
+                  "name": "displayName",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-upload-backupId",
+                  "_parent": {
+                    "$ref": "class-BackupClient-upload"
+                  },
+                  "name": "backupId",
+                  "type": "std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-upload-error",
+                  "_parent": {
+                    "$ref": "class-BackupClient-upload"
+                  },
+                  "name": "error",
+                  "type": "std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-upload-progress",
+                  "_parent": {
+                    "$ref": "class-BackupClient-upload"
+                  },
+                  "name": "progress",
+                  "type": "ProgressCallback",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-upload-cancel",
+                  "_parent": {
+                    "$ref": "class-BackupClient-upload"
+                  },
+                  "name": "cancel",
+                  "type": "std::atomic_bool*",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-upload-return",
+                  "_parent": {
+                    "$ref": "class-BackupClient-upload"
+                  },
+                  "type": "bool",
+                  "direction": "return"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupClient-list",
+              "_parent": {
+                "$ref": "class-BackupClient"
+              },
+              "name": "list",
+              "visibility": "public",
+              "isStatic": false,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-list-error",
+                  "_parent": {
+                    "$ref": "class-BackupClient-list"
+                  },
+                  "name": "error",
+                  "type": "std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-list-cancel",
+                  "_parent": {
+                    "$ref": "class-BackupClient-list"
+                  },
+                  "name": "cancel",
+                  "type": "std::atomic_bool*",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-list-return",
+                  "_parent": {
+                    "$ref": "class-BackupClient-list"
+                  },
+                  "type": "std::vector<RemoteBackupEntry>",
+                  "direction": "return"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupClient-download",
+              "_parent": {
+                "$ref": "class-BackupClient"
+              },
+              "name": "download",
+              "visibility": "public",
+              "isStatic": false,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-download-backupId",
+                  "_parent": {
+                    "$ref": "class-BackupClient-download"
+                  },
+                  "name": "backupId",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-download-outputPath",
+                  "_parent": {
+                    "$ref": "class-BackupClient-download"
+                  },
+                  "name": "outputPath",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-download-error",
+                  "_parent": {
+                    "$ref": "class-BackupClient-download"
+                  },
+                  "name": "error",
+                  "type": "std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-download-progress",
+                  "_parent": {
+                    "$ref": "class-BackupClient-download"
+                  },
+                  "name": "progress",
+                  "type": "ProgressCallback",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-download-cancel",
+                  "_parent": {
+                    "$ref": "class-BackupClient-download"
+                  },
+                  "name": "cancel",
+                  "type": "std::atomic_bool*",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-download-return",
+                  "_parent": {
+                    "$ref": "class-BackupClient-download"
+                  },
+                  "type": "bool",
+                  "direction": "return"
+                }
+              ]
+            }
+          ],
+          "ownedElements": [
+            {
+              "_type": "UMLDependency",
+              "_id": "dependency-BackupClient-BackupServer",
+              "_parent": {
+                "$ref": "class-BackupClient"
+              },
+              "name": "NBKP/TCP",
+              "source": {
+                "$ref": "class-BackupClient"
+              },
+              "target": {
+                "$ref": "class-BackupServer"
+              }
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "class-BackupServer",
+          "_parent": {
+            "$ref": "backup-studio-model"
+          },
+          "name": "BackupServer",
+          "visibility": "public",
+          "documentation": "Public interface overview. See libs/backup/network.hpp for defaults and lifetime contracts.",
+          "attributes": [],
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupServer-BackupServer",
+              "_parent": {
+                "$ref": "class-BackupServer"
+              },
+              "name": "BackupServer",
+              "visibility": "public",
+              "isStatic": false,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupServer-BackupServer-config",
+                  "_parent": {
+                    "$ref": "class-BackupServer-BackupServer"
+                  },
+                  "name": "config",
+                  "type": "ServerConfig",
+                  "direction": "in"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupServer-run",
+              "_parent": {
+                "$ref": "class-BackupServer"
+              },
+              "name": "run",
+              "visibility": "public",
+              "isStatic": false,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupServer-run-return",
+                  "_parent": {
+                    "$ref": "class-BackupServer-run"
+                  },
+                  "type": "bool",
+                  "direction": "return"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupServer-stop",
+              "_parent": {
+                "$ref": "class-BackupServer"
+              },
+              "name": "stop",
+              "visibility": "public",
+              "isStatic": false,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupServer-stop-return",
+                  "_parent": {
+                    "$ref": "class-BackupServer-stop"
+                  },
+                  "type": "void",
+                  "direction": "return"
+                }
+              ]
+            }
+          ],
+          "ownedElements": [
+            {
+              "_type": "UMLDependency",
+              "_id": "dependency-BackupServer-ServerConfig",
+              "_parent": {
+                "$ref": "class-BackupServer"
+              },
+              "name": "configuration",
+              "source": {
+                "$ref": "class-BackupServer"
+              },
+              "target": {
+                "$ref": "class-ServerConfig"
+              }
+            }
+          ]
+        },
+        {
+          "_type": "UMLClass",
+          "_id": "class-ServerConfig",
+          "_parent": {
+            "$ref": "backup-studio-model"
+          },
+          "name": "ServerConfig",
+          "visibility": "public",
+          "documentation": "Public interface overview. See libs/backup/network.hpp for defaults and lifetime contracts.",
+          "attributes": [
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-ServerConfig-port",
+              "_parent": {
+                "$ref": "class-ServerConfig"
+              },
+              "name": "port",
+              "visibility": "public",
+              "type": "uint16_t"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-ServerConfig-storagePath",
+              "_parent": {
+                "$ref": "class-ServerConfig"
+              },
+              "name": "storagePath",
+              "visibility": "public",
+              "type": "std::string"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-ServerConfig-maxConnections",
+              "_parent": {
+                "$ref": "class-ServerConfig"
+              },
+              "name": "maxConnections",
+              "visibility": "public",
+              "type": "uint32_t"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-ServerConfig-timeoutSeconds",
+              "_parent": {
+                "$ref": "class-ServerConfig"
+              },
+              "name": "timeoutSeconds",
+              "visibility": "public",
+              "type": "uint32_t"
+            }
+          ],
+          "operations": [
+            {
+              "_type": "UMLOperation",
+              "_id": "class-ServerConfig-load",
+              "_parent": {
+                "$ref": "class-ServerConfig"
+              },
+              "name": "load",
+              "visibility": "public",
+              "isStatic": true,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-ServerConfig-load-path",
+                  "_parent": {
+                    "$ref": "class-ServerConfig-load"
+                  },
+                  "name": "path",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-ServerConfig-load-return",
+                  "_parent": {
+                    "$ref": "class-ServerConfig-load"
+                  },
+                  "type": "ServerConfig",
+                  "direction": "return"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

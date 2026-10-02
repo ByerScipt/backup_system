@@ -23,11 +23,11 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Test WSL launcher in isolation
-        run: python3 tests/test_build_wsl.py
+        run: python3 test/test_build_wsl.py
       - name: Start GUI
         env:
           QT_QPA_PLATFORM: offscreen
           BACKUP_GUI_CAPTURE: /tmp/backup-studio.png
         run: |
-          timeout 10s build/backup-gui
+          timeout 10s bin/backup-gui
           test -s /tmp/backup-studio.png

@@ -2,7 +2,7 @@
 
 ## 实现
 
-- 公共接口放在 `include/backup/`，实现细节留在 `src/core/`、`src/network/`。
+- 公共接口放在 `libs/backup/`，实现细节留在 `DataBackup/core/`、`DataBackup/network/`。
   CLI 和 Qt GUI 通过公共接口复用业务逻辑。
 - 文件名用 `snake_case`，类型用 `PascalCase`，函数与字段用 `camelCase`，
   私有成员加尾随下划线，常量用 `kPascalCase`。
@@ -11,7 +11,6 @@
 - 公共接口说明参数约束、返回/异常、线程及资源生命周期。复杂算法解释不变量与边界，
   错误处理说明原因；避免逐句翻译代码。作者、日期和修改记录采用真实 Git 历史。
 - 文件句柄和临时文件采用 RAII；文件系统错误必须与“不存在”“空集合”区分。
-- 归档格式变更需版本化，保留旧格式读取测试；还原路径始终受目标目录 FD 约束。
 
 ## 验证和交付
 
@@ -20,14 +19,15 @@
 - 修改归档、网络或公共接口后运行 CTest；界面修改另做 Qt 启动与交互验收。
 - 需求和验收范围见 `docs/requirements.md`；格式、模块和协议变更同步
   `docs/design.md`；用例与真实结果同步 `docs/test-report.md`。
+  这些本地课程文档位于被忽略的 `docs/`，缺失时先说明，勿虚构已有材料。
 - 课程交付检查见 `docs/course-checklist.md`。项目看板、成员贡献、证书、演示录像
   使用真实记录；历史产物不作为当前版验证证据。
 
 ## 代码结构速览
 
-- 分层：`include/backup/core.hpp`、`include/backup/network.hpp` 是唯一公共接口；
-  `src/core/`（归档、压缩、加密、文件系统）、`src/network/`（协议、账户、存储、
-  客户端）为实现；`cli/`、`gui/`、`server/` 只做编排；`tests/` 覆盖三层。
+- 分层：`DataBackup/core/`（归档、压缩、加密、文件系统）、
+  `DataBackup/network/`（协议、账户、存储、客户端）为实现；
+  `DataBackup/cli/`、`GUI/`、`DataBackup/server.cpp` 只做编排；`test/` 覆盖三层。
 - 归档管线：扫描目录树 → 打包（`stream` 每条目带元数据；`index` 尾部偏移表）→
   压缩（none/RLE/Huffman）→ 加密（none/ChaCha20/AES-256-CTR）→ 提交单个最终文件。
   格式为自有 `BKP2`（头 112 字节），版本 1 为旧布局、版本 2 增加普通文件硬链接；
@@ -49,24 +49,15 @@
 
 - 版本与变更：版本号在 `CMakeLists.txt` 的 `project(... VERSION)`；行为与格式变更
   记入 `CHANGELOG.md`；归档格式变更必须版本化并保留旧版本读取测试。
-- 文档四件套：`docs/requirements.md`（需求与验收范围）、`docs/design.md`
-  （格式、模块、协议）、`docs/test-report.md`（用例与真实结果）、
-  `docs/course-checklist.md`（交付检查）。`docs/` 已在 `.gitignore` 中忽略。
 - CI 门禁（`.github/workflows/`，ubuntu-24.04）：配置 → `format-check` → 并行构建 →
   CTest → 离屏启动 GUI 并校验截图非空。提交前本地跑通同样步骤。
-- 测试约定：行为修改先补复现用例；文件系统用例用临时目录，网络用例用本机临时端口；
-  权限用例以普通用户运行，跳过必须打印原因；禁止用历史产物充当当前验证证据。
-- 协作：作者、日期与修改记录取自真实 Git 历史，不伪造贡献记录；看板、证书与
-  演示录像同步真实进展。
 
 ## 本机构建环境
 
 - 首选 WSL2（Ubuntu 24.04，由官方 cloud-image rootfs 导入）作为 Linux 构建与运行
-  环境，一键脚本：`./scripts/build-wsl.sh`（同步到 ext4 → `format-check` → 并行构建 →
-  CTest → 离屏 GUI 截图校验）。等价手工命令：
-  `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release` → `cmake --build build --parallel` →
-  `ctest --test-dir build --output-on-failure`；GUI 用
-  `QT_QPA_PLATFORM=offscreen BACKUP_GUI_CAPTURE=/tmp/backup-studio.png ./build/backup-gui`
+  环境，一键脚本：`./Utils/build-wsl.sh`（同步到 ext4 → `format-check` → 并行构建 →
+  CTest → 离屏 GUI 截图校验）。本机用 `make test`；GUI 用
+  `QT_QPA_PLATFORM=offscreen BACKUP_GUI_CAPTURE=/tmp/backup-studio.png ./bin/backup-gui`
   验证启动。
 - 构建副本放在 Linux 文件系统；脚本默认创建独立目录，也可通过 `GUEST_DIR` 指定
   尚不存在的绝对路径。保留已有目录，失败时保留构建副本供诊断。不要用 `/mnt/*`：DrvFs 无法
@@ -77,8 +68,6 @@
 - GUI 使用构建脚本末尾输出的 Git Bash 启动命令，账户与构建时一致；
   路径由 WSL 内 shell 解析，避免 Git Bash 展开 Windows 用户的主目录。
   Windows/WSLg 交互运行需在实际 Windows 机器验收。
-- 上游 1.6.0 的 `cli/arguments.hpp` 使用了 `uint16_t` 但未包含 `<cstdint>`，
-  在 GCC 13 上 CLI 无法编译；已补该头文件，构建与 CI 均需要它。
 - MSYS2 的 msys（Cygwin）环境只是无 WSL 时的后备手段：需要
   `-DCMAKE_CXX_FLAGS=-D_GNU_SOURCE`，且平台差异（atime 不可复现、原生符号链接
   透明跟随、ACL 无法表达 Unix 权限、FIFO 不能硬链接）会导致部分用例跳过。

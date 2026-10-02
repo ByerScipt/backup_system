@@ -1,0 +1,2 @@
+Backup Studio sample data.
+Use this directory to try packing, compression, encryption and restore.
