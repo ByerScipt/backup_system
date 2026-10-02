@@ -68,20 +68,20 @@ Run `bin/backup-gui` to open the desktop interface. The CLI and server accept `-
 
 ## Local backup and restore
 
-The following example uses the included sample files in `exp/source/`, backs
+The following example uses the included sample files in `exp/`, backs
 them up, inspects the archive, and restores them:
 
 ```bash
-mkdir -p exp/output
+mkdir -p output
 
-bin/backup-cli backup exp/source -o exp/output/source.bak \
+bin/backup-cli backup exp -o output/exp.bak \
   --pack index --compress huffman --encrypt chacha20
 
-bin/backup-cli inspect exp/output/source.bak
-bin/backup-cli restore exp/output/source.bak -d exp/output/restored
+bin/backup-cli inspect output/exp.bak
+bin/backup-cli restore output/exp.bak -d output/restored
 ```
 
-Encryption prompts for an archive password; restore requires the same password. For scripted use, pass `--key-file FILE` to read the password from a text file. The source directory name is retained, so this example restores `exp/output/restored/source/notes.txt`.
+Encryption prompts for an archive password; restore requires the same password. For scripted use, pass `--key-file FILE` to read the password from a text file. The source directory name is retained, so this example restores `output/restored/exp/notes.txt`.
 
 | Option | Values | Default |
 | :--- | :--- | :--- |
@@ -108,13 +108,13 @@ In another terminal:
 ```bash
 bin/backup-cli user register --server 127.0.0.1:8848 --username alice
 
-bin/backup-cli remote-backup exp/source --server 127.0.0.1:8848 \
+bin/backup-cli remote-backup exp --server 127.0.0.1:8848 \
   --username alice --name first-backup \
   --pack stream --compress rle --encrypt chacha20
 
 bin/backup-cli remote-list --server 127.0.0.1:8848 --username alice
 
-bin/backup-cli remote-restore BACKUP_ID -d exp/output/remote-restored \
+bin/backup-cli remote-restore BACKUP_ID -d output/remote-restored \
   --server 127.0.0.1:8848 --username alice
 ```
 
@@ -128,7 +128,7 @@ Replace `BACKUP_ID` with the ID returned by upload or listing. Account passwords
 
 **Network storage.** A framed TCP protocol supports account registration, challenge-response login, and archive transfers. The server runs a worker thread per connection, subject to the configured connection limit. Uploads are checked against their declared size and SHA-256 digest before being committed to the user's storage directory. Clients build archives before upload and download them before extraction.
 
-**Library boundaries.** `backup_core` provides local archive operations through [core.hpp](libs/backup/core.hpp). `backup_network` depends on the core and exposes client and server operations through [network.hpp](libs/backup/network.hpp). The CLI and GUI share these libraries. Private implementation headers stay under `DataBackup/`.
+**Library boundaries.** `backup_core` provides local archive operations through [core.hpp](libs/core.hpp). `backup_network` depends on the core and exposes client and server operations through [network.hpp](libs/network.hpp). The CLI and GUI share these libraries. Private implementation headers stay under `DataBackup/`.
 
 ## Development
 
@@ -181,10 +181,10 @@ The script compares source and restored hashes and writes timing and memory meas
 | :--- | :--- |
 | `DataBackup/` | Core and network implementations, CLI and server entry points |
 | `GUI/` | Qt pages, widgets, dialogs, background jobs, and styles |
-| `libs/backup/` | Public core and network interfaces |
+| `libs/` | Public core and network interfaces |
 | `test/` | Core, CLI, GUI and WSL launcher tests |
 | `Utils/` | WSL build and performance-check scripts |
-| `exp/source/` | Sample input; generated output belongs in `exp/output/` |
+| `exp/` | Sample input; generated output belongs in `output/` outside this tree |
 | `bin/`, `build/` | Generated executables and build intermediates (ignored) |
 | `databackup.conf` | Default server configuration |
 | `DataBackup.mdj` | Editable StarUML public-interface class diagram |

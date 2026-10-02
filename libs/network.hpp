@@ -4,7 +4,7 @@
 // Account-isolated archive transfers over NBKP/TCP (no TLS). Archive passwords
 // belong to backup_core and are independent of these account credentials.
 
-#include "backup/core.hpp"
+#include "core.hpp"
 
 #include <cstdint>
 #include <string>

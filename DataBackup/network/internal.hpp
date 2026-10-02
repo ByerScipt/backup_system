@@ -1,8 +1,8 @@
 #pragma once
 // Internal header for the network service. Public API stays in
-// libs/backup/network.hpp; everything here is backup::network::detail.
+// libs/network.hpp; everything here is backup::network::detail.
 #include "../file_io.hpp"
-#include "backup/network.hpp"
+#include "network.hpp"
 
 #include <algorithm>
 #include <array>

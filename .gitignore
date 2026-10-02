@@ -3,7 +3,6 @@ build-msys/
 bin/
 compile_commands.json
 server_data/
-exp/output/
 output/
 *.bak
 *.tmp
@@ -11,3 +10,5 @@ output/
 __pycache__/
 *.pyc
 docs/
+/.github/
+/.workflow

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Flatten public headers into libs/ and sample files into exp/; update include
+  paths and examples, keeping generated output outside the sample source tree.
+- Stop tracking GitHub workflow configuration; retain it locally and ignore
+  .github/ and .workflow in future commits.
+
 ## 1.7.1 — 2026-10-02
 
 - Simplify the six Qt pages: remove repeated headings and explanatory paragraphs,

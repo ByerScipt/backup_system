@@ -2,7 +2,7 @@
 
 ## 实现
 
-- 公共接口放在 `libs/backup/`，实现细节留在 `DataBackup/core/`、`DataBackup/network/`。
+- 公共接口直接放在 `libs/`，实现细节留在 `DataBackup/core/`、`DataBackup/network/`。
   CLI 和 Qt GUI 通过公共接口复用业务逻辑。
 - 文件名用 `snake_case`，类型用 `PascalCase`，函数与字段用 `camelCase`，
   私有成员加尾随下划线，常量用 `kPascalCase`。
@@ -49,8 +49,8 @@
 
 - 版本与变更：版本号在 `CMakeLists.txt` 的 `project(... VERSION)`；行为与格式变更
   记入 `CHANGELOG.md`；归档格式变更必须版本化并保留旧版本读取测试。
-- CI 门禁（`.github/workflows/`，ubuntu-24.04）：配置 → `format-check` → 并行构建 →
-  CTest → 离屏启动 GUI 并校验截图非空。提交前本地跑通同样步骤。
+- 提交前本地门禁：配置 → `format-check` → 并行构建 → CTest → 离屏启动 GUI
+  并校验截图非空。`.github/`、`.workflow` 仅留本地，不进入提交。
 
 ## 本机构建环境
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds Backup Studio inside WSL2 (Ubuntu 24.04) on the ext4 filesystem and
-# runs the same gates as CI: format check, parallel build of the CLI, server and
+# runs local validation: format check, parallel build of the CLI, server and
 # Qt GUI, CTest, and an offscreen GUI start/capture check.
 #
 # Run from Git Bash on Windows:   ./Utils/build-wsl.sh

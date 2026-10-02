@@ -2438,7 +2438,7 @@
           },
           "name": "BackupOptions",
           "visibility": "public",
-          "documentation": "Public interface overview. See libs/backup/core.hpp for defaults and lifetime contracts.",
+          "documentation": "Public interface overview. See libs/core.hpp for defaults and lifetime contracts.",
           "attributes": [
             {
               "_type": "UMLAttribute",
@@ -2511,7 +2511,7 @@
           },
           "name": "RestoreOptions",
           "visibility": "public",
-          "documentation": "Public interface overview. See libs/backup/core.hpp for defaults and lifetime contracts.",
+          "documentation": "Public interface overview. See libs/core.hpp for defaults and lifetime contracts.",
           "attributes": [
             {
               "_type": "UMLAttribute",
@@ -2564,7 +2564,7 @@
           },
           "name": "BackupResult",
           "visibility": "public",
-          "documentation": "Public interface overview. See libs/backup/core.hpp for defaults and lifetime contracts.",
+          "documentation": "Public interface overview. See libs/core.hpp for defaults and lifetime contracts.",
           "attributes": [
             {
               "_type": "UMLAttribute",
@@ -2627,7 +2627,7 @@
           },
           "name": "BackupEngine",
           "visibility": "public",
-          "documentation": "Synchronous static archive API; full contracts and optional parameter defaults are defined in libs/backup/core.hpp.",
+          "documentation": "Synchronous static archive API; full contracts and optional parameter defaults are defined in libs/core.hpp.",
           "attributes": [],
           "operations": [
             {
@@ -2888,7 +2888,7 @@
           },
           "name": "BackupClient",
           "visibility": "public",
-          "documentation": "Public interface overview. See libs/backup/network.hpp for defaults and lifetime contracts.",
+          "documentation": "Public interface overview. See libs/network.hpp for defaults and lifetime contracts.",
           "attributes": [],
           "operations": [
             {
@@ -3203,7 +3203,7 @@
           },
           "name": "BackupServer",
           "visibility": "public",
-          "documentation": "Public interface overview. See libs/backup/network.hpp for defaults and lifetime contracts.",
+          "documentation": "Public interface overview. See libs/network.hpp for defaults and lifetime contracts.",
           "attributes": [],
           "operations": [
             {
@@ -3296,7 +3296,7 @@
           },
           "name": "ServerConfig",
           "visibility": "public",
-          "documentation": "Public interface overview. See libs/backup/network.hpp for defaults and lifetime contracts.",
+          "documentation": "Public interface overview. See libs/network.hpp for defaults and lifetime contracts.",
           "attributes": [
             {
               "_type": "UMLAttribute",
