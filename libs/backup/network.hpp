@@ -59,6 +59,11 @@ public:
     // connect/read/write waits time out after 30 seconds and poll cancellation.
     // DNS resolution remains subject to the system resolver's timeout.
     bool registerUser(std::string& error, std::atomic_bool* cancel = nullptr);
+    // Verifies credentials; each transfer still authenticates independently.
+    bool login(std::string& error, std::atomic_bool* cancel = nullptr);
+    // Deletes only this authenticated account. Refuses stored backups and
+    // other active sessions. A lost acknowledgement cannot undo the deletion.
+    bool deleteAccount(std::string& error, std::atomic_bool* cancel = nullptr);
     // Clears backupId on entry and sets it only after a validated
     // acknowledgement. A lost/cancelled acknowledgement cannot undo a
     // server-side commit.

@@ -66,6 +66,8 @@ enum class MessageType : uint16_t
     DownloadStart = 31,
     DownloadChunk = 32,
     DownloadEnd = 33,
+    DeleteAccountRequest = 40,
+    DeleteAccountResponse = 41,
     Error = 255
 };
 

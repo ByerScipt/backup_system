@@ -6,7 +6,6 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFile>
-#include <QHBoxLayout>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QObject>
@@ -27,23 +26,21 @@ namespace backup::gui
 QWidget* localBackupPage()
 {
     Page page = makePage();
-    Card configuration =
-        makeCard("备份配置", "选择来源、输出位置以及归档处理策略。");
+    Card configuration = makeCard();
     auto* form = makeForm();
 
     QLineEdit *source, *output, *key;
     QPushButton *browseSource, *browseOutput;
     QComboBox *pack, *compression, *encryption;
-    form->addRow("源目录", pathRow(source, browseSource, "选择需要备份的目录"));
-    form->addRow("输出归档",
-                 pathRow(output, browseOutput, "例如 /home/user/data.bak"));
+    form->addRow("源目录", pathRow(source, browseSource, "sourcePath"));
+    form->addRow("输出归档", pathRow(output, browseOutput, "outputPath"));
     addAlgorithmRows(form, pack, compression, encryption, key);
     configuration.body->addLayout(form);
-    page.layout->addWidget(configuration.frame);
+    page.layout->addWidget(configuration.frame, 1);
 
-    Card task = makeCard("任务状态");
-    JobControls controls = addJobControls(task.body, "开始本地备份");
-    page.layout->addWidget(task.frame, 1);
+    Card task = makeCard();
+    JobControls controls = addJobControls(task.body, "备份");
+    page.footer->addWidget(task.frame);
 
     bindPathPicker(page.widget, browseSource, source, "选择源目录",
                    selectDirectory);
@@ -104,43 +101,41 @@ QWidget* localBackupPage()
 QWidget* localRestorePage()
 {
     Page page = makePage();
-    auto* top = new QHBoxLayout;
-    top->setSpacing(14);
 
-    Card configuration = makeCard("还原配置", "默认拒绝覆盖，建议先执行预检。");
+    Card configuration = makeCard();
     auto* form = makeForm();
     QLineEdit *archive, *destination;
     QPushButton *browseArchive, *browseDestination;
-    form->addRow("备份归档", pathRow(archive, browseArchive, "选择 .bak 归档"));
+    form->addRow("备份归档", pathRow(archive, browseArchive, "archivePath"));
     form->addRow("目标目录",
-                 pathRow(destination, browseDestination, "还原到该目录下"));
+                 pathRow(destination, browseDestination, "destinationPath"));
     auto* key = new QLineEdit;
     key->setEchoMode(QLineEdit::Password);
     key->setClearButtonEnabled(true);
-    key->setPlaceholderText("未加密归档可留空");
+    key->setObjectName("archivePassword");
+    key->setPlaceholderText("加密时填写");
     form->addRow("归档密码", key);
     auto* overwrite = new QCheckBox("允许覆盖同名文件");
     form->addRow("覆盖策略", overwrite);
     configuration.body->addLayout(form);
 
-    Card preview = makeCard("冲突预检", "填写归档和目标目录后执行预检。");
-    auto* previewButton = new QPushButton("预览归档与目标冲突");
+    Card preview = makeCard();
+    auto* previewButton = new QPushButton("检查冲突");
     previewButton->setObjectName("secondaryButton");
     auto* conflictView = new QTextEdit;
     conflictView->setReadOnly(true);
     conflictView->setAcceptRichText(false);
-    conflictView->setPlaceholderText("尚未执行预检");
-    conflictView->setMinimumHeight(118);
+    conflictView->setPlaceholderText("未检查");
+    conflictView->setMinimumHeight(120);
     preview.body->addWidget(previewButton);
     preview.body->addWidget(conflictView, 1);
 
-    top->addWidget(configuration.frame, 3);
-    top->addWidget(preview.frame, 2);
-    page.layout->addLayout(top);
+    page.layout->addWidget(configuration.frame, 3);
+    page.layout->addWidget(preview.frame, 2);
 
-    Card task = makeCard("任务状态");
-    JobControls controls = addJobControls(task.body, "开始本地还原");
-    page.layout->addWidget(task.frame, 1);
+    Card task = makeCard();
+    JobControls controls = addJobControls(task.body, "还原");
+    page.footer->addWidget(task.frame);
 
     bindPathPicker(page.widget, browseArchive, archive, "选择备份归档",
                    selectArchive);
@@ -180,7 +175,7 @@ QWidget* localRestorePage()
                     QStringList lines;
                     if (previewResult->conflicts.empty())
                     {
-                        lines << "✓ 未发现已有路径冲突";
+                        lines << "无冲突";
                     }
                     else
                     {

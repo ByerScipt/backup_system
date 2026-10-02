@@ -100,6 +100,58 @@ bool BackupClient::registerUser(std::string& error, std::atomic_bool* cancel)
     }
 }
 
+bool BackupClient::login(std::string& error, std::atomic_bool* cancel)
+{
+    error.clear();
+    try
+    {
+        ensure(validUsername(username_), "invalid username");
+        ensure(!password_.empty(), "account password is required");
+        Socket socket = connectTo(host_, port_, cancel);
+        uint32_t request = 0;
+        return authenticateClient(socket.get(), request, username_, password_,
+                                  error, cancel);
+    }
+    catch (const std::exception& e)
+    {
+        error = e.what();
+        return false;
+    }
+}
+
+bool BackupClient::deleteAccount(std::string& error, std::atomic_bool* cancel)
+{
+    error.clear();
+    try
+    {
+        Socket socket = connectTo(host_, port_, cancel);
+        uint32_t request = 0;
+        ensure(authenticateClient(socket.get(), request, username_, password_,
+                                  error, cancel),
+               error);
+        sendFrame(socket.get(), MessageType::DeleteAccountRequest, ++request,
+                  {}, cancel);
+        auto response = receiveFrame(socket.get(), cancel);
+        ensure(response.has_value(), "server closed during account deletion");
+        if (response->type == MessageType::Error)
+        {
+            throw NetError(errorFromFrame(*response));
+        }
+        ensure(response->type == MessageType::DeleteAccountResponse &&
+                   response->requestId == request,
+               "unexpected account deletion response");
+        Reader reader(response->payload);
+        ensure(reader.u8() == 0, "account deletion rejected");
+        reader.end();
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        error = e.what();
+        return false;
+    }
+}
+
 std::vector<RemoteBackupEntry> BackupClient::list(std::string& error,
                                                   std::atomic_bool* cancel)
 {

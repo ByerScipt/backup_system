@@ -127,7 +127,7 @@ Page makePage()
     page.widget = new QWidget;
     auto* outerLayout = new QVBoxLayout(page.widget);
     outerLayout->setContentsMargins(0, 0, 0, 0);
-    outerLayout->setSpacing(0);
+    outerLayout->setSpacing(20);
 
     auto* scroll = new QScrollArea;
     scroll->setObjectName("pageScroll");
@@ -139,45 +139,36 @@ Page makePage()
     content->setObjectName("pageContent");
     page.layout = new QVBoxLayout(content);
     page.layout->setContentsMargins(0, 0, 0, 0);
-    page.layout->setSpacing(14);
+    page.layout->setSpacing(20);
     page.layout->setSizeConstraint(QLayout::SetMinimumSize);
     scroll->setWidget(content);
-    outerLayout->addWidget(scroll);
+    outerLayout->addWidget(scroll, 1);
+    page.footer = new QVBoxLayout;
+    outerLayout->addLayout(page.footer);
     return page;
 }
 
-Card makeCard(const QString& title, const QString& description)
+Card makeCard()
 {
     Card card;
     card.frame = new QFrame;
     card.frame->setObjectName("card");
     card.body = new QVBoxLayout(card.frame);
-    card.body->setContentsMargins(16, 14, 16, 14);
-    card.body->setSpacing(8);
-    card.body->setAlignment(Qt::AlignTop);
-
-    auto* titleLabel = new QLabel(title);
-    titleLabel->setObjectName("cardTitle");
-    card.body->addWidget(titleLabel);
-
-    if (!description.isEmpty())
-    {
-        auto* descriptionLabel = new QLabel(description);
-        descriptionLabel->setObjectName("cardDescription");
-        descriptionLabel->setWordWrap(true);
-        card.body->addWidget(descriptionLabel);
-    }
+    card.body->setContentsMargins(28, 24, 28, 24);
+    card.body->setSpacing(16);
+    card.body->setAlignment(Qt::AlignVCenter);
     return card;
 }
 
 QFormLayout* makeForm()
 {
     auto* form = new QFormLayout;
-    form->setContentsMargins(0, 4, 0, 0);
-    form->setHorizontalSpacing(18);
-    form->setVerticalSpacing(8);
+    form->setContentsMargins(0, 0, 0, 0);
+    form->setHorizontalSpacing(28);
+    form->setVerticalSpacing(22);
     form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    form->setFormAlignment(Qt::AlignVCenter);
     return form;
 }
 
@@ -190,17 +181,17 @@ QLabel* makeHint(const QString& text)
 }
 
 QHBoxLayout* pathRow(QLineEdit*& edit, QPushButton*& browse,
-                     const QString& placeholder)
+                     const QString& objectName)
 {
     auto* row = new QHBoxLayout;
     row->setContentsMargins(0, 0, 0, 0);
-    row->setSpacing(8);
+    row->setSpacing(12);
     edit = new QLineEdit;
     edit->setClearButtonEnabled(true);
-    edit->setPlaceholderText(placeholder);
+    edit->setObjectName(objectName);
     browse = new QPushButton("浏览");
     browse->setObjectName("secondaryButton");
-    browse->setMinimumWidth(82);
+    browse->setMinimumWidth(100);
     row->addWidget(edit, 1);
     row->addWidget(browse);
     return row;
@@ -214,37 +205,52 @@ JobControls addJobControls(QVBoxLayout* layout, const QString& startText)
     buttons->setSpacing(8);
     controls.start = new QPushButton(startText);
     controls.start->setObjectName("primaryButton");
-    controls.start->setMinimumWidth(130);
-    controls.cancel = new QPushButton("取消任务");
+    controls.start->setMinimumWidth(160);
+    controls.cancel = new QPushButton("取消");
     controls.cancel->setObjectName("dangerButton");
     controls.cancel->setEnabled(false);
-    auto* copyLog = new QPushButton("复制日志");
+    controls.cancel->hide();
+    auto* toggleLog = new QPushButton("日志");
+    toggleLog->setObjectName("toggleLog");
+    toggleLog->setCheckable(true);
+    auto* copyLog = new QPushButton("复制");
     copyLog->setObjectName("quietButton");
     auto* clearLog = new QPushButton("清空");
     clearLog->setObjectName("quietButton");
+    copyLog->hide();
+    clearLog->hide();
 
     buttons->addWidget(controls.start);
     buttons->addWidget(controls.cancel);
     buttons->addStretch();
     buttons->addWidget(copyLog);
     buttons->addWidget(clearLog);
+    buttons->addWidget(toggleLog);
     layout->addLayout(buttons);
 
     controls.progress = new QProgressBar;
     controls.progress->setRange(0, 100);
     controls.progress->setValue(0);
-    controls.progress->setFormat("等待开始");
+    controls.progress->hide();
     layout->addWidget(controls.progress);
 
     controls.log = new QTextEdit;
     controls.log->setObjectName("taskLog");
     controls.log->setReadOnly(true);
     controls.log->setAcceptRichText(false);
-    controls.log->setMinimumHeight(80);
-    controls.log->setPlaceholderText("任务日志将在这里显示");
+    controls.log->setMinimumHeight(110);
+    controls.log->setMaximumHeight(200);
+    controls.log->hide();
     controls.log->document()->setMaximumBlockCount(800);
-    layout->addWidget(controls.log, 1);
+    layout->addWidget(controls.log);
 
+    QObject::connect(toggleLog, &QPushButton::toggled, controls.log,
+                     [log = controls.log, copyLog, clearLog](bool visible)
+                     {
+                         log->setVisible(visible);
+                         copyLog->setVisible(visible);
+                         clearLog->setVisible(visible);
+                     });
     QObject::connect(copyLog, &QPushButton::clicked, controls.log,
                      [log = controls.log]() {
                          QApplication::clipboard()->setText(log->toPlainText());
@@ -267,6 +273,8 @@ void startJob(QWidget* owner, const JobControls& controls, Job job,
     owner->setProperty("jobRunning", true);
     controls.start->setEnabled(false);
     controls.cancel->setEnabled(true);
+    controls.cancel->show();
+    controls.progress->show();
     controls.progress->setValue(0);
     controls.progress->setFormat("正在准备");
     controls.log->clear();
@@ -363,6 +371,7 @@ void startJob(QWidget* owner, const JobControls& controls, Job job,
                     }
                     safeStart->setEnabled(true);
                     safeCancel->setEnabled(false);
+                    safeCancel->hide();
                     safeOwner->setProperty("jobRunning", false);
                     safeProgress->setValue(ok ? 100 : 0);
                     const bool wasCancelled = !ok && cancelled->load();

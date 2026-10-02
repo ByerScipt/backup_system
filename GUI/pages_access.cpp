@@ -1,9 +1,7 @@
 #include "ui.hpp"
 #include <QAbstractItemView>
 #include <QApplication>
-#include <QCheckBox>
 #include <QClipboard>
-#include <QComboBox>
 #include <QDateTime>
 #include <QFormLayout>
 #include <QFrame>
@@ -19,7 +17,6 @@
 #include <QStyledItemDelegate>
 #include <QTableWidget>
 #include <QTableWidgetItem>
-#include <QTemporaryDir>
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -56,24 +53,19 @@ public:
 QWidget* remoteListPage()
 {
     Page page = makePage();
-    auto* top = new QHBoxLayout;
-    top->setSpacing(14);
-    Card connection = makeCard("服务器连接", "与其他远程页面共用连接信息。");
-    auto* serverForm = makeForm();
-    const ServerFields server = addServerRows(serverForm);
-    connection.body->addLayout(serverForm);
-    connection.body->addWidget(
-        makeHint("选择备份后点击“还原选中备份”，无需手动填写 ID。"));
+    Card connection = makeCard();
+    const ServerFields server = addServerRows(connection.body);
 
-    Card listCard = makeCard("备份历史");
+    Card listCard = makeCard();
     auto* search = new QLineEdit;
     search->setObjectName("historySearch");
-    search->setPlaceholderText("搜索名称或完整 ID");
+    search->setPlaceholderText("名称 / ID");
+    search->setToolTip("搜索备份名称或完整 ID");
     search->setClearButtonEnabled(true);
     listCard.body->addWidget(search);
     auto* table = new QTableWidget(0, 4);
     table->setObjectName("historyTable");
-    table->setHorizontalHeaderLabels({"名称", "大小", "创建时间", "备份 ID"});
+    table->setHorizontalHeaderLabels({"名称", "大小", "时间", "ID"});
     table->setItemDelegate(new HistoryDelegate(table));
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     for (int column = 1; column < 4; ++column)
@@ -82,6 +74,8 @@ QWidget* remoteListPage()
             column, QHeaderView::ResizeToContents);
     }
     table->verticalHeader()->setVisible(false);
+    table->verticalHeader()->setSectionResizeMode(
+        QHeaderView::ResizeToContents);
     table->setAlternatingRowColors(true);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -90,25 +84,23 @@ QWidget* remoteListPage()
     table->setMinimumHeight(140);
     table->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Ignored);
     listCard.body->addWidget(table, 1);
-    auto* status = makeHint("尚未加载，请填写账号信息后刷新");
+    auto* status = makeHint("未加载");
     status->setObjectName("historyStatus");
     listCard.body->addWidget(status);
     auto* actions = new QHBoxLayout;
-    auto* copy = new QPushButton("复制完整 ID");
+    auto* copy = new QPushButton("复制 ID");
     copy->setObjectName("copyBackupId");
-    auto* restore = new QPushButton("还原选中备份");
+    auto* restore = new QPushButton("还原");
     restore->setObjectName("restoreSelected");
     actions->addWidget(copy);
     actions->addWidget(restore);
     actions->addStretch();
     listCard.body->addLayout(actions);
-    top->addWidget(connection.frame, 1);
-    top->addWidget(listCard.frame, 2);
-    page.layout->addLayout(top, 3);
-    Card task = makeCard("同步状态");
-    JobControls controls = addJobControls(task.body, "刷新远程列表");
-    controls.log->setFixedHeight(80);
-    page.layout->addWidget(task.frame, 1);
+    page.layout->addWidget(connection.frame);
+    page.layout->addWidget(listCard.frame, 1);
+    Card task = makeCard();
+    JobControls controls = addJobControls(task.body, "刷新");
+    page.footer->addWidget(task.frame);
 
     auto updateSelection = [=]()
     {
@@ -137,10 +129,10 @@ QWidget* remoteListPage()
             table->setRowHidden(row, !matches);
             visible += matches;
         }
-        status->setText(table->rowCount() == 0 ? "当前账号还没有备份"
-                                               : QString("显示 %1 / %2 个备份")
-                                                     .arg(visible)
-                                                     .arg(table->rowCount()));
+        status->setText(
+            table->rowCount() == 0
+                ? "无备份"
+                : QString("%1 / %2").arg(visible).arg(table->rowCount()));
         updateSelection();
     };
     QObject::connect(search, &QLineEdit::textChanged, page.widget, filterRows);
@@ -233,72 +225,6 @@ QWidget* remoteListPage()
                     table->sortItems(2, Qt::DescendingOrder);
                     filterRows();
                 });
-        });
-    return page.widget;
-}
-
-QWidget* userPage()
-{
-    Page page = makePage();
-    auto* top = new QHBoxLayout;
-    top->setSpacing(14);
-
-    Card account =
-        makeCard("创建账号", "填写服务器信息、用户名和两次相同的密码。");
-    auto* form = makeForm();
-    const ServerFields server = addServerRows(form);
-    auto* confirm = new QLineEdit;
-    confirm->setEchoMode(QLineEdit::Password);
-    confirm->setClearButtonEnabled(true);
-    confirm->setPlaceholderText("再次输入账号密码");
-    form->addRow("确认密码", confirm);
-    account.body->addLayout(form);
-
-    account.body->addWidget(
-        makeHint("连接信息会自动填入其他远程页面。账号密码用于登录；"
-                 "归档密码用于解密，两者互不替代。"));
-    top->addWidget(account.frame);
-    page.layout->addLayout(top);
-
-    Card task = makeCard("注册状态");
-    JobControls controls = addJobControls(task.body, "注册账号");
-    page.layout->addWidget(task.frame, 1);
-
-    QObject::connect(
-        controls.start, &QPushButton::clicked, page.widget,
-        [=]()
-        {
-            if (server.password->text() != confirm->text())
-            {
-                QMessageBox::warning(page.widget, "输入有误",
-                                     "两次输入的密码不一致。");
-                return;
-            }
-            ServerValues serverValues;
-            try
-            {
-                serverValues = snapshotServer(server);
-            }
-            catch (const std::exception& error)
-            {
-                QMessageBox::warning(page.widget, "输入有误",
-                                     QString::fromUtf8(error.what()));
-                return;
-            }
-
-            startJob(page.widget, controls,
-                     [=](std::atomic_bool* cancel, const ProgressCallback&)
-                     {
-                         auto client = makeClient(serverValues);
-                         std::string error;
-                         if (!client.registerUser(error, cancel))
-                         {
-                             throw std::runtime_error(error);
-                         }
-                         return QString("账号 %1 注册成功")
-                             .arg(
-                                 QString::fromStdString(serverValues.username));
-                     });
         });
     return page.widget;
 }

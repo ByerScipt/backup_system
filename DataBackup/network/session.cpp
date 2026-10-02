@@ -7,6 +7,69 @@ namespace backup::network::detail
 namespace
 {
 
+using SessionKey = std::pair<fs::path, std::string>;
+// Guarded by gStorageMutex, together with the account database. No account
+// may disappear while another authenticated connection can write its files.
+std::map<SessionKey, size_t> activeSessions;
+
+class AuthenticatedSession
+{
+public:
+    ~AuthenticatedSession()
+    {
+        if (key_)
+        {
+            std::lock_guard<std::mutex> lock(gStorageMutex);
+            auto found = activeSessions.find(*key_);
+            if (--found->second == 0)
+            {
+                activeSessions.erase(found);
+            }
+        }
+    }
+
+    void acquire(const fs::path& storage, const UserRecord& challenge)
+    {
+        ensure(!key_, "connection is already authenticated");
+        SessionKey key{fs::canonical(storage), challenge.name};
+        std::lock_guard<std::mutex> lock(gStorageMutex);
+        auto users = loadUsers(storage);
+        ensure(std::any_of(users.begin(), users.end(),
+                           [&](const auto& user)
+                           {
+                               return user.name == challenge.name &&
+                                      user.salt == challenge.salt &&
+                                      user.verifier == challenge.verifier;
+                           }),
+               "account changed during login; retry");
+        auto entry = activeSessions.try_emplace(key, 0).first;
+        key_ = std::move(key);
+        ++entry->second;
+    }
+
+    void deleteAccount(const fs::path& storage, std::atomic_bool* cancel)
+    {
+        std::lock_guard<std::mutex> lock(gStorageMutex);
+        ensure(key_ && activeSessions.at(*key_) == 1,
+               "账户正在使用，请稍后重试");
+        auto users = loadUsers(storage);
+        auto user = std::find_if(users.begin(), users.end(), [&](const auto& u)
+                                 { return u.name == key_->second; });
+        ensure(user != users.end(), "account no longer exists");
+        const auto directory = userDirectory(storage, user->name);
+        // is_empty throws on unreadable storage; never mistake it for empty.
+        ensure(!fs::exists(directory) || fs::is_empty(directory),
+               "账户有云端备份，不能注销");
+        checkCancelled(cancel);
+        users.erase(user);
+        saveUsers(storage, users);
+        // Empty storage directories are harmless; do not delete any files.
+    }
+
+private:
+    std::optional<SessionKey> key_;
+};
+
 void handleUpload(int fd, uint32_t requestId, const Frame& start,
                   const fs::path& storage, const std::string& username,
                   std::atomic_bool* cancel)
@@ -145,6 +208,7 @@ void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
     Socket socket(fd);
     setTimeouts(fd, config.timeoutSeconds);
     std::string authenticatedUser;
+    AuthenticatedSession session;
     std::optional<UserRecord> pendingUser;
     std::vector<uint8_t> pendingNonce;
     uint32_t currentRequest = 0;
@@ -214,6 +278,7 @@ void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
                                   frame.payload.begin()),
                        "invalid username or password");
                 authenticatedUser = pendingUser->name;
+                session.acquire(config.storagePath, *pendingUser);
                 pendingUser.reset();
                 pendingNonce.clear();
                 sendFrame(fd, MessageType::LoginResponse, frame.requestId, {0},
@@ -253,6 +318,15 @@ void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
             {
                 handleDownload(fd, frame.requestId, frame, config.storagePath,
                                authenticatedUser, cancel);
+            }
+            else if (frame.type == MessageType::DeleteAccountRequest)
+            {
+                Reader reader(frame.payload);
+                reader.end();
+                session.deleteAccount(config.storagePath, cancel);
+                sendFrame(fd, MessageType::DeleteAccountResponse,
+                          frame.requestId, {0}, cancel);
+                return;
             }
             else
             {

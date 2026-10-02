@@ -16,6 +16,7 @@
 #include <QString>
 #include <QTimer>
 #include <QTreeView>
+#include <QVBoxLayout>
 #include <QWidget>
 #include <algorithm>
 #include <atomic>
@@ -30,30 +31,31 @@ void addAlgorithmRows(QFormLayout* form, QComboBox*& pack,
                       QLineEdit*& key)
 {
     pack = new QComboBox;
-    pack->addItem("顺序归档  ·  Stream", "stream");
-    pack->addItem("中央索引  ·  Index", "index");
+    pack->addItem("顺序归档", "stream");
+    pack->addItem("索引归档", "index");
     pack->setToolTip("顺序归档适合流式处理；中央索引适合快速列出条目。");
-    form->addRow("打包算法", pack);
+    form->addRow("打包", pack);
 
     compression = new QComboBox;
-    compression->addItem("不压缩  ·  None", "none");
-    compression->addItem("游程编码  ·  RLE", "rle");
-    compression->addItem("霍夫曼编码  ·  Huffman", "huffman");
+    compression->addItem("无", "none");
+    compression->addItem("RLE", "rle");
+    compression->addItem("Huffman", "huffman");
     compression->setToolTip("RLE 适合重复数据，Huffman 适合一般数据。");
-    form->addRow("压缩算法", compression);
+    form->addRow("压缩", compression);
 
     encryption = new QComboBox;
-    encryption->addItem("不加密  ·  None", "none");
-    encryption->addItem("流密码  ·  ChaCha20", "chacha20");
-    encryption->addItem("分组密码  ·  AES-256 CTR", "aes256");
+    encryption->addItem("无", "none");
+    encryption->addItem("ChaCha20", "chacha20");
+    encryption->addItem("AES-256 CTR", "aes256");
     encryption->setToolTip("ChaCha20（RFC 8439）与 AES-256 CTR "
                            "均为现代密码，密钥由口令经盐值迭代派生。");
-    form->addRow("加密算法", encryption);
+    form->addRow("加密", encryption);
 
     key = new QLineEdit;
     key->setEchoMode(QLineEdit::Password);
     key->setClearButtonEnabled(true);
-    key->setPlaceholderText("启用加密后输入归档密码");
+    key->setObjectName("archivePassword");
+    key->setPlaceholderText("加密时填写");
     key->setEnabled(false);
     form->addRow("归档密码", key);
 
@@ -94,33 +96,46 @@ BackupOptions algorithmOptions(const AlgorithmValues& values,
     return options;
 }
 
-ServerFields addServerRows(QFormLayout* form)
+ServerFields addServerRows(QVBoxLayout* layout, QLineEdit* confirmation)
 {
     ServerFields fields;
     fields.host = new QLineEdit("127.0.0.1");
     fields.host->setObjectName("serverHost");
     fields.host->setClearButtonEnabled(true);
-    fields.host->setPlaceholderText("服务器地址");
-    form->addRow("服务器", fields.host);
 
     fields.port = new QSpinBox;
     fields.port->setObjectName("serverPort");
     fields.port->setRange(1, 65535);
     fields.port->setValue(8848);
-    form->addRow("端口", fields.port);
+    fields.port->setButtonSymbols(QAbstractSpinBox::NoButtons);
 
     fields.username = new QLineEdit;
     fields.username->setObjectName("serverUsername");
     fields.username->setClearButtonEnabled(true);
-    fields.username->setPlaceholderText("账号名称");
-    form->addRow("用户名", fields.username);
 
     fields.password = new QLineEdit;
     fields.password->setObjectName("serverPassword");
     fields.password->setEchoMode(QLineEdit::Password);
     fields.password->setClearButtonEnabled(true);
-    fields.password->setPlaceholderText("账号密码");
-    form->addRow("账号密码", fields.password);
+    fields.password->setToolTip("用于登录服务器，与归档加密密码相互独立。");
+    auto* left = makeForm();
+    left->setFormAlignment(Qt::AlignTop);
+    left->addRow("服务器", fields.host);
+    left->addRow("用户名", fields.username);
+    auto* right = makeForm();
+    right->setFormAlignment(Qt::AlignTop);
+    right->addRow("端口", fields.port);
+    right->addRow("账号密码", fields.password);
+    if (confirmation)
+    {
+        right->addRow("确认密码", confirmation);
+        fields.confirmationLabel = right->labelForField(confirmation);
+    }
+    auto* columns = new QHBoxLayout;
+    columns->setSpacing(32);
+    columns->addLayout(left, 1);
+    columns->addLayout(right, 1);
+    layout->addLayout(columns);
     return fields;
 }
 

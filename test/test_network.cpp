@@ -54,6 +54,61 @@ void testLoginRequestId(uint16_t port)
     check(response && response->type == protocol::MessageType::Error,
           "login proof with a mismatched request ID was accepted");
 }
+
+void testDeletionDuringLogin(uint16_t port)
+{
+    namespace protocol = network::detail;
+    network::BackupClient client("127.0.0.1", port, "deletion_race",
+                                 "password");
+    std::string error;
+    check(client.registerUser(error), "race account registration failed");
+    auto socket = protocol::connectTo("127.0.0.1", port);
+    std::vector<uint8_t> payload;
+    protocol::putString(payload, "deletion_race");
+    protocol::sendFrame(socket.get(), protocol::MessageType::LoginStart, 1,
+                        payload);
+    auto challenge = protocol::receiveFrame(socket.get());
+    check(challenge && challenge->type == protocol::MessageType::LoginChallenge,
+          "race login challenge failed");
+    protocol::Reader reader(challenge->payload);
+    auto salt = reader.bytes(16);
+    auto nonce = reader.bytes(16);
+    const auto proof =
+        protocol::proofFor(protocol::verifierFor("password", salt), nonce);
+    // Pending challenges cannot revive an account deleted in another session.
+    check(client.deleteAccount(error), "pending challenge blocked deletion");
+    check(client.registerUser(error), "race account recreation failed");
+    protocol::sendFrame(socket.get(), protocol::MessageType::LoginProof, 1,
+                        {proof.begin(), proof.end()});
+    auto response = protocol::receiveFrame(socket.get());
+    check(response && response->type == protocol::MessageType::Error,
+          "stale proof authenticated a recreated account");
+    socket.close();
+
+    socket = protocol::connectTo("127.0.0.1", port);
+    protocol::sendFrame(socket.get(), protocol::MessageType::LoginStart, 2,
+                        payload);
+    challenge = protocol::receiveFrame(socket.get());
+    check(challenge && challenge->type == protocol::MessageType::LoginChallenge,
+          "active session challenge failed");
+    protocol::Reader active(challenge->payload);
+    salt = active.bytes(16);
+    nonce = active.bytes(16);
+    const auto activeProof =
+        protocol::proofFor(protocol::verifierFor("password", salt), nonce);
+    protocol::sendFrame(socket.get(), protocol::MessageType::LoginProof, 2,
+                        {activeProof.begin(), activeProof.end()});
+    response = protocol::receiveFrame(socket.get());
+    check(response && response->type == protocol::MessageType::LoginResponse,
+          "active session login failed");
+    check(!client.deleteAccount(error) && !error.empty(),
+          "deletion ignored another authenticated session");
+    protocol::sendFrame(socket.get(), protocol::MessageType::ListRequest, 3,
+                        {});
+    response = protocol::receiveFrame(socket.get());
+    check(response && response->type == protocol::MessageType::ListResponse,
+          "refused deletion broke the existing session");
+}
 } // namespace
 
 void testNetwork(const fs::path& workspace, const fs::path& archive)
@@ -78,6 +133,32 @@ void testNetwork(const fs::path& workspace, const fs::path& archive)
                                     "alice-password");
         check(alice.registerUser(error), "Alice registration failed: " + error);
         check(error.empty(), "successful registration retained a stale error");
+        error = "stale error";
+        check(alice.login(error) && error.empty(), "login failed: " + error);
+        network::BackupClient disposable("127.0.0.1", port, "disposable",
+                                         "temporary-password");
+        check(disposable.registerUser(error), "temporary registration failed");
+        network::BackupClient invalid("127.0.0.1", port, "disposable", "wrong");
+        check(!invalid.login(error) && !error.empty(),
+              "incorrect password was accepted");
+        check(!invalid.deleteAccount(error) && !error.empty(),
+              "incorrect password deleted an account");
+        const auto staging =
+            network::detail::userDirectory(config.storagePath, "disposable") /
+            "unfinished.tmp";
+        fs::create_directories(staging.parent_path());
+        std::ofstream(staging) << "incomplete backup";
+        check(!disposable.deleteAccount(error) && fs::exists(staging),
+              "account deletion ignored unlisted storage files");
+        fs::remove(staging);
+        std::atomic_bool cancelled{true};
+        check(!disposable.login(error, &cancelled) &&
+                  !disposable.deleteAccount(error, &cancelled),
+              "pre-cancelled account operation succeeded");
+        check(disposable.deleteAccount(error) && error.empty(),
+              "empty account deletion failed: " + error);
+        check(!disposable.login(error) && !error.empty(),
+              "deleted account can still log in");
         if (::geteuid() != 0)
         {
             const auto database = workspace / "server-data/users.db";
@@ -117,6 +198,7 @@ void testNetwork(const fs::path& workspace, const fs::path& archive)
             }
         }
         testLoginRequestId(port);
+        testDeletionDuringLogin(port);
         error.clear();
         check(!alice.registerUser(error),
               "duplicate registration was accepted");
@@ -130,6 +212,9 @@ void testNetwork(const fs::path& workspace, const fs::path& archive)
         check(error.empty(), "successful upload retained a stale error");
         error = "previous operation failed";
         auto entries = alice.list(error);
+        check(!alice.deleteAccount(error) && !error.empty(),
+              "account with backups was deleted");
+        entries = alice.list(error);
         check(error.empty() && entries.size() == 1 && entries[0].id == id,
               "network list mismatch: " + error);
         fs::path downloaded = workspace / "downloaded.bak";

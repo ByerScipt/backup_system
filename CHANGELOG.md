@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.7.1 — 2026-10-02
+
+- Simplify the six Qt pages: remove repeated headings and explanatory paragraphs,
+  shorten labels and actions, and reveal task progress only after work starts.
+- Fold logs by default without discarding output; keep detailed errors and
+  overwrite confirmation. Simplify shared card construction and identify test
+  fields independently of display text.
+- Use a fresh light-blue palette, standard Chinese sans-serif fonts and a 16pt
+  minimum body size. Widen path forms, increase
+  spacing and keep the action/log area outside the scrolling workspace.
+- Scale fonts in discrete 2pt steps at 1500x1000, 1800x1200 and 2100x1400;
+  keep the size stable within each tier and restore smaller tiers on shrink.
+  Apply the tier to styled controls and let history rows fit the larger text.
+- Widen navigation with the window (260–420px) and refresh the layout together;
+  keep navigation typography and control geometry stable when selected.
+  Mark the active page with a rounded blue outline and synchronize the highlight
+  on both clicks and programmatic page changes.
+- Open aligned combo lists below their fields with consistent text insets and
+  a small built-in-format arrow asset, without new runtime dependencies.
+- Make navigation rows equally spaced; align port and text fields and remove
+  the sidebar version. Keep the light-blue appearance without a settings page.
+- Open on a minimal start page with login/registration, account information,
+  switching and logout. Clear passwords and cancel remote work on logout;
+  ignore stale login completions after credentials change.
+- Add confirmed account deletion using authenticated NBKP messages 40/41.
+  Refuse any stored files or other authenticated connections; never delete
+  backups. Recheck account records before accepting pending login proofs.
+- Keep login/registration text stationary and align both password fields in
+  one column. Center validation, confirmation and background-error dialogs
+  on the main window after layout, keeping them within the available screen.
+
 ## 1.7.0 — 2026-10-02
 
 - Match the course layout: DataBackup, GUI, libs, test, Utils, exp and bin;

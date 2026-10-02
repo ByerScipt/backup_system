@@ -1,126 +1,137 @@
 QWidget {
-    color: #27332f;
-    font-size: 10pt;
+    color: #253c53;
 }
 QMainWindow, QWidget#appRoot, QWidget#pageContent {
-    background: #f7f8f5;
+    background: #f4f9fe;
 }
 QScrollArea#pageScroll { background: transparent; border: none; }
 QFrame#navigationRail {
-    background: #eff2ed;
-    border-right: 1px solid #d9dfd8;
+    background: #eaf4ff;
+    border-right: 1px solid #cddfed;
 }
-QLabel#brand { font-size: 14pt; font-weight: 600; }
-QLabel#pageTitle { font-size: 18pt; font-weight: 600; }
-QLabel#navSection { font-size: 9pt; color: #6b7870; }
-QLabel#hint, QLabel#cardDescription { color: #66736c; font-size: 9pt; }
-QLabel#cardTitle { font-size: 11pt; font-weight: 600; }
+QLabel#brand { font-weight: 600; }
+QLabel#hint { color: #57728b; }
 QPushButton#navButton {
     text-align: left;
     background: transparent;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    padding: 0 12px;
-    min-height: 36px;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    padding: 0 16px;
+    min-height: 48px;
 }
-QPushButton#navButton:hover { background: #e3e9e1; }
+QPushButton#navButton:hover { background: #deedfb; }
 QPushButton#navButton:checked {
-    color: #145b43;
-    background: #dce9de;
-    border-color: #c8d9cb;
-    font-weight: 600;
+    color: #1b5b96;
+    background: #d9ebfc;
+    border-color: #83b3dc;
 }
 QFrame#card {
     background: #ffffff;
-    border: 1px solid #dce2db;
-    border-radius: 4px;
+    border: 1px solid #d2e2ef;
+    border-radius: 8px;
 }
-QLineEdit, QComboBox {
+QLineEdit, QComboBox, QSpinBox {
     background: #ffffff;
-    border: 1px solid #cbd4cc;
-    border-radius: 3px;
-    min-height: 32px;
+    border: 1px solid #bfd5e7;
+    border-radius: 6px;
+    min-height: 46px;
 }
-QLineEdit { padding: 0 8px; }
-QSpinBox { min-height: 32px; }
-QComboBox { padding-left: 8px; }
-QLineEdit:focus, QComboBox:focus {
-    border-color: #267958;
+QLineEdit, QSpinBox { padding: 0 14px; }
+QComboBox {
+    padding: 0 40px 0 14px;
+    combobox-popup: 0;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 36px;
+    border: none;
+}
+QComboBox::down-arrow {
+    image: url(:/arrow_down.xpm);
+    width: 12px;
+    height: 8px;
+}
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus {
+    border-color: #428ace;
 }
 QLineEdit:disabled, QComboBox:disabled {
-    background: #f1f3ef;
-    color: #8c968d;
+    background: #f1f6fa;
+    color: #74899c;
 }
 QComboBox QAbstractItemView {
     background: white;
-    selection-background-color: #dce9de;
-    selection-color: #174d36;
-    padding: 4px;
-}
-QPushButton {
-    background: #ffffff;
-    border: 1px solid #cbd4cc;
-    border-radius: 3px;
-    min-height: 32px;
+    border: 1px solid #bfd5e7;
+    selection-background-color: #d9ebfc;
+    selection-color: #184d7e;
     padding: 0 12px;
 }
-QPushButton:hover { background: #f0f4ee; border-color: #8b9f90; }
-QPushButton:pressed { background: #e3eae0; }
-QPushButton:focus { border-color: #267958; }
+QComboBox QAbstractItemView::item { padding: 8px 14px; }
+QPushButton {
+    background: #ffffff;
+    border: 1px solid #bfd5e7;
+    border-radius: 6px;
+    min-height: 46px;
+    padding: 0 12px;
+}
+QPushButton:hover { background: #edf6ff; border-color: #83b3dc; }
+QPushButton:pressed { background: #dcecfb; }
+QPushButton:focus { border-color: #428ace; }
 QPushButton#primaryButton {
-    background: #176b4a;
-    border-color: #176b4a;
+    background: #286fbd;
+    border-color: #286fbd;
     color: #ffffff;
 }
-QPushButton#primaryButton:hover { background: #115a3d; }
-QPushButton#dangerButton { color: #a13732; }
-QPushButton#quietButton { border-color: transparent; background: transparent; }
+QPushButton#primaryButton:hover { background: #1e5fa5; }
+QPushButton#dangerButton { color: #b54545; }
+QPushButton#quietButton, QPushButton#toggleLog {
+    border-color: transparent;
+    background: transparent;
+}
+QPushButton#toggleLog:checked { color: #1b5b96; background: #d9ebfc; }
 QPushButton:disabled, QPushButton#primaryButton:disabled,
 QPushButton#dangerButton:disabled {
-    color: #8c968d;
-    background: #f1f3ef;
-    border-color: #dde2dc;
+    color: #74899c;
+    background: #f1f6fa;
+    border-color: #d9e5ee;
 }
-QCheckBox { spacing: 8px; min-height: 28px; }
+QCheckBox { spacing: 8px; min-height: 36px; }
 QProgressBar {
-    border: 1px solid #dce2db;
-    border-radius: 3px;
-    background: #f1f4ef;
-    min-height: 22px;
-    max-height: 22px;
+    border: 1px solid #d2e2ef;
+    border-radius: 6px;
+    background: #edf5fc;
+    min-height: 30px;
     text-align: center;
-    font-size: 9pt;
 }
-QProgressBar::chunk { background: #c2dfcd; }
+QProgressBar::chunk { background: #b9dafa; }
 QTextEdit, QTableWidget {
-    border: 1px solid #dce2db;
-    border-radius: 3px;
+    border: 1px solid #d2e2ef;
+    border-radius: 6px;
     background: #ffffff;
-    selection-background-color: #dce9de;
-    selection-color: #174d36;
+    selection-background-color: #d9ebfc;
+    selection-color: #184d7e;
 }
 QTextEdit#taskLog {
-    background: #f8faf6;
-    padding: 6px;
-    font-size: 9pt;
+    background: #f5faff;
+    padding: 10px;
 }
 QTableWidget {
-    gridline-color: #e6ebe4;
-    alternate-background-color: #f7f9f5;
+    gridline-color: #e5eef6;
+    alternate-background-color: #f5faff;
 }
 QHeaderView::section {
-    background: #edf2ea;
+    background: #eaf3fc;
     border: none;
-    border-bottom: 1px solid #dce2db;
+    border-bottom: 1px solid #d2e2ef;
     padding: 8px;
-    color: #596b60;
+    color: #4d6983;
 }
 QTableWidget::item { padding: 6px; }
-QScrollBar:vertical { background: #eef1eb; width: 9px; }
-QScrollBar::handle:vertical { background: #bac6b9; min-height: 24px; }
+QScrollBar:vertical { background: #edf5fc; width: 10px; }
+QScrollBar::handle:vertical { background: #adcbe4; min-height: 24px; }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QToolTip {
-    background: #273c2f;
+    background: #254865;
     color: #ffffff;
     border: none;
     padding: 6px;

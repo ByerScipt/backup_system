@@ -1,34 +1,19 @@
 #include "ui.hpp"
-#include <QClipboard>
 #include <QFormLayout>
 #include <QFrame>
-#include <QLabel>
 #include <QVBoxLayout>
 
-#include <QAbstractItemView>
-#include <QApplication>
 #include <QCheckBox>
-#include <QComboBox>
-#include <QDateTime>
-#include <QHBoxLayout>
-#include <QHeaderView>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QObject>
 #include <QPushButton>
-#include <QSpinBox>
 #include <QString>
-#include <QStyledItemDelegate>
-#include <QTableWidget>
-#include <QTableWidgetItem>
 #include <QTemporaryDir>
-#include <QTextEdit>
 #include <QWidget>
 #include <atomic>
 #include <exception>
-#include <memory>
 #include <stdexcept>
-#include <vector>
 
 namespace backup::gui
 {
@@ -36,36 +21,31 @@ namespace backup::gui
 QWidget* remoteBackupPage()
 {
     Page page = makePage();
-    auto* top = new QHBoxLayout;
-    top->setSpacing(14);
 
-    Card connection = makeCard("服务器连接", "填写服务器地址和账号信息。");
-    auto* serverForm = makeForm();
-    const ServerFields server = addServerRows(serverForm);
-    connection.body->addLayout(serverForm);
+    Card connection = makeCard();
+    const ServerFields server = addServerRows(connection.body);
 
-    Card archiveCard = makeCard("归档配置", "选择目录、备份名称和归档算法。");
+    Card archiveCard = makeCard();
     auto* archiveForm = makeForm();
     QLineEdit* source;
     QPushButton* browse;
-    archiveForm->addRow("源目录",
-                        pathRow(source, browse, "选择需要上传的目录"));
+    archiveForm->addRow("源目录", pathRow(source, browse, "sourcePath"));
     auto* name = new QLineEdit;
     name->setClearButtonEnabled(true);
-    name->setPlaceholderText("可选的易读名称");
+    name->setObjectName("backupName");
+    name->setPlaceholderText("可选");
     archiveForm->addRow("备份名称", name);
     QComboBox *pack, *compression, *encryption;
     QLineEdit* key;
     addAlgorithmRows(archiveForm, pack, compression, encryption, key);
     archiveCard.body->addLayout(archiveForm);
 
-    top->addWidget(connection.frame, 1);
-    top->addWidget(archiveCard.frame, 1);
-    page.layout->addLayout(top);
+    page.layout->addWidget(connection.frame, 1);
+    page.layout->addWidget(archiveCard.frame, 3);
 
-    Card task = makeCard("任务状态");
-    JobControls controls = addJobControls(task.body, "构建并上传");
-    page.layout->addWidget(task.frame, 1);
+    Card task = makeCard();
+    JobControls controls = addJobControls(task.body, "上传");
+    page.footer->addWidget(task.frame);
 
     bindPathPicker(page.widget, browse, source, "选择源目录", selectDirectory);
     QObject::connect(
@@ -134,42 +114,37 @@ QWidget* remoteBackupPage()
 QWidget* remoteRestorePage()
 {
     Page page = makePage();
-    auto* top = new QHBoxLayout;
-    top->setSpacing(14);
 
-    Card connection = makeCard("服务器连接", "填写与注册时相同的账号信息。");
-    auto* serverForm = makeForm();
-    const ServerFields server = addServerRows(serverForm);
-    connection.body->addLayout(serverForm);
+    Card connection = makeCard();
+    const ServerFields server = addServerRows(connection.body);
 
-    Card restoreCard =
-        makeCard("还原配置", "填写备份 ID、目标目录和归档密码。");
+    Card restoreCard = makeCard();
     auto* restoreForm = makeForm();
     auto* id = new QLineEdit;
     id->setObjectName("backupId");
     id->setClearButtonEnabled(true);
-    id->setPlaceholderText("远程列表中的备份 ID");
+    id->setPlaceholderText("从历史选择");
     restoreForm->addRow("备份 ID", id);
     QLineEdit* destination;
     QPushButton* browse;
     restoreForm->addRow("目标目录",
-                        pathRow(destination, browse, "选择还原目标目录"));
+                        pathRow(destination, browse, "destinationPath"));
     auto* key = new QLineEdit;
     key->setEchoMode(QLineEdit::Password);
     key->setClearButtonEnabled(true);
-    key->setPlaceholderText("未加密归档可留空");
+    key->setObjectName("archivePassword");
+    key->setPlaceholderText("加密时填写");
     restoreForm->addRow("归档密码", key);
     auto* overwrite = new QCheckBox("允许覆盖同名文件");
     restoreForm->addRow("覆盖策略", overwrite);
     restoreCard.body->addLayout(restoreForm);
 
-    top->addWidget(connection.frame, 1);
-    top->addWidget(restoreCard.frame, 1);
-    page.layout->addLayout(top);
+    page.layout->addWidget(connection.frame, 1);
+    page.layout->addWidget(restoreCard.frame, 2);
 
-    Card task = makeCard("任务状态");
-    JobControls controls = addJobControls(task.body, "下载并还原");
-    page.layout->addWidget(task.frame, 1);
+    Card task = makeCard();
+    JobControls controls = addJobControls(task.body, "还原");
+    page.footer->addWidget(task.frame);
 
     bindPathPicker(page.widget, browse, destination, "选择还原目标目录",
                    selectDirectory);

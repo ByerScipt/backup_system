@@ -13,22 +13,89 @@
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QResizeEvent>
+#include <QScreen>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QStringList>
 #include <QTableWidget>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <algorithm>
 
 namespace backup::gui
 {
+namespace
+{
+class MainWindow final : public QMainWindow
+{
+public:
+    MainWindow() : baseFont_(applicationFont()), baseStyle_(applicationStyle())
+    {
+        updateAppearance();
+    }
+
+protected:
+    void resizeEvent(QResizeEvent* event) override
+    {
+        QMainWindow::resizeEvent(event);
+        updateAppearance();
+    }
+
+private:
+    void updateAppearance()
+    {
+        int tier = 0;
+        for (const QSize threshold :
+             {QSize(1500, 1000), QSize(1800, 1200), QSize(2100, 1400)})
+        {
+            if (width() >= threshold.width() && height() >= threshold.height())
+            {
+                ++tier;
+            }
+        }
+        if (tier != fontTier_)
+        {
+            fontTier_ = tier;
+            QFont font = baseFont_;
+            font.setPointSizeF(baseFont_.pointSizeF() + 2 * tier);
+            setFont(font);
+            // Styled descendants need an explicit size when the tier changes.
+            setStyleSheet(baseStyle_ +
+                          QString("\nQMainWindow QWidget { font-size: %1pt; }"
+                                  "\nQLabel#startTitle { font-size: %2pt; "
+                                  "font-weight: 600; }")
+                              .arg(font.pointSizeF())
+                              .arg(font.pointSizeF() + 8));
+        }
+        if (auto* rail = findChild<QFrame*>("navigationRail"))
+        {
+            int railWidth = std::clamp(width() / 6, 260, 420);
+            if (auto* brand = rail->findChild<QLabel*>("brand"))
+            {
+                brand->ensurePolished();
+                railWidth = std::max(railWidth, brand->sizeHint().width() + 40);
+            }
+            rail->setFixedWidth(railWidth);
+        }
+        if (auto* root = centralWidget())
+        {
+            root->layout()->activate();
+        }
+    }
+
+    const QFont baseFont_;
+    const QString baseStyle_;
+    int fontTier_ = -1;
+};
+} // namespace
+
 QMainWindow* createMainWindow()
 {
-    auto* window = new QMainWindow;
+    auto* window = new MainWindow;
     window->setWindowTitle("Backup Studio");
-    window->setMinimumSize(1024, 700);
-    window->resize(1180, 780);
-    window->setStyleSheet(applicationStyle());
+    window->setMinimumSize(1100, 760);
+    window->resize(1320, 900);
     auto* root = new QWidget;
     root->setObjectName("appRoot");
     auto* rootLayout = new QHBoxLayout(root);
@@ -36,61 +103,57 @@ QMainWindow* createMainWindow()
     rootLayout->setSpacing(0);
     auto* rail = new QFrame;
     rail->setObjectName("navigationRail");
-    rail->setFixedWidth(190);
+    rail->setFixedWidth(260);
     auto* railLayout = new QVBoxLayout(rail);
-    railLayout->setContentsMargins(16, 24, 16, 20);
-    railLayout->setSpacing(6);
+    railLayout->setContentsMargins(20, 32, 20, 28);
+    railLayout->setSpacing(10);
     auto* brand = new QLabel("Backup Studio");
     brand->setObjectName("brand");
     railLayout->addWidget(brand);
-    railLayout->addWidget(makeHint("文件备份与还原"));
     railLayout->addSpacing(22);
 
     auto* pages = new QStackedWidget;
     pages->setObjectName("pageStack");
+    auto* session = new AccountSession(window);
     for (auto* page :
          {localBackupPage(), localRestorePage(), remoteBackupPage(),
-          remoteRestorePage(), remoteListPage(), userPage()})
+          remoteRestorePage(), remoteListPage(), startPage(session)})
     {
         pages->addWidget(page);
     }
     const QStringList titles = {"本地备份", "本地还原", "远程备份",
-                                "远程还原", "备份历史", "账号注册"};
+                                "远程还原", "备份历史", "开始"};
     auto* navigation = new QButtonGroup(window);
     navigation->setExclusive(true);
-    for (int index = 0; index < titles.size(); ++index)
+    const auto addNavigation = [&](int index)
     {
-        if (index == 0 || index == 2 || index == 5)
-        {
-            auto* section = new QLabel(index == 0   ? "本地工作区"
-                                       : index == 2 ? "远程工作区"
-                                                    : "账号");
-            section->setObjectName("navSection");
-            railLayout->addSpacing(10);
-            railLayout->addWidget(section);
-        }
         auto* button = new QPushButton(titles.at(index));
         button->setObjectName("navButton");
+        button->setProperty("pageIndex", index);
         button->setCheckable(true);
         navigation->addButton(button, index);
         railLayout->addWidget(button);
+    };
+    for (int index : {5, 0, 1, 2, 3, 4})
+    {
+        addNavigation(index);
     }
     railLayout->addStretch();
-    railLayout->addWidget(makeHint("v" BACKUP_SYSTEM_VERSION));
 
     auto* content = new QWidget;
     auto* contentLayout = new QVBoxLayout(content);
-    contentLayout->setContentsMargins(24, 22, 24, 20);
+    contentLayout->setContentsMargins(32, 32, 32, 28);
     contentLayout->setSpacing(16);
-    auto* title = new QLabel;
-    title->setObjectName("pageTitle");
-    contentLayout->addWidget(title);
     contentLayout->addWidget(pages, 1);
-    QObject::connect(navigation, &QButtonGroup::idClicked, window,
-                     [=](int index)
+    QObject::connect(navigation, &QButtonGroup::idClicked, pages,
+                     &QStackedWidget::setCurrentIndex);
+    QObject::connect(pages, &QStackedWidget::currentChanged, navigation,
+                     [navigation](int index)
                      {
-                         pages->setCurrentIndex(index);
-                         title->setText(titles.at(index));
+                         if (auto* button = navigation->button(index))
+                         {
+                             button->setChecked(true);
+                         }
                      });
     auto* table = pages->widget(4)->findChild<QTableWidget*>();
     QObject::connect(
@@ -111,8 +174,22 @@ QMainWindow* createMainWindow()
         table->setRowCount(0);
         pages->widget(4)
             ->findChild<QLabel*>("historyStatus")
-            ->setText("连接信息已变更，请刷新列表");
+            ->setText("请刷新");
     };
+    QObject::connect(
+        session, &AccountSession::signedOut, window,
+        [=]()
+        {
+            invalidateHistory();
+            for (int index : {2, 3, 4})
+            {
+                auto* page = pages->widget(index);
+                if (page->property("jobRunning").toBool())
+                {
+                    page->findChild<QPushButton*>("dangerButton")->click();
+                }
+            }
+        });
     // Keep connection fields in sync in memory only; never persist passwords.
     for (const char* name : {"serverHost", "serverUsername", "serverPassword"})
     {
@@ -130,6 +207,7 @@ QMainWindow* createMainWindow()
                                      }
                                  }
                                  invalidateHistory();
+                                 session->reset();
                              });
         }
     }
@@ -147,6 +225,7 @@ QMainWindow* createMainWindow()
                                  }
                              }
                              invalidateHistory();
+                             session->reset();
                          });
     }
     rootLayout->addWidget(rail);
@@ -157,7 +236,7 @@ QMainWindow* createMainWindow()
         qEnvironmentVariableIntValue("BACKUP_GUI_PAGE", &validPage);
     navigation
         ->button(validPage && initial >= 0 && initial < pages->count() ? initial
-                                                                       : 0)
+                                                                       : 5)
         ->click();
     return window;
 }
@@ -167,9 +246,9 @@ QString preferredChineseFontFamily()
 {
     const QStringList installed =
         QFontDatabase::families(QFontDatabase::SimplifiedChinese);
-    const QStringList preferred = {"Noto Sans CJK SC",   "Source Han Sans SC",
-                                   "Microsoft YaHei UI", "Microsoft YaHei",
-                                   "PingFang SC",        "Droid Sans Fallback"};
+    const QStringList preferred = {"Microsoft YaHei UI", "Microsoft YaHei",
+                                   "PingFang SC",        "Noto Sans CJK SC",
+                                   "Source Han Sans SC", "Droid Sans Fallback"};
     for (const QString& candidate : preferred)
     {
         for (const QString& family : installed)
@@ -191,7 +270,9 @@ QFont applicationFont()
     font.setFamilies({preferredChineseFontFamily()});
     const qreal systemPointSize =
         font.pointSizeF() > 0.0 ? font.pointSizeF() : 10.0;
-    font.setPointSizeF(std::max<qreal>(10.0, systemPointSize));
+    font.setPointSizeF(std::max<qreal>(16.0, systemPointSize));
+    font.setWeight(QFont::Normal);
+    font.setStretch(QFont::Unstretched);
     font.setStyleHint(QFont::SansSerif);
     font.setStyleStrategy(QFont::PreferAntialias);
     return font;
@@ -199,6 +280,51 @@ QFont applicationFont()
 
 bool MessageBoxButtonIconFilter::eventFilter(QObject* watched, QEvent* event)
 {
+    if (event->type() == QEvent::Polish)
+    {
+        if (auto* messageBox = qobject_cast<QMessageBox*>(watched))
+        {
+            auto* parent = messageBox->parentWidget();
+            if (parent && parent != parent->window())
+            {
+                messageBox->setParent(parent->window(),
+                                      messageBox->windowFlags());
+            }
+        }
+    }
+    if (event->type() == QEvent::Show || event->type() == QEvent::Resize)
+    {
+        if (auto* messageBox = qobject_cast<QMessageBox*>(watched))
+        {
+            // Queue after native placement and layout (including translated
+            // buttons). A hidden page is not a reliable positioning anchor.
+            QTimer::singleShot(
+                0, messageBox,
+                [messageBox]()
+                {
+                    auto* parent = messageBox->parentWidget();
+                    if (!messageBox->isVisible() || !parent)
+                    {
+                        return;
+                    }
+                    auto* window = parent->window();
+                    const auto area = window->screen()->availableGeometry();
+                    const auto frame = messageBox->frameGeometry();
+                    auto corner = window->frameGeometry().center() -
+                                  QRect(QPoint(), frame.size()).center();
+                    corner.setX(
+                        std::clamp(corner.x(), area.left(),
+                                   std::max(area.left(),
+                                            area.right() - frame.width() + 1)));
+                    corner.setY(std::clamp(
+                        corner.y(), area.top(),
+                        std::max(area.top(),
+                                 area.bottom() - frame.height() + 1)));
+                    messageBox->move(messageBox->pos() + corner -
+                                     frame.topLeft());
+                });
+        }
+    }
     if (event->type() == QEvent::Show)
     {
         if (auto* messageBox = qobject_cast<QMessageBox*>(watched))

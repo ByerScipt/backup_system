@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(backup_system VERSION 1.7.0 LANGUAGES CXX)
+project(backup_system VERSION 1.7.1 LANGUAGES CXX)
 
 option(BACKUP_BUILD_GUI "Build the optional Qt6 GUI" ON)
 option(BACKUP_BUILD_TESTS "Build automated tests" ON)
@@ -57,12 +57,14 @@ if(BACKUP_BUILD_GUI)
     find_package(Qt6 COMPONENTS Widgets QUIET)
     if(Qt6_FOUND)
         add_library(backup_ui OBJECT
+            GUI/ui.hpp
             GUI/main_window.cpp
             GUI/widgets.cpp
             GUI/forms.cpp
             GUI/pages_local.cpp
             GUI/pages_remote.cpp
             GUI/pages_access.cpp
+            GUI/pages_account.cpp
             GUI/resources.qrc
         )
         target_include_directories(backup_ui PUBLIC GUI)
