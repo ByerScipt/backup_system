@@ -1,0 +1,108 @@
+building D:/1/111/backup_system inside Ubuntu-24.04 as builder
+Errors while running CTest
+(/home/builder/backup-studio-validation-20261014) ==
+== configure ==
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Performing Test HAVE_STDATOMIC
+-- Performing Test HAVE_STDATOMIC - Success
+-- Found OpenGL: /usr/lib/x86_64-linux-gnu/libOpenGL.so   
+-- Configuring done (3.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/builder/backup-studio-validation-20261014/build
+== format check ==
+Built target format-check
+== build ==
+[  2%] Building CXX object CMakeFiles/backup_core.dir/DataBackup/core/common.cpp.o
+[  4%] Building CXX object CMakeFiles/backup_core.dir/DataBackup/core/sha256.cpp.o
+[  6%] Building CXX object CMakeFiles/backup_core.dir/DataBackup/core/pack.cpp.o
+[  8%] Building CXX object CMakeFiles/backup_core.dir/DataBackup/core/entry.cpp.o
+[ 10%] Building CXX object CMakeFiles/backup_core.dir/DataBackup/core/restore.cpp.o
+[ 12%] Building CXX object CMakeFiles/backup_core.dir/DataBackup/core/engine.cpp.o
+[ 14%] Building CXX object CMakeFiles/backup_core.dir/DataBackup/core/compress_rle.cpp.o
+[ 16%] Building CXX object CMakeFiles/backup_core.dir/DataBackup/core/compress_huffman.cpp.o
+[ 18%] Building CXX object CMakeFiles/backup_core.dir/DataBackup/core/archive.cpp.o
+[ 20%] Building CXX object CMakeFiles/backup_core.dir/DataBackup/core/crypto.cpp.o
+[ 22%] Linking CXX static library libbackup_core.a
+[ 22%] Built target backup_core
+[ 28%] Building CXX object CMakeFiles/backup_network.dir/DataBackup/network/auth_store.cpp.o
+[ 28%] Building CXX object CMakeFiles/backup_network.dir/DataBackup/network/io.cpp.o
+[ 28%] Building CXX object CMakeFiles/backup_network.dir/DataBackup/network/server.cpp.o
+[ 30%] Building CXX object CMakeFiles/backup_network.dir/DataBackup/network/client.cpp.o
+[ 32%] Building CXX object CMakeFiles/backup_network.dir/DataBackup/network/session.cpp.o
+[ 34%] Linking CXX static library libbackup_network.a
+[ 34%] Built target backup_network
+[ 38%] Building CXX object CMakeFiles/backup-tests.dir/test/test_main.cpp.o
+[ 38%] Building CXX object CMakeFiles/backup-cli.dir/DataBackup/cli/main.cpp.o
+[ 40%] Building CXX object CMakeFiles/backup-cli.dir/DataBackup/cli/commands.cpp.o
+[ 42%] Building CXX object CMakeFiles/backup-tests.dir/test/test_io.cpp.o
+[ 44%] Building CXX object CMakeFiles/backup-tests.dir/test/test_security.cpp.o
+[ 44%] Built target backup_ui_autogen_timestamp_deps
+[ 46%] Building CXX object CMakeFiles/backup-tests.dir/test/test_network_failures.cpp.o
+[ 48%] Building CXX object CMakeFiles/backup-cli.dir/DataBackup/cli/arguments.cpp.o
+[ 51%] Building CXX object CMakeFiles/backup-server.dir/DataBackup/server.cpp.o
+[ 53%] Building CXX object CMakeFiles/backup-tests.dir/test/helpers.cpp.o
+[ 55%] Building CXX object CMakeFiles/backup-tests.dir/test/test_network.cpp.o
+[ 59%] Building CXX object CMakeFiles/backup-tests.dir/test/test_crypto_vectors.cpp.o
+[ 59%] Building CXX object CMakeFiles/backup-tests.dir/test/test_combos.cpp.o
+[ 61%] Building CXX object CMakeFiles/backup-tests.dir/test/test_filesystem.cpp.o
+[ 63%] Automatic MOC for target backup_ui
+[ 63%] Built target backup_ui_autogen
+[ 65%] Automatic RCC for GUI/resources.qrc
+[ 67%] Building CXX object CMakeFiles/backup_ui.dir/GUI/main_window.cpp.o
+[ 69%] Building CXX object CMakeFiles/backup_ui.dir/GUI/pages_access.cpp.o
+[ 73%] Building CXX object CMakeFiles/backup_ui.dir/GUI/widgets.cpp.o
+[ 73%] Building CXX object CMakeFiles/backup_ui.dir/GUI/pages_local.cpp.o
+[ 75%] Building CXX object CMakeFiles/backup_ui.dir/backup_ui_autogen/mocs_compilation.cpp.o
+[ 77%] Building CXX object CMakeFiles/backup_ui.dir/GUI/pages_remote.cpp.o
+[ 79%] Building CXX object CMakeFiles/backup_ui.dir/GUI/forms.cpp.o
+[ 81%] Linking CXX executable /home/builder/backup-studio-validation-20261014/bin/backup-server
+[ 83%] Building CXX object CMakeFiles/backup_ui.dir/GUI/pages_account.cpp.o
+[ 83%] Built target backup-server
+[ 85%] Building CXX object CMakeFiles/backup_ui.dir/backup_ui_autogen/2LCCYRVYXB/qrc_resources.cpp.o
+[ 87%] Linking CXX executable /home/builder/backup-studio-validation-20261014/bin/backup-cli
+[ 87%] Built target backup-cli
+[ 89%] Linking CXX executable /home/builder/backup-studio-validation-20261014/bin/backup-tests
+[ 89%] Built target backup-tests
+[ 91%] Built target backup_ui
+[ 95%] Building CXX object CMakeFiles/backup-gui.dir/GUI/main.cpp.o
+[ 95%] Building CXX object CMakeFiles/backup-gui-tests.dir/test/test_gui_jobs.cpp.o
+[ 97%] Linking CXX executable /home/builder/backup-studio-validation-20261014/bin/backup-gui
+[ 97%] Built target backup-gui
+[100%] Linking CXX executable /home/builder/backup-studio-validation-20261014/bin/backup-gui-tests
+[100%] Built target backup-gui-tests
+== ctest ==
+Internal ctest changing into directory: /home/builder/backup-studio-validation-20261014/build
+Test project /home/builder/backup-studio-validation-20261014/build
+    Start 1: backup-tests
+1/3 Test #1: backup-tests .....................   Passed   18.50 sec
+    Start 2: backup-cli-tests
+2/3 Test #2: backup-cli-tests .................   Passed    0.25 sec
+    Start 3: backup-gui-tests
+3/3 Test #3: backup-gui-tests .................***Failed    0.52 sec
+QStandardPaths: wrong permissions on runtime directory /mnt/wslg/runtime-dir, 0777 instead of 0700
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+GUI workflow: login/register switch moved the title, selector or fields
+
+
+67% tests passed, 1 tests failed out of 3
+
+Total Test time (real) =  19.27 sec
+
+The following tests FAILED:
+	  3 - backup-gui-tests (Failed)

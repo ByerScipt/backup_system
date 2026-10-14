@@ -10,7 +10,9 @@ output/
 *.log
 __pycache__/
 *.pyc
-docs/
 /.github/
 /.workflow
 /.pi/
+
+# Test evidence stays part of the course documents.
+!docs/evidence/*.log

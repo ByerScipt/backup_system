@@ -1,0 +1,31 @@
+flowchart LR
+    actor_user((用户（CLI / 桌面端）))
+    actor_admin((服务器管理员))
+    subgraph SYS[Backup Studio 备份系统]
+        uc_local_backup["本地备份"]
+        uc_inspect["查看归档信息"]
+        uc_login["登录服务器"]
+        uc_local_restore["本地还原"]
+        uc_register["注册账户"]
+        uc_list["查看远程备份列表"]
+        uc_upload["上传远程备份"]
+        uc_remote_restore["远程还原"]
+        uc_delete_account["注销账户"]
+        uc_run_server["运行与配置服务器"]
+    end
+    actor_user --- uc_local_backup
+    actor_user --- uc_inspect
+    actor_user --- uc_login
+    actor_user --- uc_local_restore
+    actor_user --- uc_register
+    actor_user --- uc_list
+    actor_user --- uc_upload
+    actor_user --- uc_remote_restore
+    actor_user --- uc_delete_account
+    actor_admin --- uc_run_server
+    uc_upload -.->|include| uc_local_backup
+    uc_upload -.->|include| uc_login
+    uc_remote_restore -.->|include| uc_login
+    uc_remote_restore -.->|include| uc_local_restore
+    uc_list -.->|include| uc_login
+    uc_delete_account -.->|include| uc_login

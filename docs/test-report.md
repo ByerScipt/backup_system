@@ -1,0 +1,423 @@
+# Backup Studio 备份系统 软件测试报告
+
+| 项目 | 内容 |
+| :--- | :--- |
+| 文档名称 | 软件测试报告 |
+| 文档版本 | 1.1 |
+| 被测版本 | 1.8.0（`CMakeLists.txt` `project(... VERSION 1.8.0)`） |
+| 被测代码基线 | `main` 分支 `3e928d3`（2026-10-02）+ 工作区 1.8.0 改动（LZ77 压缩） |
+| 测试日期 | 2026-10-14 |
+| 测试执行 | 项目组（本机 WSL2 实机执行，命令与原始日志见附录） |
+| 结论 | 构建与格式检查通过；CTest 2/3 通过（`backup-tests`、`backup-cli-tests` 通过，`backup-gui-tests` 因已知 DEF-01 失败）；用例明细见 4.3，其中 TC-LZ77-01..04 为 1.8.0 新增；无归档格式与协议缺陷 |
+
+> 本报告中的全部结果均为本次在 WSL2 Ubuntu 24.04 上的真实执行结果，
+> 未引用历史版本的产物。原始日志保存在本机 `docs/evidence/`（见附录 D）。
+
+## 1 概述
+
+### 1.1 测试目标
+
+验证 Backup Studio 1.8.0 是否满足 `docs/requirements.md` 的功能与非功能需求，
+重点覆盖：归档管线与 24 种算法组合（含新增 LZ77）、归档健壮性与还原安全、
+账户隔离与网络传输、CLI 参数校验、桌面端工作流，以及性能与内存约束。
+
+### 1.2 测试范围
+
+| 纳入范围 | 不纳入（本次环境受限） |
+| :--- | :--- |
+| 核心归档、还原、压缩、加密、摘要 | Windows/WSLg 交互式界面验收（需真实 Windows 桌面） |
+| 文件系统元数据、硬链接、特殊文件 | MSYS2/Cygwin 平台（仅作为无 WSL 时的后备手段） |
+| NBKP 协议、账户库、并发与超时 | 大规模压力/长时间稳定性测试（超出课程范围） |
+| CLI 参数与提示、GUI 离屏工作流 | 第三方安全审计（自研算法仅做 KAT 与边界验证） |
+| 性能与峰值内存（160 MiB 样本） | |
+
+## 2 测试环境
+
+| 项 | 值 |
+| :--- | :--- |
+| 宿主系统 | Windows + WSL2 |
+| 发行版 | Ubuntu 24.04（Linux 内核，ext4 文件系统） |
+| 编译器 | GCC 13.3.0（`-Wall -Wextra -Wpedantic`） |
+| 构建系统 | CMake 3.28.3，`CMAKE_BUILD_TYPE=Release`，并行 20 任务 |
+| 桌面依赖 | Qt 6.4.2（Widgets/Test/Network）、Noto Sans CJK 字体 |
+| 图形平台 | `QT_QPA_PLATFORM=offscreen`（离屏） |
+| 构建账户 | `builder`（UID 1000，非 root，权限用例按普通用户执行） |
+| 构建副本 | `/home/builder/backup-system-build.FnDI8K`（ext4，非 `/mnt`；一键脚本自动分配） |
+
+## 3 测试策略与用例组织
+
+| 层次 | 载体 | 说明 |
+| :--- | :--- | :--- |
+| 单元/集成 | `bin/backup-tests`（CTest `backup-tests`） | 核心与网络，四个阶段顺序执行 |
+| CLI 集成 | `test/test_cli.py`（CTest `backup-cli-tests`） | 参数校验、往返、服务器关闭 |
+| GUI 集成 | `bin/backup-gui-tests`（CTest `backup-gui-tests`） | Qt Test 离屏运行 |
+| 构建脚本 | `test/test_build_wsl.py` | WSL 启动器逻辑与失败保留 |
+| 性能 | `Utils/run_performance_test.sh` | 时间与峰值内存，摘要比对 |
+| 起停验收 | `Utils/build-wsl.sh` 末尾的离屏截图 | 进程可启动且画面非空 |
+
+断言点静态统计（本次基线）：`check(...)` 239 处（核心/网络/CLI 辅助），
+`require(...)` 72 处（GUI）。
+
+## 4 测试执行与结果
+
+### 4.1 构建与格式检查
+
+```
+== format check ==      clang-format-18 --dry-run --Werror   通过（无输出）
+== build ==             cmake --build build --parallel 20    通过（全部目标）
+                        产物：bin/backup-cli、bin/backup-server、
+                              bin/backup-gui、bin/backup-tests、bin/backup-gui-tests
+```
+
+### 4.2 CTest 汇总
+
+| # | 测试 | 结果 | 耗时 |
+| ---: | :--- | :--- | ---: |
+| 1 | `backup-tests` | **通过** | 18.66 s |
+| 2 | `backup-cli-tests` | **通过** | 0.40 s |
+| 3 | `backup-gui-tests` | **失败** | 0.48 s |
+| | 合计 | 2/3 通过（66.7%） | 19.54 s |
+
+`backup-tests` 原始输出片段：
+
+```
+[1/4] SHA-256, cipher vectors, and LZ77 compression
+[2/4] 24 complete-tree algorithm combinations
+[3/4] corruption, bounds, conflicts, and path races
+[4/4] account-isolated network roundtrip and session recycling
+backup-server listening on 0.0.0.0:34813
+backup-server listening on 0.0.0.0:40055
+backup-server listening on 0.0.0.0:40055
+All backup-system tests passed.
+```
+
+`backup-cli-tests` 原始输出：
+
+```
+CLI argument validation and restore-option roundtrips passed.
+```
+
+### 4.3 用例执行明细
+
+#### 4.3.1 核心与网络（`backup-tests`，通过）
+
+| 用例 ID | 用例 | 期望 | 结果 |
+| :--- | :--- | :--- | :--- |
+| TC-CRYPTO-01 | SHA-256、ChaCha20、AES-256-CTR 已知答案向量（含流偏移与续算） | 与标准向量一致 | 通过 |
+| TC-ALG-01..24 | 2 种打包 × 4 种压缩 × 3 种加密的完整目录树往返 | 目录树比较一致 | 通过 |
+| TC-LZ77-01 | LZ77 往返：空输入、1–2 字节、2 MiB+ 多块重复数据、1 MiB 高熵数据（存储块回退）、压缩/解压进度与取消 | 字节一致且不膨胀 | 通过 |
+| TC-LZ77-02 | 手工构造 LZ77 流：字面量块、重叠匹配、长匹配扩展字节、存储块 | 解码结果正确 | 通过 |
+| TC-LZ77-03 | 非法 LZ77 流（16 类）：头、声明大小、块标志、块大小、负载尺寸、截断、零/超界距离、越界匹配、块内及流尾部多余数据 | 全部拒绝且给出原因 | 通过 |
+| TC-LZ77-04 | LZ77 版本门控：LZ77 归档写为版本 3，其余算法保持版本 2，伪造版本 2 + 压缩 id 3 的归档被拒 | 版本与拒绝理由正确 | 通过 |
+| TC-SEC-01 | 错误口令 | 拒绝且不创建还原目录 | 通过 |
+| TC-SEC-02 | 损坏归档（篡改负载/摘要） | `inspect`/`restore` 拒绝 | 通过 |
+| TC-SEC-03 | 截断归档 | 拒绝 | 通过 |
+| TC-SEC-04 | 非法算法标识与已退役加密 id | 拒绝并给出原因 | 通过 |
+| TC-SEC-05 | 变换与索引边界（零/越界偏移、中央目录越界） | 拒绝，不越界读写 | 通过 |
+| TC-SEC-06 | 路径攻击（绝对路径、`..`、重复路径、符号链接逃逸） | 拒绝，不写到目标目录之外 | 通过 |
+| TC-SEC-07 | 还原冲突与 `--overwrite` | 默认拒绝；显式覆盖成功 | 通过 |
+| TC-SEC-08 | 冲突预览 | 条目与冲突快照正确，不占用路径 | 通过 |
+| TC-SEC-09 | 还原竞态（目标被替换为符号链接/文件） | 拒绝并保留原内容 | 通过 |
+| TC-SEC-10 | 扫描期源文件被替换为 FIFO | 不阻塞、拒绝提交 | 通过 |
+| TC-SEC-11 | 归档输出位于源目录内/已存在 | 拒绝 | 通过 |
+| TC-SEC-12 | 输出父目录符号链接 | 拒绝且不写入 | 通过 |
+| TC-FS-01 | 不可读源文件 | 上报失败 | 通过 |
+| TC-FS-02 | 元数据还原失败（属主/权限/时间戳） | 上报失败，不静默忽略 | 通过 |
+| TC-FS-03 | 普通文件硬链接 | 关系保留（BKP2 v2） | 通过 |
+| TC-IO-01 | 归档 `fsync` 失败注入 | 报错、不发布、不泄漏描述符 | 通过 |
+| TC-IO-02 | 服务器存储 `fsync` 失败注入 | 不提交、目录无残留 | 通过 |
+| TC-IO-03 | 管线磁盘写满（缓冲关闭失败） | 上报失败 | 通过 |
+| TC-IO-04 | 各阶段取消（含最终提交前、预览、等待网络 I/O） | 取消生效且不提交 | 通过 |
+| TC-FS-04 | 源到 FIFO 竞态 | 见 TC-SEC-10 | 通过 |
+| TC-NET-01 | 服务器配置加载与非法配置拒绝 | 拒绝非法项 | 通过 |
+| TC-NET-02 | 账户注册/登录/隔离（Bob 看不到 Alice 的备份） | 隔离成立 | 通过 |
+| TC-NET-03 | 登录证明与挑战请求 ID 匹配 | 不匹配即拒绝 | 通过 |
+| TC-NET-04 | 登录期间账户被另一会话注销 | 待定挑战不能复活账户 | 通过 |
+| TC-NET-05 | 有备份的账户注销 | 拒绝 | 通过 |
+| TC-NET-06 | 上传往返（大小/摘要校验） | 摘要一致 | 通过 |
+| TC-NET-07 | 上传中途取消 | 不提交、无残留 | 通过 |
+| TC-NET-08 | 下载到既有符号链接 | 拒绝且不覆盖链接 | 通过 |
+| TC-NET-09 | 列表在无权限账户目录下 | 报错而非「空列表」 | 通过 |
+| TC-NET-10 | 服务器重启后持久化 | 列表仍可见 | 通过 |
+| TC-NET-11 | 会话回收（断开后连接计数归零） | 注销可成功 | 通过 |
+| TC-NET-12 | 无响应/畸形响应服务器（脚本化） | 超时或报错，不挂死 | 通过 |
+| TC-NET-13 | 存储目录与文件权限（0700/0600） | 权限正确 | 通过 |
+| TC-NET-14 | 账户库不可读/损坏 | 拒绝操作，不覆盖原库 | 通过 |
+| TC-NET-15 | `bind_address`：合法字面量生效、非 IPv4（`localhost`、`999.1.1.1`、`::1`、空值、端口后缀）在配置与 `--bind` 两处均被拒绝，且服务器只监听指定地址 | 通过 |
+
+#### 4.3.2 CLI 集成（`test_cli.py`，通过）
+
+| 用例 ID | 用例 | 结果 |
+| :--- | :--- | :--- |
+| TC-CLI-01 | 端口/连接数/监听地址非法值（`0`、`65536`、`-1`、`+80`、`80junk`、`80.5`、` 80`、溢出；`localhost`、`999.1.1.1`、`::1`、`127.0.0.1:8848`、空值） | 通过 |
+| TC-CLI-02 | 非本命令选项、重复选项、多余位置参数 | 通过 |
+| TC-CLI-03 | 4 种压缩 × 3 种加密共 12 组备份-还原往返、`--overwrite`、非法压缩值与重复选项拒绝 | 通过 |
+| TC-CLI-04 | 空闲连接与半发送连接下 `SIGTERM` 及时退出 | 通过 |
+| TC-CLI-05 | `--help` 退出码 | 通过 |
+| TC-CLI-06 | 服务器/客户端版本与用法输出可用 | 通过 |
+
+#### 4.3.3 桌面端（`backup-gui-tests`，1 项失败）
+
+| 用例 ID | 用例 | 结果 |
+| :--- | :--- | :--- |
+| TC-GUI-01 | 起始页登录/注册切换不移动标题、选择器与字段 | **失败（DEF-01）** |
+| TC-GUI-02 | 对话框在主窗口内居中、随页面切换保持可见 | 通过 |
+| TC-GUI-03 | 历史列表搜索/排序/选择/整 ID 复制 | 通过 |
+| TC-GUI-04 | 与真实服务器注册/上传/列表/下载；加密本地往返 | 通过 |
+| TC-GUI-05 | 多任务关闭与取消等待清理 | 通过 |
+
+失败原始输出：
+
+```
+This plugin does not support propagateSizeHints()
+GUI workflow: login/register switch moved the title, selector or fields
+```
+
+#### 4.3.4 WSL 启动器（`test_build_wsl.py`，通过）
+
+```
+Ran 7 tests in 1.166s
+OK
+```
+
+覆盖：既有目录保留、自定义 GUEST_DIR 与 GUI 启动命令、缺省目录唯一、
+源缺失不创建目标、非法目标拒绝、符号链接目标拒绝、构建失败保留副本。
+
+#### 4.3.5 性能与内存（`Utils/run_performance_test.sh`，TC-PERF-01，通过）
+
+被测样本：160 MiB 稀疏文件；每进程虚拟内存上限 128 MiB；打包 `index`、
+不压缩、不加密。
+
+| 指标 | 实测值 |
+| :--- | :--- |
+| 归档字节数 | 167 772 508 |
+| 备份峰值 RSS | 5 572 KiB |
+| 还原峰值 RSS | 5 296 KiB |
+| 往返耗时 | 3 849 ms |
+| 源/还原 SHA-256 | `61b5d2e2…42519d`（一致） |
+| 结果 | PASS |
+
+结论：在远小于输入体积的内存上限内完成，说明管线按缓冲流式处理而非整体载入。
+
+#### 4.3.6 GUI 离屏起停与截图
+
+```
+QT_QPA_PLATFORM=offscreen BACKUP_GUI_CAPTURE=/tmp/gui-smoke-180.png timeout 10s ./bin/backup-gui
+退出码 0；截图 docs/evidence/gui-smoke-180.png 50 998 字节（非空）
+```
+
+#### 4.3.7 LZ77 压缩效果与开销（`docs/evidence/lz77-comparison-180.log`）
+
+命令：`bin/backup-cli backup SRC -o X.bak --pack stream --compress ALG`，`ALG`
+取 `none`/`rle`/`huffman`/`lz77`，其余参数相同；`/usr/bin/time -v` 记录墙钟
+时间与峰值 RSS。两个样本均以 `diff -r` 验证 LZ77 还原结果与源目录一致。
+
+样本 A：混合语料 25 575 042 字节（Qt6Core / libcrypto / libstdc++ 二进制 +
+libstdc++ 头文件）：
+
+| 算法 | 归档字节 | 相对 none | 耗时 |
+| :--- | ---: | ---: | ---: |
+| none | 25 673 681 | — | 0.246 s |
+| rle | 24 189 926 | 94.2% | 0.346 s |
+| huffman | 20 520 959 | 79.9% | 0.856 s |
+| lz77 | 8 954 934 | 34.9% | 1.081 s |
+
+样本 B：高度重复文本 108 468 000 字节：
+
+| 算法 | 归档字节 | 相对 none | 耗时 |
+| :--- | ---: | ---: | ---: |
+| none | 108 468 307 | — | 0.935 s |
+| rle | 109 315 694 | 100.8% | 1.026 s |
+| huffman | 58 950 607 | 54.3% | 2.355 s |
+| lz77 | 545 941 | 0.5% | 0.460 s |
+
+峰值内存（LZ77，`/usr/bin/time -v`）：样本 A 11 824 KiB、样本 B 9 660 KiB。
+分块编码使内存与归档总大小无关（1 MiB 块 + 哈希链）；随机/已压缩数据以存储块
+原样保留，因此不会出现「压缩后更大」的情况。
+
+结论：LZ77 在两个样本上都明显优于此前的 RLE/Huffman（样本 A 为 Huffman 的
+44%，样本 B 为其 1%），代价是压缩时间略增。
+
+#### 4.3.8 LZ77 解码健壮性（位翻转扫描，`docs/evidence/lz77-fuzz-180.log`）
+
+补充 TC-LZ77-03 的位翻转扫描：样本为 3 574 字节 LZ77 归档（112 字节头 +
+3 462 字节负载），对负载每 17 字节取 1 字节逐位取反，每个变体执行一次
+`restore`：
+
+| 阶段 | 变体 | 被接受 | 崩溃/超时 | 拒绝原因分布 |
+| :--- | ---: | ---: | ---: | :--- |
+| 保持 encoded 摘要不变 | 204 | 0 | 0 | payload 摘要不匹配 204 |
+| 重算 encoded 摘要（解码器真正执行） | 204 | 0 | 0 | 截断字面量 89、解压后摘要不匹配 85、非法距离 28、非法头 1、输入流截断 1 |
+
+结论：畸形压缩流不会造成崩溃、挂死或错误数据落地；要么被 LZ77 解码器的边界
+校验拒绝，要么落到 packed 摘要校验上。
+
+#### 4.3.9 发布安装包（新增，通过）
+
+发布脚本 `Utils/package-wsl.sh` 在 WSL2（Ubuntu 24.04）中跑完整门禁后由 CPack
+生成三个 deb 与一个 tar.gz，并解包复跑已安装二进制；随后在实机用 apt 安装一体包
+做端到端验收（2026-10-14，包内版本 1.8.0，代码基线 `df416a0` + 本次打包改动）。
+
+| 用例 ID | 用例 | 结果 |
+| :--- | :--- | :--- |
+| TC-PKG-01 | 版本门禁：CMake 版本、标签提交与 CHANGELOG 段一致；脏工作区/未打标签默认拒绝 | 通过（本次以 `ALLOW_DIRTY=1 ALLOW_UNTAGGED=1` 试跑） |
+| TC-PKG-02 | 客户端包依赖含 `qt6-qpa-plugins`、`fonts-noto-cjk` 与自动计算的 Qt 库；服务端包不继承 Qt 依赖 | 通过 |
+| TC-PKG-03 | 安装布局：`usr/bin`、`usr/share`、`/etc/backup-studio/databackup.conf`、`/lib/systemd/system/backup-studio.service` + 一体包 drop-in | 通过 |
+| TC-PKG-04 | 解包后运行：`backup-cli`/`backup-server` 报告 1.8.0；无 RPATH/RUNPATH；不链接构建目录 | 通过 |
+| TC-PKG-05 | 实机安装一体包：创建 `backup-studio` 系统账户、写入 conffile 与单元、`systemd-analyze verify` 无输出 | 通过 |
+| TC-PKG-06 | 按配置只监听回环：`ss -ltn` 显示 `127.0.0.1:18848`（`bind_address` 生效） | 通过 |
+| TC-PKG-07 | 远程往返：注册 → 上传（chacha20）→ 列表 → 还原，内容比对一致 | 通过 |
+| TC-PKG-08 | 已安装桌面端离屏启动并产出截图（50 998 字节） | 通过 |
+| TC-PKG-09 | 卸载语义：`apt-get remove` 后二进制消失、conffile 保留、数据目录不被删除、系统账户保留 | 通过 |
+| TC-PKG-10 | 容器镜像构建与运行 | **未执行**（本机无 Docker；脚本在 `WITH_DOCKER=1` 时构建并 `docker save`） |
+| TC-PKG-11 | systemd 服务实际启动/开机自启 | **未执行**（该 WSL 发行版未启用 systemd；单元语法已校验） |
+| TC-PKG-12 | Windows WSL2 安装器 | **部分**（PowerShell 语法检查与 `-WhatIf` 干跑通过；未在干净 Windows 上实装） |
+
+## 5 缺陷记录
+
+### DEF-01 起始页注册模式导致标题与字段整体上移（打开）
+
+| 项 | 内容 |
+| :--- | :--- |
+| 发现用例 | TC-GUI-01（`testAccountAlignment`） |
+| 严重程度 | 一般（界面布局，不影响数据正确性） |
+| 可复现性 | 100%（本次连续 3 次执行均失败） |
+| 环境 | WSL2 Ubuntu 24.04 / Qt 6.4.2 / offscreen，窗口 1320×900 |
+
+实际测量（登录 → 注册切换后）：
+
+| 控件 | 切换前 (x,y,w,h) | 切换后 (x,y,w,h) | 变化 |
+| :--- | :--- | :--- | :--- |
+| 标题 `startTitle` | 321, 257, 938, 47 | 321, 222, 938, 47 | y −35 |
+| 模式选择器 `accountMode` | 321, 340, 240, 48 | 321, 305, 240, 48 | y −35 |
+| 密码字段 `serverPassword` | 918, 480, 341, 48 | 918, 445, 341, 48 | y −35 |
+
+1.8.0 复核（2026-10-14）：在含 LZ77 改动的构建上复现，三项控件几何值与上表
+逐项一致；改用 `git archive HEAD`（`3e928d3`）构建后测得相同数值，确认该缺陷
+与 1.8.0 的压缩改动无关。
+
+根因分析：
+
+1. `GUI/widgets.cpp` 的 `makeCard()` 对卡片内容调用
+   `setAlignment(Qt::AlignVCenter)`，内容块在卡片内**垂直居中**。
+2. 注册模式显示「确认密码」行后，`QFormLayout` 的该行高度
+   （48 px 行高 + 22 px 行距 = 70 px）从未显示变为显示，内容块变高 70 px。
+3. 内容块居中，因此整体上移 70/2 = 35 px，与实测一致。
+4. `pages_account.cpp` 虽然对确认字段与其标签设置了
+   `QSizePolicy::setRetainSizeWhenHidden(true)`，但 **QFormLayout 不保留
+   隐藏行的高度**，因此预期中的「占位」没有生效。
+
+影响：注册/登录切换时页面内容跳动；功能可用，但违反 1.7.1 的界面稳定性
+目标（`CHANGELOG.md` 1.7.1 明确要求「切换时不重排」）。
+
+建议修复方向（任选其一，需补一条回归用例后实施）：
+
+- 让确认密码行始终占位：用固定高度的容器承载该行，在登录模式放入等价
+  高度的占位控件；
+- 或将该卡片改为顶部对齐（`AlignTop`），并在其它卡片上保持一致的视觉；
+- 或使用 `QFormLayout::setRowVisible` 之外的自定义行高固定策略。
+
+### 历史缺陷（已修复，摘自 `CHANGELOG.md` 真实记录）
+
+| 版本 | 缺陷 | 修复 |
+| :--- | :--- | :--- |
+| 1.6.2 | 空闲/半连接会话导致服务器停机挂起 | 传播取消并轮询 |
+| 1.6.2 | 不可读账户库被误当作空库覆盖 | 拒绝并保留原文件 |
+| 1.6.2 | 源文件被替换为 FIFO 时阻塞 | 无阻塞打开并拒绝 |
+| 1.6.2 | 磁盘写满/缓冲关闭失败被忽略 | 全链路检查关闭失败 |
+| 1.6.0 | 硬链接关系丢失 | BKP2 v2 保存硬链接 |
+| 1.6.0 | 元数据还原失败被静默忽略 | 必须上报 |
+| 1.5.0 | 旧 XOR/Vigenère 弱加密 | 替换为 ChaCha20 / AES-256-CTR，旧 id 拒绝 |
+| 1.4.0–1.1 | 解压越界、还原路径逃逸、输出非原子 | 边界校验、FD 约束、原子提交 |
+
+## 6 覆盖分析与追溯
+
+| 需求 | 用例 | 结果 |
+| :--- | :--- | :--- |
+| FR-01/14/15 | TC-CRYPTO-01、TC-ALG-01..24、TC-LZ77-01..04、TC-FS-01..03 | 通过 |
+| FR-02/03/05 | TC-SEC-01..09、TC-CLI-03 | 通过 |
+| FR-04 | TC-SEC-02/03/04、TC-CLI-06 | 通过 |
+| FR-06/07/11 | TC-NET-01..05、TC-NET-11、TC-GUI-04 | 通过 |
+| FR-08/09/10 | TC-NET-06..10、TC-NET-12、TC-GUI-04 | 通过 |
+| FR-12 | TC-NET-01、TC-NET-13、TC-CLI-04 | 通过 |
+| FR-13 | TC-IO-04、TC-GUI-05 | 通过 |
+| FR-16 | TC-NET-02、TC-NET-13、TC-NET-14 | 通过 |
+| NFR-01 | TC-PERF-01（4.3.5） | 通过 |
+| NFR-02/04 | TC-SEC-01..05、TC-IO-01..03、TC-LZ77-01/03 | 通过 |
+| NFR-03 | TC-SEC-06..12、TC-NET-03 | 通过 |
+| NFR-05 | WSL2 构建与全量 CTest | 通过 |
+| NFR-06 | `format-check` | 通过 |
+| NFR-07/09 | TC-GUI-01（**DEF-01**）、TC-GUI-02/03/05 | 1 项失败 |
+| NFR-08 | 全部 CTest 离屏运行、TC-WSL-01..07 | 通过 |
+| NFR-10 | TC-IO-01/02、TC-NET-07 | 通过 |
+
+覆盖不足与说明：
+
+- 属主/权限还原用例在非 root 账户下对部分场景自动跳过（本次 `builder`
+  为普通用户，跳过情况未单独记录为失败）。
+- Windows/WSLg 交互式界面验收尚未在本机执行，需在真实 Windows 桌面完成。
+- MSYS2/Cygwin 后备环境未参与本次验证（平台差异会导致部分用例跳过）。
+
+## 7 结论与遗留问题
+
+1. 构建、格式检查、核心、网络、CLI、WSL 启动器与性能项全部通过；
+   归档格式、协议与安全约束未发现缺陷。
+2. 唯一失败项 DEF-01 属界面布局回归，已定位到 `makeCard` 垂直居中与
+   `QFormLayout` 隐藏行不占位的组合原因，修复方向明确，待下一迭代实施。
+3. 遗留：WSLg 交互验收、Teambition 看板与成员分工记录、cpplint /
+   gtest / valgrind / gprof / perf 等课程点名工具的证据仍需补齐，
+   详见 `docs/course-checklist.md`。
+
+## 附录 A 复现命令
+
+```bash
+# 一键（Git Bash → WSL2）：格式检查 + 并行构建 + CTest + 离屏 GUI 截图
+GUEST_DIR=/home/builder/backup-studio-validation-20261014 ./Utils/build-wsl.sh
+
+# 单独执行
+ctest --test-dir build --output-on-failure
+python3 test/test_cli.py bin/backup-cli bin/backup-server
+python3 test/test_build_wsl.py
+QT_QPA_PLATFORM=offscreen ./bin/backup-gui-tests
+BACKUP_GUI_EVIDENCE_DIR=/tmp/gui-evidence QT_QPA_PLATFORM=offscreen ./bin/backup-gui-tests
+DELIVERY_ROOT=/tmp/perf-evidence MEMORY_KIB=131072 SIZE_MIB=160 \
+  ./Utils/run_performance_test.sh bin/backup-cli
+
+# 发布安装包（Git Bash → WSL2）：门禁 + CPack + 解包复跑，产物落到交付目录
+ALLOW_DIRTY=1 ALLOW_UNTAGGED=1 ./Utils/package-wsl.sh
+# 实机安装验收
+sudo apt-get install -y backup_system_delivery/release/1.8.0/backup-studio_1.8.0_amd64.deb
+```
+
+## 附录 B 环境变量与证据目录
+
+| 环境变量 | 用途 |
+| :--- | :--- |
+| `BACKUP_GUI_CAPTURE` | 离屏启动后保存主窗口截图 |
+| `BACKUP_GUI_EVIDENCE_DIR` | GUI 测试保存登录/注册对齐截图（DEF-01 现场） |
+| `DELIVERY_ROOT` | 性能脚本的证据输出根目录 |
+
+## 附录 C 文档变更记录
+
+| 版本 | 日期 | 变更 | 依据 |
+| :--- | :--- | :--- | :--- |
+| 1.2 | 2026-10-14 | 新增 4.3.9 发布安装包实测（TC-PKG-01..12）、TC-NET-15 与 TC-CLI-01 的 `--bind` 用例；未执行项如实标注 | WSL2 实机日志、`backup_system_delivery/release/1.8.0/`、`Utils/package-wsl.sh` |
+| 1.1 | 2026-10-14 | 同步 1.8.0：CTest 与性能数据更新为本次实机结果；新增 TC-LZ77-01..04、4.3.7 压缩效果对比与 4.3.8 解码健壮性扫描；DEF-01 补充 1.8.0 复核 | WSL2 实机日志（附录 D）、`CMakeLists.txt` 1.8.0、`CHANGELOG.md` |
+| 1.0 | 2026-10-14 | 首次编写；填写本机真实执行结果与 DEF-01 | WSL2 实机日志（附录 D）、`CHANGELOG.md` |
+
+## 附录 D 原始日志位置
+
+| 文件 | 内容 |
+| :--- | :--- |
+| `docs/evidence/build-wsl-180.log` | 1.8.0 一键脚本日志（format-check、构建、CTest） |
+| `docs/evidence/ctest-detail-180.log` | 1.8.0 三项 CTest 详细输出（含 DEF-01） |
+| `docs/evidence/lz77-comparison-180.log` | 4.3.7 压缩对比与 LZ77 峰值内存原始输出 |
+| `docs/evidence/lz77-fuzz-180.log` | 4.3.8 位翻转扫描（两阶段 408 个变体） |
+| `docs/evidence/performance-summary-180.txt` | 1.8.0 性能与内存汇总 |
+| `docs/evidence/wsl-launcher-180.log` | 1.8.0 WSL 启动器测试输出 |
+| `docs/evidence/gui-smoke-180.png` | 1.8.0 离屏启动截图 |
+| `docs/evidence/build-wsl-20261014.log` | 一键脚本完整日志（format-check、构建、CTest） |
+| `docs/evidence/ctest-detail.log` | `backup-tests` 与 CLI 测试输出 |
+| `docs/evidence/performance-summary.txt` | 性能与内存汇总 |
+| `docs/evidence/gui-smoke.png` | 离屏启动截图 |
+| `docs/evidence/account-login-1320.png` | DEF-01 现场：登录模式截图 |

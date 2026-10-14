@@ -1,0 +1,10 @@
+Performance acceptance evidence
+Input MiB: 160
+Virtual-memory limit KiB: 131072
+Archive bytes: 167772508
+Backup maximum RSS: 5572
+Restore maximum RSS: 5296
+Roundtrip elapsed ms: 3849
+Source SHA-256: 61b5d2e238243a70dd9e9ad76225379515134a2531f374f960f5c6b5cf42519d
+Restored SHA-256: 61b5d2e238243a70dd9e9ad76225379515134a2531f374f960f5c6b5cf42519d
+Result: PASS
