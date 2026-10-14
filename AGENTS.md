@@ -20,6 +20,7 @@
 - 需求和验收范围见 `docs/requirements.md`；格式、模块和协议变更同步
   `docs/design.md`；用例与真实结果同步 `docs/test-report.md`。
   这些本地课程文档位于被忽略的 `docs/`，缺失时先说明，勿虚构已有材料。
+  版本更迭时按「项目管理规则」逐份检查课程文档的时效性。
 - 课程交付检查见 `docs/course-checklist.md`。项目看板、成员贡献、证书、演示录像
   使用真实记录；历史产物不作为当前版验证证据。
 
@@ -49,6 +50,10 @@
 
 - 版本与变更：版本号在 `CMakeLists.txt` 的 `project(... VERSION)`；行为与格式变更
   记入 `CHANGELOG.md`；归档格式变更必须版本化并保留旧版本读取测试。
+- 版本更迭检查文档时效性：版本号变化时逐份核对 `docs/requirements.md`、
+  `docs/design.md`、`docs/test-report.md`、`docs/course-checklist.md` 的版本号与
+  代码基线、格式/协议/模块描述、用例与真实结果、检查单状态；能同步的当场更新并
+  记入各文档的变更记录，暂不能同步的在检查单中列为待办。
 - 提交前本地门禁：配置 → `format-check` → 并行构建 → CTest → 离屏启动 GUI
   并校验截图非空。`.github/`、`.workflow` 仅留本地，不进入提交。
 

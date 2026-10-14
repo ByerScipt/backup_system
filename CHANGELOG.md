@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Extend the editable StarUML model with use-case, three sequence diagrams and
+  deployment views; the public-interface class diagram is unchanged. Keep the
+  course documents themselves local under the ignored docs directory.
 - Flatten public headers into libs/ and sample files into exp/; update include
   paths and examples, keeping generated output outside the sample source tree.
 - Stop tracking GitHub workflow configuration; retain it locally and ignore

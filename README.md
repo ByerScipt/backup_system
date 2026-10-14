@@ -187,7 +187,7 @@ The script compares source and restored hashes and writes timing and memory meas
 | `exp/` | Sample input; generated output belongs in `output/` outside this tree |
 | `bin/`, `build/` | Generated executables and build intermediates (ignored) |
 | `databackup.conf` | Default server configuration |
-| `DataBackup.mdj` | Editable StarUML public-interface class diagram |
+| `DataBackup.mdj` | Editable StarUML model: public interfaces, use cases, sequences and deployment |
 | `Makefile`, `CMakeLists.txt` | Build commands and their CMake implementation |
 | `.vscode/`, `.clang-format`, `.clang-tidy` | Editor and code-checking settings |
 | `Dockerfile` | Container build for the CLI and server |
