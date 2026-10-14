@@ -59,7 +59,7 @@ void usage()
 Local:
   backup-cli backup SOURCE -o ARCHIVE --pack stream|index
       [--compress none|rle|huffman|lz77] [--encrypt none|chacha20|aes256]
-      [--key-file FILE]
+      [--key-file FILE] [--include PATH]...
   backup-cli restore ARCHIVE -d DEST [--key-file FILE] [--overwrite]
   backup-cli inspect ARCHIVE
 
@@ -67,7 +67,8 @@ Remote:
   backup-cli user register --server HOST:PORT --username NAME
       [--account-password-file FILE]
   backup-cli remote-backup SOURCE --server HOST:PORT --username NAME
-      [--account-password-file FILE] [--name NAME] [local algorithm options]
+      [--account-password-file FILE] [--name NAME] [--include PATH]...
+      [local algorithm options]
   backup-cli remote-list --server HOST:PORT --username NAME
       [--account-password-file FILE]
   backup-cli remote-restore BACKUP_ID -d DEST --server HOST:PORT --username NAME

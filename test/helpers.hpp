@@ -82,6 +82,7 @@ void testCancellation();
 void testSourceFifoRace();
 void testNetworkFailures();
 void testHardLinks();
+void testSelection();
 std::vector<BuiltArchive>
 testAllCombinations(const fs::path& workspace, const fs::path& source,
                     const std::vector<std::string>& fixturePaths);

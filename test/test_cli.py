@@ -61,6 +61,27 @@ with tempfile.TemporaryDirectory(prefix="backup-cli-test-") as directory:
                            capture_output=True, timeout=5)
             assert restored.read_bytes() == (source / "file").read_bytes()
 
+    # --include stores only the selected entries, keeping the structure.
+    nested = source / "nested"
+    nested.mkdir()
+    (nested / "picked.txt").write_bytes(b"picked")
+    (nested / "skipped.txt").write_bytes(b"skipped")
+    (source / "other.txt").write_bytes(b"other")
+    selected_archive = root / "selected.bak"
+    subprocess.run([cli, "backup", str(source), "-o", str(selected_archive),
+                    "--include", "nested/picked.txt", "--include", "other.txt"],
+                   check=True, capture_output=True, timeout=5)
+    selected = root / "selected"
+    subprocess.run([cli, "restore", str(selected_archive), "-d", str(selected)],
+                   check=True, capture_output=True, timeout=5)
+    assert (selected / "source/nested/picked.txt").read_bytes() == b"picked"
+    assert (selected / "source/other.txt").read_bytes() == b"other"
+    assert not (selected / "source/nested/skipped.txt").exists()
+    assert not (selected / "source/file").exists()
+    rejected([cli, "backup", str(source), "-o", str(root / "escape.bak"),
+              "--include", "../escape"], "selected")
+    rejected([cli, "backup", str(source), "-o", str(root / "missing.bak"),
+              "--include", "missing.txt"], "selected")
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]

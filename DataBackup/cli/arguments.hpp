@@ -8,9 +8,14 @@ struct Arguments
 {
     std::vector<std::string> positional;
     std::map<std::string, std::string> options;
+    // Repeatable options keep every occurrence in command-line order
+    // (--include may be given once per selected entry).
+    std::vector<std::pair<std::string, std::string>> repeated;
     std::vector<std::string> flags;
 };
 Arguments parseArgs(int argc, char* argv[], int start);
+std::vector<std::string> repeatedValues(const Arguments& args,
+                                        const std::string& name);
 std::string requiredOption(const std::map<std::string, std::string>& options,
                            const std::string& name);
 bool hasFlag(const Arguments& args, const std::string& flag);

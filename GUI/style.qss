@@ -104,7 +104,7 @@ QProgressBar {
     text-align: center;
 }
 QProgressBar::chunk { background: #b9dafa; }
-QTextEdit, QTableWidget {
+QTextEdit, QTableWidget, QTreeWidget {
     border: 1px solid #d2e2ef;
     border-radius: 6px;
     background: #ffffff;
@@ -118,6 +118,10 @@ QTextEdit#taskLog {
 QTableWidget {
     gridline-color: #e5eef6;
     alternate-background-color: #f5faff;
+}
+QTreeWidget#entryTree {
+    alternate-background-color: #f5faff;
+    show-decoration-selected: 1;
 }
 QHeaderView::section {
     background: #eaf3fc;

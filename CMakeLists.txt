@@ -67,6 +67,7 @@ if(BACKUP_BUILD_GUI)
         add_library(backup_ui OBJECT
             GUI/ui.hpp
             GUI/main_window.cpp
+            GUI/select_entries.cpp
             GUI/widgets.cpp
             GUI/forms.cpp
             GUI/pages_local.cpp
@@ -94,6 +95,7 @@ if(BACKUP_BUILD_TESTS)
         test/helpers.cpp
         test/test_combos.cpp
         test/test_compress.cpp
+        test/test_selection.cpp
         test/test_security.cpp
         test/test_network.cpp
         test/test_crypto_vectors.cpp

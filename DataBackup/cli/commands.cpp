@@ -36,6 +36,8 @@ void progressReport(const ProgressEvent& event)
 BackupOptions backupOptions(const Arguments& args)
 {
     BackupOptions options;
+    // Repeatable: keep the whole tree when the caller selected nothing.
+    options.includes = repeatedValues(args, "--include");
     auto pack = args.options.find("--pack");
     auto compression = args.options.find("--compress");
     auto encryption = args.options.find("--encrypt");

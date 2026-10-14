@@ -197,6 +197,32 @@ QHBoxLayout* pathRow(QLineEdit*& edit, QPushButton*& browse,
     return row;
 }
 
+QHBoxLayout* selectionRow(QPushButton*& button, QLabel*& summary)
+{
+    auto* row = new QHBoxLayout;
+    row->setContentsMargins(0, 0, 0, 0);
+    row->setSpacing(12);
+    button = new QPushButton("选择条目");
+    button->setObjectName("selectEntries");
+    button->setMinimumWidth(140);
+    summary = makeHint("全部内容");
+    summary->setObjectName("selectionSummary");
+    row->addWidget(button);
+    row->addWidget(summary, 1);
+    return row;
+}
+
+std::vector<std::string> toUtf8Strings(const QStringList& values)
+{
+    std::vector<std::string> converted;
+    converted.reserve(static_cast<size_t>(values.size()));
+    for (const QString& value : values)
+    {
+        converted.push_back(value.toStdString());
+    }
+    return converted;
+}
+
 JobControls addJobControls(QVBoxLayout* layout, const QString& startText)
 {
     JobControls controls;

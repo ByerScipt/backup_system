@@ -1,6 +1,8 @@
 #include "ui.hpp"
 #include <QFormLayout>
 #include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QVBoxLayout>
 
 #include <QCheckBox>
@@ -30,9 +32,11 @@ QWidget* localBackupPage()
     auto* form = makeForm();
 
     QLineEdit *source, *output, *key;
-    QPushButton *browseSource, *browseOutput;
+    QPushButton *browseSource, *browseOutput, *selectEntries;
+    QLabel* selectionSummary;
     QComboBox *pack, *compression, *encryption;
     form->addRow("源目录", pathRow(source, browseSource, "sourcePath"));
+    form->addRow("备份内容", selectionRow(selectEntries, selectionSummary));
     form->addRow("输出归档", pathRow(output, browseOutput, "outputPath"));
     addAlgorithmRows(form, pack, compression, encryption, key);
     configuration.body->addLayout(form);
@@ -46,6 +50,37 @@ QWidget* localBackupPage()
                    selectDirectory);
     bindPathPicker(page.widget, browseOutput, output, "选择输出归档",
                    selectArchiveOutput);
+
+    // The selection belongs to one source directory: changing the path drops
+    // it so a stale entry list can never be archived silently.
+    auto selection = std::make_shared<QStringList>();
+    QObject::connect(source, &QLineEdit::textChanged, page.widget,
+                     [=]()
+                     {
+                         selection->clear();
+                         selectionSummary->setText("全部内容");
+                     });
+    QObject::connect(
+        selectEntries, &QPushButton::clicked, page.widget,
+        [=]()
+        {
+            const QString directory = source->text().trimmed();
+            if (directory.isEmpty())
+            {
+                QMessageBox::warning(page.widget, "输入有误",
+                                     "请先选择源目录。");
+                return;
+            }
+            QStringList chosen = *selection;
+            if (!selectSourceEntries(page.widget, directory, &chosen))
+            {
+                return;
+            }
+            *selection = chosen;
+            selectionSummary->setText(
+                chosen.isEmpty() ? QString("全部内容")
+                                 : QString("已选 %1 项").arg(chosen.size()));
+        });
     QObject::connect(
         controls.start, &QPushButton::clicked, page.widget,
         [=]()
@@ -84,6 +119,7 @@ QWidget* localBackupPage()
                 {
                     auto options =
                         algorithmOptions(algorithms, cancel, progress);
+                    options.includes = toUtf8Strings(*selection);
                     auto result = BackupEngine::create(
                         src.toStdString(), out.toStdString(), options);
                     if (!result.success)
