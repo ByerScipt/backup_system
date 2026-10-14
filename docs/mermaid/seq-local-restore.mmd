@@ -1,0 +1,16 @@
+sequenceDiagram
+    autonumber
+    participant P0 as 用户
+    participant P1 as 界面层（CLI / GUI）
+    participant P2 as 归档引擎
+    participant P3 as 归档与还原目标
+    P0->>P1: restore ARCHIVE -d DEST：还原命令（--overwrite 可选）
+    P1->>P2: restore(archive, destination, options)：调用归档引擎
+    P2->>P3: readArchiveHeader() + sha256File()：校验 encoded 负载摘要
+    P2->>P3: cryptStage()：解密到暂存件（口令错误即失败）
+    P2->>P3: decompressStage()：解压并校验 packed 摘要与大小
+    P2->>P3: validateEntries()：校验条目路径、重复与数据边界
+    P2->>P3: extractEntries()：目标目录 FD + O_NOFOLLOW 建临时节点
+    P2->>P3: applyMetadataAt() + commitNodeAt()：写回元数据并逐条提交（默认不覆盖）
+    P2->>P1: BackupResult：条目数、输入/输出字节数
+    P1->>P0: restore completed：成功或错误信息

@@ -1,0 +1,17 @@
+archive: 3574 bytes = 112 header + 3462 payload
+== phase 1: digest untouched ==
+mutations attempted: 204
+accepted: 0 []
+crashes or timeouts: 0 []
+   204  Error: archive payload checksum mismatch
+
+== phase 2: digest refreshed (decoder is reached) ==
+mutations attempted: 204
+accepted: 0 []
+crashes or timeouts: 0 []
+    89  Error: truncated LZ77 literal run
+    85  Error: decoded checksum mismatch (wrong password or damaged archive)
+    28  Error: invalid LZ77 match distance
+     1  Error: invalid LZ77 header
+     1  Error: truncated or unreadable input stream
+

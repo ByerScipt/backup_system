@@ -1,0 +1,13 @@
+== backup-tests ==
+[1/4] SHA-256 and cipher known-answer vectors
+[2/4] 18 complete-tree algorithm combinations
+[3/4] corruption, bounds, conflicts, and path races
+[4/4] account-isolated network roundtrip and session recycling
+backup-server listening on 0.0.0.0:43501
+backup-server listening on 0.0.0.0:48663
+backup-server listening on 0.0.0.0:48663
+All backup-system tests passed.
+exit=0
+== cli tests ==
+CLI argument validation and restore-option roundtrips passed.
+exit=0

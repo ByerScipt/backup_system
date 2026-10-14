@@ -1,0 +1,10 @@
+flowchart LR
+    subgraph dep_client[客户端主机（Windows / Linux）]
+        dep_cli["backup-cli（命令行客户端）"]
+        dep_gui["backup-gui（Qt 6 桌面端）"]
+    end
+    subgraph dep_server[服务器主机（Linux）]
+        dep_service["backup-server（备份服务）"]
+        dep_storage["server_data/（账户与归档存储）"]
+    end
+    dep_client == "NBKP/TCP 8848（«TCP»）" ==> dep_server
