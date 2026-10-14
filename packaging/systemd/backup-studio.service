@@ -1,0 +1,25 @@
+# Installed by the backup-studio-server package (shared host) and by the
+# all-in-one backup-studio package, where backup-studio.service.d/local.conf
+# restricts the listener to the loopback interface.
+[Unit]
+Description=Backup Studio archive server
+After=network.target
+
+[Service]
+Type=simple
+User=backup-studio
+Group=backup-studio
+WorkingDirectory=/var/lib/backup-studio
+StateDirectory=backup-studio
+StateDirectoryMode=0700
+ExecStart=/usr/bin/backup-server --config /etc/backup-studio/databackup.conf
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/backup-studio
+
+[Install]
+WantedBy=multi-user.target

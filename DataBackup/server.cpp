@@ -47,6 +47,15 @@ int main(int argc, char* argv[])
             {
                 config = backup::network::ServerConfig::load(argv[++i]);
             }
+            else if (option == "--bind" && i + 1 < argc)
+            {
+                config.bindAddress = argv[++i];
+                if (!backup::network::isIPv4Address(config.bindAddress))
+                {
+                    throw std::runtime_error("invalid value for " + option +
+                                             ": " + config.bindAddress);
+                }
+            }
             else if (option == "--port" && i + 1 < argc)
             {
                 config.port = static_cast<uint16_t>(
@@ -62,8 +71,9 @@ int main(int argc, char* argv[])
             }
             else if (option == "--help" || option == "-h")
             {
-                std::cout << "Usage: backup-server [--config FILE] [--port "
-                             "PORT] [--storage DIR] "
+                std::cout << "Usage: backup-server [--config FILE] [--bind "
+                             "ADDRESS] [--port PORT]\n"
+                             "                     [--storage DIR] "
                              "[--max-connections N]\n";
                 return 0;
             }

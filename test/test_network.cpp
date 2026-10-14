@@ -9,7 +9,10 @@ void testServerConfig(const fs::path& workspace)
     for (const std::string setting :
          {"port = 65537", "port = -65535", "port = 8848junk",
           "max_connections = 4294967297", "timeout_seconds = -1",
-          "storage_path =   ", "prot = 8848", "port 8848"})
+          "storage_path =   ", "prot = 8848", "port 8848",
+          "bind_address = localhost", "bind_address = 127.0.0.1 extra",
+          "bind_address = 999.1.1.1", "bind_address = 127.0.0.1:8848",
+          "bind_address = ::1", "bind_address = "})
     {
         std::ofstream(path) << setting << '\n';
         bool rejected = false;
@@ -25,10 +28,11 @@ void testServerConfig(const fs::path& workspace)
               "invalid server configuration was accepted: " + setting);
     }
     std::ofstream(path)
-        << "port = 65535\nmax_connections = 1\ntimeout_seconds = 3\n";
+        << "bind_address = 127.0.0.1\nport = 65535\nmax_connections = 1\n"
+           "timeout_seconds = 3\n";
     auto config = network::ServerConfig::load(path.string());
     check(config.port == 65535 && config.maxConnections == 1 &&
-              config.timeoutSeconds == 3,
+              config.timeoutSeconds == 3 && config.bindAddress == "127.0.0.1",
           "valid server configuration changed");
 }
 
@@ -120,6 +124,7 @@ void testNetwork(const fs::path& workspace, const fs::path& archive)
         return;
     }
     network::ServerConfig config;
+    config.bindAddress = "127.0.0.1";
     config.port = port;
     config.storagePath = (workspace / "server-data").string();
     config.timeoutSeconds = 3;

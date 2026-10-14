@@ -13,8 +13,15 @@
 namespace backup::network
 {
 
+// True when value is an IPv4 address literal, the only form the listener
+// accepts; host names are rejected so startup never depends on DNS.
+bool isIPv4Address(const std::string& value);
+
 struct ServerConfig
 {
+    // "0.0.0.0" accepts every interface. Bind "127.0.0.1" when the server is
+    // meant for the local machine only; NBKP itself has no TLS.
+    std::string bindAddress = "0.0.0.0";
     uint16_t port = 8848;
     std::string storagePath = "./server_data";
     uint32_t maxConnections = 32;
@@ -37,6 +44,7 @@ class BackupServer
 public:
     explicit BackupServer(ServerConfig config);
     // Blocks until stop() or a startup failure; run on a dedicated thread.
+    // A bindAddress that is not an IPv4 literal fails run() without binding.
     // Keep this object alive until run() has returned and its thread is joined.
     bool run();
     void stop();

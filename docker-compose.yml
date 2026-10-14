@@ -1,0 +1,24 @@
+# Separated deployment: the archive server runs on its own host and every
+# client reaches it over NBKP/TCP. The protocol has no TLS, so publish this
+# only on a trusted network and connect with encrypted archives.
+#
+# Build the image first, then start the service:
+#   docker build -t backup-studio-server:1.8.0 \
+#       --build-arg BACKUP_VERSION=1.8.0 .
+#   BACKUP_VERSION=1.8.0 docker compose up -d
+services:
+  backup-server:
+    image: backup-studio-server:${BACKUP_VERSION:-latest}
+    container_name: backup-studio-server
+    restart: unless-stopped
+    ports:
+      - "8848:8848"
+    volumes:
+      # Accounts and uploaded archives live in the named volume.
+      - backup-data:/data
+      # Mount a custom configuration to change the port or the connection
+      # limit; storage_path must stay under the container's /data directory.
+      # - ./databackup.conf:/etc/backup-studio/databackup.conf:ro
+
+volumes:
+  backup-data:

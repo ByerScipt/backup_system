@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Backup Studio
+Name[zh_CN]=备份工作室
+Comment=Back up and restore directory trees
+Comment[zh_CN]=目录备份与还原
+Exec=backup-gui
+Icon=backup-studio
+Terminal=false
+Categories=Utility;Archiving;
+Keywords=backup;restore;archive;

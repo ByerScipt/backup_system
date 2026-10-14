@@ -21,6 +21,9 @@ for value in ("0", "65536", "65537", "-1", "+80", "80junk", "80.5", " 80", "4294
 for value in ("0", "-1", "1025", "2junk", "4294967297"):
     rejected([server, "--max-connections", value, "--help"], "max-connections")
 
+for value in ("localhost", "127.0.0.1:8848", "999.1.1.1", "::1", "127.0.0.1 ", ""):
+    rejected([server, "--bind", value, "--help"], "bind")
+
 rejected([cli, "inspect", "unused", "--encrypt", "aes256"], "option")
 rejected([cli, "restore", "unused", "-d", "unused", "--pack", "index"], "option")
 rejected([cli, "remote-list", "unexpected-positional"], "positional")
@@ -57,10 +60,12 @@ with tempfile.TemporaryDirectory(prefix="backup-cli-test-") as directory:
             subprocess.run(command + ["--overwrite"], check=True,
                            capture_output=True, timeout=5)
             assert restored.read_bytes() == (source / "file").read_bytes()
+
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
-    service = subprocess.Popen([server, "--port", str(port), "--storage", str(root / "storage")],
+    service = subprocess.Popen([server, "--bind", "127.0.0.1", "--port", str(port),
+                               "--storage", str(root / "storage")],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         deadline = time.monotonic() + 3

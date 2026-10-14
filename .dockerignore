@@ -1,0 +1,16 @@
+# Keep the image build context free of host build output and local documents.
+.git
+.github
+.workflow
+.pi
+.vscode
+build
+build-msys
+bin
+dist
+docs
+output
+server_data
+compile_commands.json
+*.log
+__pycache__

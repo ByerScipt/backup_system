@@ -1,0 +1,25 @@
+#!/bin/sh
+# Runs after the server component (or the all-in-one package) is unpacked.
+#
+# The service runs as a dedicated system account and stores its data in
+# /var/lib/backup-studio, which systemd creates from StateDirectory=. No
+# storage is created here: installing the package must not start writing user
+# data before the service is actually started.
+set -e
+
+if ! getent group backup-studio >/dev/null; then
+    addgroup --system backup-studio
+fi
+if ! getent passwd backup-studio >/dev/null; then
+    adduser --system --ingroup backup-studio --home /var/lib/backup-studio \
+        --no-create-home --disabled-login --gecos "Backup Studio server" \
+        backup-studio
+fi
+
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload || true
+    # A container or chroot has no running systemd; never fail the install.
+    systemctl enable --now backup-studio.service || true
+fi
+
+exit 0

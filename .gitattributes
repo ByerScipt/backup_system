@@ -1,3 +1,10 @@
 # Shell tooling must keep LF endings; otherwise a Windows checkout with
 # core.autocrlf=true produces a script that bash cannot execute.
 *.sh text eol=lf
+
+# Files that are executed or parsed inside a package must stay LF as well:
+# CRLF in a deb maintainer script, a systemd unit or a desktop entry breaks
+# the installed package even though the source checkout still looks fine.
+packaging/deb/* text eol=lf
+packaging/systemd/** text eol=lf
+packaging/*.desktop text eol=lf

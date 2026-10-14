@@ -1,0 +1,10 @@
+#!/bin/sh
+# Runs before the server files are removed or replaced. Stopping on upgrades
+# too keeps the unit from holding a deleted binary; postinst starts it again.
+set -e
+
+if [ -d /run/systemd/system ]; then
+    systemctl stop backup-studio.service || true
+fi
+
+exit 0

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Runs after the server files are removed. The storage directory holds the
+# accounts and the uploaded archives, so it is never deleted here: a package
+# script that removes user data cannot be undone.
+set -e
+
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload || true
+fi
+
+if [ "$1" = "purge" ]; then
+    echo "backup-studio: kept /var/lib/backup-studio; delete it manually to"
+    echo "backup-studio: remove accounts and uploaded archives."
+fi
+
+exit 0

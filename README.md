@@ -101,7 +101,7 @@ Start the server in one terminal:
 bin/backup-server --config databackup.conf
 ```
 
-By default, it listens on `0.0.0.0:8848`, stores data in `./server_data`, allows up to 32 concurrent sessions, and uses a 30-second socket timeout. These settings are configurable in `databackup.conf`; malformed/unknown settings are rejected. Relative storage paths are resolved from the server's working directory.
+By default, it listens on `0.0.0.0:8848`, stores data in `./server_data`, allows up to 32 concurrent sessions, and uses a 30-second socket timeout. These settings are configurable in `databackup.conf`; malformed/unknown settings are rejected. Relative storage paths are resolved from the server's working directory. `bind_address` (or `--bind ADDRESS` on the command line) takes an IPv4 literal and restricts the listener; NBKP has no TLS, so a server that only serves its own machine should use `127.0.0.1`.
 
 In another terminal:
 
@@ -119,6 +119,41 @@ bin/backup-cli remote-restore BACKUP_ID -d output/remote-restored \
 ```
 
 Replace `BACKUP_ID` with the ID returned by upload or listing. Account passwords authenticate the user; archive passwords decrypt the backup. The CLI prompts for each when required. For scripted use, supply `--account-password-file FILE` and, for encrypted archives, `--key-file FILE`.
+
+## Packaging
+
+`Utils/package-wsl.sh` builds the release installers inside WSL2 and copies
+them to the delivery directory (`../backup_system_delivery` by default). It
+only packages a tagged commit, so tag and commit first:
+
+```bash
+git tag -a v1.8.0 -m "Backup Studio 1.8.0"
+./Utils/package-wsl.sh          # WITH_DOCKER=1 also builds the server image
+```
+
+The release gate runs the format check, the parallel build, CTest and the
+offscreen GUI start before packaging, then extracts every artifact and runs the
+installed binaries and the CLI tests again. `ALLOW_DIRTY=1` and
+`ALLOW_UNTAGGED=1` are available for a local trial run; the delivered manifest
+records the commit, the toolchain and the checksums.
+
+| Artifact | Deployment line |
+| :--- | :--- |
+| `backup-studio-client_<version>_amd64.deb` | Separated: Qt desktop client plus `backup-cli` |
+| `backup-studio-server_<version>_amd64.deb` | Separated: server, systemd unit, `/etc/backup-studio/databackup.conf` |
+| `backup-studio_<version>_amd64.deb` | All-in-one: every component, local service on `127.0.0.1` |
+| `backup-studio-<version>-ubuntu24.04-x86_64.tar.gz` | All-in-one without dpkg |
+| `backup-studio-server-<version>-image.tar` | Separated: `docker load` with `WITH_DOCKER=1` |
+| `SHA256SUMS`, `RELEASE-MANIFEST.txt`, `install-notes.md` | Traceability and installation guide |
+
+Packages are built on Ubuntu 24.04 (glibc 2.39) and target Ubuntu 24.04 or
+newer; the client package declares Qt 6, its platform plugin and a CJK font as
+dependencies. The all-in-one package starts the server through systemd on the
+loopback interface, and `packaging/install-notes.md` documents installation,
+upgrades and removal. Windows has no native build: `packaging/windows/install-wsl.ps1`
+prepares an Ubuntu 24.04 distribution, installs the all-in-one package there
+and creates Start Menu shortcuts that run the client through WSLg. The server
+can also run as a container; see `docker-compose.yml`.
 
 ## Design
 
@@ -193,4 +228,5 @@ The script compares source and restored hashes and writes timing and memory meas
 | `DataBackup.mdj` | Editable StarUML model: public interfaces, use cases, sequences and deployment |
 | `Makefile`, `CMakeLists.txt` | Build commands and their CMake implementation |
 | `.vscode/`, `.clang-format`, `.clang-tidy` | Editor and code-checking settings |
-| `Dockerfile` | Container build for the CLI and server |
+| `packaging/` | Installer assets: desktop entry, icon, systemd units, deb maintainer scripts, Windows WSL2 installer, install notes |
+| `Dockerfile`, `docker-compose.yml` | Container build and run for the server |

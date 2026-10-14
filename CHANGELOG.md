@@ -1,7 +1,16 @@
 # Changelog
 
-## Unreleased
+## 1.8.0 — 2026-10-14
 
+- Add release installers: `backup-studio-client` (Qt desktop client plus the
+  command-line client), `backup-studio-server` (service, systemd unit and
+  conffile) and the all-in-one `backup-studio` package, together with an
+  all-in-one tarball and a server container image. `Utils/package-wsl.sh`
+  builds them from a tagged commit and records checksums and a release
+  manifest.
+- Add `--bind` and the `bind_address` setting so a server can keep its
+  listener on the loopback interface; the all-in-one package uses it for the
+  local service that systemd starts on install.
 - Add a self-written LZ77 compression stage: independent 1 MiB blocks, a 64 KiB
   sliding window with hash chains and one-step lazy matching, and verbatim
   stored blocks for incompressible input so the payload never grows. LZ77

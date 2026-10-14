@@ -1,6 +1,7 @@
 build/
 build-msys/
 bin/
+dist/
 compile_commands.json
 server_data/
 output/

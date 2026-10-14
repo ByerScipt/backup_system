@@ -6,6 +6,12 @@ namespace backup::network
 {
 using namespace detail;
 
+bool isIPv4Address(const std::string& value)
+{
+    in_addr parsed{};
+    return ::inet_pton(AF_INET, value.c_str(), &parsed) == 1;
+}
+
 ServerConfig ServerConfig::load(const std::string& path)
 {
     ServerConfig config;
@@ -49,7 +55,13 @@ ServerConfig ServerConfig::load(const std::string& path)
                "server setting must use key = value: " + line);
         std::string key = trim(line.substr(0, equals)),
                     value = trim(line.substr(equals + 1));
-        if (key == "port")
+        if (key == "bind_address")
+        {
+            ensure(isIPv4Address(value),
+                   "bind_address must be an IPv4 literal: " + value);
+            config.bindAddress = value;
+        }
+        else if (key == "port")
         {
             config.port = static_cast<uint16_t>(parseNumber(value, 65535));
         }
@@ -113,17 +125,21 @@ bool BackupServer::run()
         listenFd_.store(fd);
         int yes = 1;
         setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+        ensure(isIPv4Address(config_.bindAddress),
+               "invalid bind address: " + config_.bindAddress);
         sockaddr_in address{};
         address.sin_family = AF_INET;
-        address.sin_addr.s_addr = INADDR_ANY;
+        ensure(::inet_pton(AF_INET, config_.bindAddress.c_str(),
+                           &address.sin_addr) == 1,
+               "invalid bind address: " + config_.bindAddress);
         address.sin_port = htons(config_.port);
         ensure(::bind(fd, reinterpret_cast<sockaddr*>(&address),
                       sizeof(address)) == 0,
                "cannot bind backup server port");
         ensure(::listen(fd, static_cast<int>(config_.maxConnections)) == 0,
                "cannot listen on backup server port");
-        std::cout << "backup-server listening on 0.0.0.0:" << config_.port
-                  << "\n";
+        std::cout << "backup-server listening on " << config_.bindAddress << ":"
+                  << config_.port << "\n";
         while (!stopRequested_)
         {
             int client = ::accept(fd, nullptr, nullptr);
