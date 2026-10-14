@@ -3,11 +3,17 @@
 namespace backup::detail
 {
 
+uint16_t archiveVersionFor(CompressionAlgorithm compression)
+{
+    return compression == CompressionAlgorithm::Lz77 ? kArchiveVersionLz77
+                                                     : kArchiveVersion;
+}
+
 void writeArchiveHeader(std::ostream& out, const ArchiveInfo& info,
                         const std::array<uint8_t, 16>& salt)
 {
     writeExact(out, kArchiveMagic.data(), kArchiveMagic.size());
-    writeU16(out, kArchiveVersion);
+    writeU16(out, archiveVersionFor(info.compression));
     writeU16(out, kArchiveHeaderSize);
     uint32_t flags = 1u;
     if (info.compression != CompressionAlgorithm::None)
@@ -37,7 +43,8 @@ ParsedHeader readArchiveHeader(std::istream& in)
     readExact(in, magic.data(), magic.size());
     ensure(magic == kArchiveMagic, "invalid archive magic; expected BKP2");
     parsed.info.version = readU16(in);
-    ensure(parsed.info.version == 1 || parsed.info.version == kArchiveVersion,
+    ensure(parsed.info.version == 1 || parsed.info.version == kArchiveVersion ||
+               parsed.info.version == kArchiveVersionLz77,
            "unsupported archive version");
     ensure(readU16(in) == kArchiveHeaderSize,
            "unsupported archive header size");
@@ -46,9 +53,11 @@ ParsedHeader readArchiveHeader(std::istream& in)
             encryption = readU8(in);
     ensure(readU8(in) == 0, "non-zero archive reserved byte");
     ensure(pack == 1 || pack == 2, "invalid pack algorithm identifier");
-    ensure(compression <= 2 &&
+    ensure(compression <= 3 &&
                (encryption == 0 || encryption == 3 || encryption == 4),
            "invalid transform algorithm identifier");
+    ensure(parsed.info.version >= kArchiveVersionLz77 || compression != 3,
+           "LZ77 compression requires archive version 3");
     ensure(encryption != 1 && encryption != 2,
            "legacy XOR/Vigenere archives are no longer supported");
     parsed.info.pack = static_cast<PackAlgorithm>(pack);

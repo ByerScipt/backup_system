@@ -20,9 +20,13 @@ int main(int argc, char* argv[])
             testNetwork(temp.path, archive);
             return 0;
         }
-        std::cout << "[1/4] SHA-256 and cipher known-answer vectors\n";
+        std::cout << "[1/4] SHA-256, cipher vectors, and LZ77 compression\n";
         testSha256();
         testCryptoVectors();
+        testLz77RoundTrip();
+        testLz77HandBuiltStreams();
+        testLz77RejectsMalformedStreams();
+        testLz77ArchiveVersion();
         testUnreadableSource();
         testMetadataFailure();
         testSyncFailure();
@@ -40,7 +44,7 @@ int main(int argc, char* argv[])
         createFixture(source);
         std::vector<std::string> fixturePaths = listTree(source);
 
-        std::cout << "[2/4] 18 complete-tree algorithm combinations\n";
+        std::cout << "[2/4] 24 complete-tree algorithm combinations\n";
         auto archives = testAllCombinations(temp.path, source, fixturePaths);
         std::cout << "[3/4] corruption, bounds, conflicts, and path races\n";
         testFailureModes(temp.path, source, archives);

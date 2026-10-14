@@ -405,6 +405,8 @@ QString stageName(const QString& stage)
         {"huffman-count", "Huffman 统计"},
         {"compress-huffman", "Huffman 压缩"},
         {"decompress-huffman", "Huffman 解压"},
+        {"compress-lz77", "LZ77 压缩"},
+        {"decompress-lz77", "LZ77 解压"},
         {"encrypt", "加密载荷"},
         {"decrypt", "解密载荷"},
         {"extract", "提取文件"},

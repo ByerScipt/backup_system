@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add a self-written LZ77 compression stage: independent 1 MiB blocks, a 64 KiB
+  sliding window with hash chains and one-step lazy matching, and verbatim
+  stored blocks for incompressible input so the payload never grows. LZ77
+  archives use BKP2 version 3, while versions 1 and 2 stay readable; expose
+  `--compress lz77`, a Qt compression entry and the `compress-lz77`/
+  `decompress-lz77` progress stages.
 - Extend the editable StarUML model with use-case, three sequence diagrams and
   deployment views; the public-interface class diagram is unchanged. Keep the
   course documents themselves local under the ignored docs directory.

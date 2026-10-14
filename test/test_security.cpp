@@ -41,8 +41,11 @@ void expectRestoreFailure(const fs::path& archive, const fs::path& destination,
 void testTransformBounds(const fs::path& workspace,
                          const std::vector<BuiltArchive>& archives)
 {
-    for (auto compression :
-         {CompressionAlgorithm::Rle, CompressionAlgorithm::Huffman})
+    const std::pair<CompressionAlgorithm, const char*> compressedStreams[] = {
+        {CompressionAlgorithm::Rle, "RLE"},
+        {CompressionAlgorithm::Huffman, "Huffman"},
+        {CompressionAlgorithm::Lz77, "LZ77"}};
+    for (const auto& [compression, name] : compressedStreams)
     {
         const auto& source =
             findArchive(archives, PackAlgorithm::Stream, compression,
@@ -52,15 +55,11 @@ void testTransformBounds(const fs::path& workspace,
         writeLe64(bytes, 116, packedSize + 1);
         refreshPayloadDigests(bytes, false);
         fs::path malformed =
-            workspace / (compression == CompressionAlgorithm::Rle
-                             ? "rle-over-output.bak"
-                             : "huffman-over-output.bak");
+            workspace / (std::string(name) + "-over-output.bak");
         writeBytes(malformed, bytes);
         expectRestoreFailure(
             malformed, workspace / (malformed.stem().string() + "-target"),
-            compression == CompressionAlgorithm::Rle
-                ? "RLE declared output size"
-                : "Huffman declared output size");
+            std::string(name) + " declared output size");
     }
 
     const auto& huffman =

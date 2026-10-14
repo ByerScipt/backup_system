@@ -789,7 +789,8 @@ int main(int argc, char* argv[])
     app.installEventFilter(&buttonFilter);
     for (const auto* stage :
          {"encrypt", "decrypt", "network-upload", "network-download",
-          "compress-copy", "decompress-copy", "read-archive", "finalize"})
+          "compress-copy", "decompress-copy", "compress-lz77",
+          "decompress-lz77", "read-archive", "finalize"})
     {
         if (backup::gui::stageName(stage) == stage)
         {

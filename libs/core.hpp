@@ -23,8 +23,9 @@ enum class CompressionAlgorithm : uint8_t
 {
     None = 0,
     Rle = 1,
-    Huffman = 2
-};
+    Huffman = 2,
+    Lz77 = 3
+}; // Lz77 archives require archive version 3
 enum class EncryptionAlgorithm : uint8_t
 {
     None = 0,

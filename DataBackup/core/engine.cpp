@@ -54,7 +54,7 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
         }
 
         ArchiveInfo info;
-        info.version = detail::kArchiveVersion;
+        info.version = detail::archiveVersionFor(options.compression);
         info.pack = options.pack;
         info.compression = options.compression;
         info.encryption = options.encryption;
@@ -242,6 +242,8 @@ std::string toString(CompressionAlgorithm value)
         return "rle";
     case CompressionAlgorithm::Huffman:
         return "huffman";
+    case CompressionAlgorithm::Lz77:
+        return "lz77";
     }
     return "unknown";
 }
@@ -286,6 +288,10 @@ CompressionAlgorithm parseCompressionAlgorithm(const std::string& value)
     if (value == "huffman")
     {
         return CompressionAlgorithm::Huffman;
+    }
+    if (value == "lz77")
+    {
+        return CompressionAlgorithm::Lz77;
     }
     throw std::invalid_argument("unknown compression algorithm: " + value);
 }

@@ -112,7 +112,7 @@ void testHardLinks()
     {
         for (auto compression :
              {CompressionAlgorithm::None, CompressionAlgorithm::Rle,
-              CompressionAlgorithm::Huffman})
+              CompressionAlgorithm::Huffman, CompressionAlgorithm::Lz77})
         {
             for (auto encryption :
                  {EncryptionAlgorithm::None, EncryptionAlgorithm::ChaCha20,
@@ -130,8 +130,9 @@ void testHardLinks()
                                            options)
                           .success,
                       "hardlink backup failed");
-                check(BackupEngine::inspect(archive.string()).version == 2,
-                      "hardlinks were not written with version 2");
+                check(BackupEngine::inspect(archive.string()).version ==
+                          (compression == CompressionAlgorithm::Lz77 ? 3 : 2),
+                      "hardlinks were not written with the expected version");
                 const auto destination = temp.path / name;
                 RestoreOptions restore;
                 restore.password = options.password;

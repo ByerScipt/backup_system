@@ -42,7 +42,11 @@ namespace backup::detail
 inline constexpr size_t kBufferSize = 1024 * 1024;
 inline constexpr uint64_t kMaxEntries = 1000000;
 inline constexpr uint32_t kMaxString = 1024 * 1024;
+// Version 1 predates hardlinks, version 2 adds them, version 3 adds LZ77
+// compression. Archives are written with the lowest version that covers their
+// content so older readers keep accepting them.
 inline constexpr uint16_t kArchiveVersion = 2;
+inline constexpr uint16_t kArchiveVersionLz77 = 3;
 inline constexpr uint16_t kArchiveHeaderSize = 112;
 inline constexpr std::array<char, 4> kArchiveMagic{{'B', 'K', 'P', '2'}};
 inline constexpr std::array<char, 8> kStreamMagic{
@@ -163,6 +167,10 @@ void huffmanCompress(const fs::path& input, const fs::path& output,
                      const BackupOptions& options);
 void huffmanDecompress(const fs::path& input, const fs::path& output,
                        uint64_t expectedSize, const RestoreOptions& options);
+void lz77Compress(const fs::path& input, const fs::path& output,
+                  const BackupOptions& options);
+void lz77Decompress(const fs::path& input, const fs::path& output,
+                    uint64_t expectedSize, const RestoreOptions& options);
 void compressStage(const fs::path& input, const fs::path& output,
                    CompressionAlgorithm algorithm,
                    const BackupOptions& options);
@@ -192,6 +200,7 @@ struct ParsedHeader
     ArchiveInfo info;
     std::array<uint8_t, 16> salt{};
 };
+uint16_t archiveVersionFor(CompressionAlgorithm compression);
 void writeArchiveHeader(std::ostream& out, const ArchiveInfo& info,
                         const std::array<uint8_t, 16>& salt);
 ParsedHeader readArchiveHeader(std::istream& in);

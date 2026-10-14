@@ -6,7 +6,7 @@ The project implements its archive format, compression, and encryption without e
 
 ## Features
 
-- **Archive pipeline:** sequential or indexed packing, with optional RLE or Huffman compression and ChaCha20 or AES-256-CTR encryption.
+- **Archive pipeline:** sequential or indexed packing, with optional RLE, Huffman, or LZ77 compression and ChaCha20 or AES-256-CTR encryption.
 - **Files and metadata:** archive and restore directory trees, permissions, ownership, and timestamps, including symbolic links and special files where supported by the filesystem and user privileges.
 - **Remote backups:** register an account, upload archives, list backups, and download them for restoration. Each account has its own storage directory.
 - **Desktop interface:** local and remote backup workflows with background jobs, progress reporting, logs, and cancellation. Local restore includes a conflict preview. Remote pages share connection
@@ -86,7 +86,7 @@ Encryption prompts for an archive password; restore requires the same password. 
 | Option | Values | Default |
 | :--- | :--- | :--- |
 | `--pack` | `stream`, `index` | `stream` |
-| `--compress` | `none`, `rle`, `huffman` | `none` |
+| `--compress` | `none`, `rle`, `huffman`, `lz77` | `none` |
 | `--encrypt` | `none`, `chacha20`, `aes256` | `none` |
 
 An archive must be written outside the source tree, to a path that does not already exist. Restore rejects conflicting paths unless `--overwrite` is supplied. In the GUI, local restore also offers a conflict preview before extraction.
@@ -124,6 +124,8 @@ Replace `BACKUP_ID` with the ID returned by upload or listing. Account passwords
 
 **Archive pipeline.** The core scans a directory tree, packs its contents, then applies the selected compression and encryption. File data is processed in chunks, with temporary files between stages; entry metadata remains in memory. Allow disk space for intermediate files. Sequential packing stores metadata with each entry; indexed packing places an offset table after the file data. Both use the custom `BKP2` format.
 
+**Compression.** RLE and Huffman are self-contained self-written stages. LZ77 is the strongest option: it encodes the packed stream in independent 1 MiB blocks, using a 64 KiB sliding window with hash chains and one-step lazy matching, and stores any block verbatim when the token stream would not be smaller, so compression never grows a payload. LZ77 archives are written as `BKP2` version 3; versions 1 and 2 remain readable.
+
 **Restore.** SHA-256 digests cover the packed data and encoded payload. The reader checks sizes, checksums, paths, and decompression bounds before extracting any entries. Directory file descriptors and `*at` calls constrain destination path resolution. Backup output is committed atomically; restore commits entries individually, without whole-directory rollback.
 
 **Network storage.** A framed TCP protocol supports account registration, challenge-response login, and archive transfers. The server runs a worker thread per connection, subject to the configured connection limit. Uploads are checked against their declared size and SHA-256 digest before being committed to the user's storage directory. Clients build archives before upload and download them before extraction.
@@ -149,8 +151,9 @@ make test
 
 The CTest suite covers:
 
-- SHA-256 and cipher known-answer vectors, including encryption stream offsets.
-- Complete directory-tree round trips for all 18 packing, compression, and encryption combinations.
+- SHA-256, cipher known-answer vectors, and LZ77 unit cases: round trips,
+  hand-built streams, and malformed stream rejection.
+- Complete directory-tree round trips for all 24 packing, compression, and encryption combinations.
 - Incorrect passwords, damaged and truncated archives, size bounds, invalid paths, overwrite conflicts, restore previews, and destination path races.
 - Account isolation, upload/download round trips, interrupted uploads, cancelled transfers, request ID validation, session recycling, and persistence across server restarts.
 - Buffered disk-full failures, source-to-FIFO races, final-stage cancellation,

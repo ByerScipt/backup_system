@@ -40,7 +40,9 @@ void addAlgorithmRows(QFormLayout* form, QComboBox*& pack,
     compression->addItem("无", "none");
     compression->addItem("RLE", "rle");
     compression->addItem("Huffman", "huffman");
-    compression->setToolTip("RLE 适合重复数据，Huffman 适合一般数据。");
+    compression->addItem("LZ77", "lz77");
+    compression->setToolTip(
+        "RLE 适合重复数据，Huffman 适合一般数据，LZ77 压缩率更高但更慢。");
     form->addRow("压缩", compression);
 
     encryption = new QComboBox;

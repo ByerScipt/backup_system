@@ -26,6 +26,8 @@ rejected([cli, "restore", "unused", "-d", "unused", "--pack", "index"], "option"
 rejected([cli, "remote-list", "unexpected-positional"], "positional")
 rejected([cli, "user", "register", "unexpected-positional"], "positional")
 rejected([cli, "backup", "unused", "-o", "a", "-o", "b"], "duplicate")
+rejected([cli, "backup", "unused", "-o", "a", "--compress", "lz77x"], "compression")
+rejected([cli, "backup", "unused", "-o", "a", "--compress", "huffman", "--compress", "lz77"], "duplicate")
 rejected([cli, "restore", "unused", "-d", "unused", "--overwrite", "--overwrite"], "duplicate")
 
 for binary in (cli, server):
@@ -37,21 +39,24 @@ with tempfile.TemporaryDirectory(prefix="backup-cli-test-") as directory:
     (source / "file").write_bytes(b"restore options fixture")
     key = root / "key"
     key.write_text("test password")
-    for encryption in ("none", "chacha20", "aes256"):
-        archive = root / (encryption + ".bak")
-        destination = root / encryption
-        subprocess.run([cli, "backup", str(source), "-o", str(archive),
-                        "--encrypt", encryption, "--key-file", str(key)],
-                       check=True, capture_output=True, timeout=5)
-        command = [cli, "restore", str(archive), "-d", str(destination),
-                   "--key-file", str(key)]
-        subprocess.run(command, check=True, capture_output=True, timeout=5)
-        restored = destination / "source/file"
-        assert restored.read_bytes() == (source / "file").read_bytes()
-        restored.write_bytes(b"existing content")
-        subprocess.run(command + ["--overwrite"], check=True,
-                       capture_output=True, timeout=5)
-        assert restored.read_bytes() == (source / "file").read_bytes()
+    for compression in ("none", "rle", "huffman", "lz77"):
+        for encryption in ("none", "chacha20", "aes256"):
+            name = compression + "-" + encryption
+            archive = root / (name + ".bak")
+            destination = root / name
+            subprocess.run([cli, "backup", str(source), "-o", str(archive),
+                            "--compress", compression,
+                            "--encrypt", encryption, "--key-file", str(key)],
+                           check=True, capture_output=True, timeout=5)
+            command = [cli, "restore", str(archive), "-d", str(destination),
+                       "--key-file", str(key)]
+            subprocess.run(command, check=True, capture_output=True, timeout=5)
+            restored = destination / "source/file"
+            assert restored.read_bytes() == (source / "file").read_bytes()
+            restored.write_bytes(b"existing content")
+            subprocess.run(command + ["--overwrite"], check=True,
+                           capture_output=True, timeout=5)
+            assert restored.read_bytes() == (source / "file").read_bytes()
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]

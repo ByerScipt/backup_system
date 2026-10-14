@@ -37,6 +37,9 @@ void compressStage(const fs::path& input, const fs::path& output,
     case CompressionAlgorithm::Huffman:
         huffmanCompress(input, output, options);
         break;
+    case CompressionAlgorithm::Lz77:
+        lz77Compress(input, output, options);
+        break;
     default:
         throw BackupError("unsupported compression algorithm");
     }
@@ -60,6 +63,9 @@ void decompressStage(const fs::path& input, const fs::path& output,
         break;
     case CompressionAlgorithm::Huffman:
         huffmanDecompress(input, output, expectedSize, options);
+        break;
+    case CompressionAlgorithm::Lz77:
+        lz77Decompress(input, output, expectedSize, options);
         break;
     default:
         throw BackupError("unsupported compression algorithm");

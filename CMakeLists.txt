@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(backup_system VERSION 1.7.1 LANGUAGES CXX)
+project(backup_system VERSION 1.8.0 LANGUAGES CXX)
 
 option(BACKUP_BUILD_GUI "Build the optional Qt6 GUI" ON)
 option(BACKUP_BUILD_TESTS "Build automated tests" ON)
@@ -23,6 +23,7 @@ add_library(backup_core STATIC
     DataBackup/core/pack.cpp
     DataBackup/core/compress_rle.cpp
     DataBackup/core/compress_huffman.cpp
+    DataBackup/core/compress_lz77.cpp
     DataBackup/core/crypto.cpp
     DataBackup/core/archive.cpp
     DataBackup/core/restore.cpp
@@ -86,6 +87,7 @@ if(BACKUP_BUILD_TESTS)
         test/test_main.cpp
         test/helpers.cpp
         test/test_combos.cpp
+        test/test_compress.cpp
         test/test_security.cpp
         test/test_network.cpp
         test/test_crypto_vectors.cpp

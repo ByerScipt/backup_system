@@ -21,7 +21,7 @@ testAllCombinations(const fs::path& workspace, const fs::path& source,
     {
         for (auto compression :
              {CompressionAlgorithm::None, CompressionAlgorithm::Rle,
-              CompressionAlgorithm::Huffman})
+              CompressionAlgorithm::Huffman, CompressionAlgorithm::Lz77})
         {
             for (auto encryption :
                  {EncryptionAlgorithm::None, EncryptionAlgorithm::ChaCha20,
@@ -71,7 +71,7 @@ testAllCombinations(const fs::path& workspace, const fs::path& source,
             }
         }
     }
-    check(archives.size() == 18, "not all 18 algorithm combinations ran");
+    check(archives.size() == 24, "not all 24 algorithm combinations ran");
     return archives;
 }
 
