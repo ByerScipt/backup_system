@@ -127,7 +127,7 @@ them to the delivery directory (`../backup_system_delivery` by default). It
 only packages a tagged commit, so tag and commit first:
 
 ```bash
-git tag -a v1.8.0 -m "Backup Studio 1.8.0"
+git tag -a v1.8.1 -m "Backup Studio 1.8.1"
 ./Utils/package-wsl.sh          # WITH_DOCKER=1 also builds the server image
 ```
 

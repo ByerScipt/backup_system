@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include <optional>
 
 namespace backup::detail
 {
@@ -113,20 +114,42 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
                   "read-archive", options.cancel);
         closeOutput(out);
     }
-    TempFile compressed;
-    cryptStage(encoded.path(), compressed.path(), header.info.encryption,
-               options.password, header.salt, options.progress, options.cancel,
-               "decrypt");
-    TempFile packed;
-    decompressStage(compressed.path(), packed.path(), header.info.compression,
-                    header.info.packedSize, options);
-    ensure(fileSizeChecked(packed.path()) == header.info.packedSize,
+    fs::path packedPath = encoded.path();
+    std::optional<TempFile> compressed, packed;
+    if (header.info.encryption != EncryptionAlgorithm::None)
+    {
+        compressed.emplace();
+        cryptStage(packedPath, compressed->path(), header.info.encryption,
+                   options.password, header.salt, options.progress,
+                   options.cancel, "decrypt");
+        packedPath = compressed->path();
+    }
+    else
+    {
+        report(options.progress, "decrypt", header.info.encodedSize,
+               header.info.encodedSize);
+    }
+    checkCancelled(options.cancel);
+    if (header.info.compression != CompressionAlgorithm::None)
+    {
+        packed.emplace();
+        decompressStage(packedPath, packed->path(), header.info.compression,
+                        header.info.packedSize, options);
+        packedPath = packed->path();
+    }
+    else
+    {
+        report(options.progress, "decompress-copy", header.info.packedSize,
+               header.info.packedSize);
+    }
+    checkCancelled(options.cancel);
+    ensure(fileSizeChecked(packedPath) == header.info.packedSize,
            "decoded packed size mismatch (wrong password or damaged archive)");
-    ensure(shaFileRange(packed.path(), 0, UINT64_MAX, options.cancel) ==
+    ensure(shaFileRange(packedPath, 0, UINT64_MAX, options.cancel) ==
                header.info.packedDigest,
            "decoded checksum mismatch (wrong password or damaged archive)");
 
-    auto entries = readPackedEntries(packed.path(), header.info.pack);
+    auto entries = readPackedEntries(packedPath, header.info.pack);
     if (header.info.version == 1)
     {
         ensure(std::none_of(entries.begin(), entries.end(),
@@ -135,7 +158,7 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
                "hardlinks require archive version 2");
     }
     checkCancelled(options.cancel);
-    consumer(header, packed.path(), entries);
+    consumer(header, packedPath, entries);
 }
 
 std::string entryTypeName(EntryType type)

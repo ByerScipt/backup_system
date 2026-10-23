@@ -1,5 +1,6 @@
 #include "../file_io.hpp"
 #include "internal.hpp"
+#include <optional>
 
 namespace backup
 {
@@ -62,23 +63,49 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
         info.packedDigest =
             detail::shaFileRange(packed.path(), 0, UINT64_MAX, options.cancel);
 
-        detail::TempFile compressed;
-        detail::compressStage(packed.path(), compressed.path(),
-                              options.compression, options);
+        std::optional<detail::TempFile> compressed;
+        fs::path payloadPath = packed.path();
+        if (options.compression != CompressionAlgorithm::None)
+        {
+            compressed.emplace();
+            detail::compressStage(payloadPath, compressed->path(),
+                                  options.compression, options);
+            payloadPath = compressed->path();
+        }
+        else
+        {
+            detail::report(options.progress, "compress-copy", info.packedSize,
+                           info.packedSize);
+        }
+        detail::checkCancelled(options.cancel);
         auto salt = detail::randomSalt();
-        detail::TempFile encoded;
-        detail::cryptStage(compressed.path(), encoded.path(),
-                           options.encryption, options.password, salt,
-                           options.progress, options.cancel, "encrypt");
-        info.encodedSize = detail::fileSizeChecked(encoded.path());
+        std::optional<detail::TempFile> encoded;
+        if (options.encryption != EncryptionAlgorithm::None)
+        {
+            encoded.emplace();
+            detail::cryptStage(payloadPath, encoded->path(), options.encryption,
+                               options.password, salt, options.progress,
+                               options.cancel, "encrypt");
+            payloadPath = encoded->path();
+        }
+        else
+        {
+            const auto size = detail::fileSizeChecked(payloadPath);
+            detail::report(options.progress, "encrypt", size, size);
+        }
+        detail::checkCancelled(options.cancel);
+        info.encodedSize = detail::fileSizeChecked(payloadPath);
         info.encodedDigest =
-            detail::shaFileRange(encoded.path(), 0, UINT64_MAX, options.cancel);
+            payloadPath == packed.path()
+                ? info.packedDigest
+                : detail::shaFileRange(payloadPath, 0, UINT64_MAX,
+                                       options.cancel);
 
         detail::TempFile finalTemp(canonicalParent);
         std::ofstream out(finalTemp.path(), std::ios::binary | std::ios::trunc);
         detail::ensure(out.good(), "cannot create final archive");
         detail::writeArchiveHeader(out, info, salt);
-        std::ifstream payload(encoded.path(), std::ios::binary);
+        std::ifstream payload(payloadPath, std::ios::binary);
         detail::ensure(payload.good(), "cannot reopen encoded payload");
         detail::copyBytes(payload, out, info.encodedSize, options.progress,
                           "finalize", options.cancel);

@@ -1,20 +1,20 @@
-# 课程交付检查单（Backup Studio 1.8.0）
+# 课程交付检查单（Backup Studio 1.8.1）
 
 | 项目 | 内容 |
 | :--- | :--- |
-| 检查单版本 | 1.1 |
-| 检查日期 | 2026-10-14 |
-| 对应代码基线 | `main` 分支 `3e928d3`（2026-10-02）+ 工作区 1.8.0 改动（LZ77） |
-| 对应软件版本 | 1.8.0 |
-| 说明 | 本文件与 `docs/requirements.md`、`docs/design.md`、`docs/test-report.md` 配套；按 `AGENTS.md` 约定，课程文档只保存在本机 `docs/`（被 `.gitignore` 忽略），不进入仓库。 |
+| 检查单版本 | 1.3 |
+| 检查日期 | 2026-10-23 |
+| 对应代码基线 | `v1.8.1`（基于 `6e2529d` 的后端修复与性能优化） |
+| 对应软件版本 | 1.8.1 |
+| 说明 | 课程文档及选定证据已纳入仓库；10-23 后端复验见测试报告开篇，以下交付物历史检查需按最终发布环境重新确认。 |
 
 ## 1 交付物清单
 
 | # | 交付物 | 位置 | 状态 |
 | ---: | :--- | :--- | :--- |
-| 1 | 需求分析说明书 | `docs/requirements.md`（18.6 KB） | 已完成 |
-| 2 | 系统设计文档 | `docs/design.md`（26.2 KB） | 已完成 |
-| 3 | 软件测试报告 | `docs/test-report.md`（20.5 KB） | 已完成（含 1 项真实缺陷 DEF-01；新增 LZ77 用例与对比） |
+| 1 | 需求分析说明书 | `docs/requirements.md` | 已完成 |
+| 2 | 系统设计文档 | `docs/design.md` | 已完成 |
+| 3 | 软件测试报告 | `docs/test-report.md` | 已完成（保留历史缺陷 DEF-01；含 LZ77 与后端修复回归） |
 | 4 | UML 模型（StarUML） | `DataBackup.mdj`（6 张图，已入库） | 已完成 |
 | 5 | 测试证据 | `docs/evidence/`（构建日志、CTest、性能、截图） | 已完成 |
 | 6 | 图生成与校验工具 | `docs/tools/make-diagrams.py`、`docs/tools/validate-mdj.py` | 已完成（本地工具） |
@@ -22,7 +22,7 @@
 | 8 | 项目看板（Teambition） | — | **待补** |
 | 9 | 成员贡献表 | 本文件第 4 节（真实 Git 统计） | 已完成 |
 | 10 | 演示录像 / 证书 | — | **待补** |
-| 11 | 发布安装包（客户端/服务端/一体包） | `backup_system_delivery/release/1.8.0/`：三个 deb + tar.gz + `SHA256SUMS` + `RELEASE-MANIFEST.txt` + `install-notes.md` | 已完成（实机 apt 安装与远程往返验收，见测试报告 4.3.9） |
+| 11 | 发布安装包（客户端/服务端/一体包） | `backup_system_delivery/release/1.8.0/`：三个 deb + tar.gz + `SHA256SUMS` + `RELEASE-MANIFEST.txt` + `install-notes.md` | 1.8.0 已验收（见测试报告 4.3.9）；1.8.1 尚未重新打包 |
 | 12 | Windows（WSL2）安装器 | `packaging/windows/install-wsl.ps1`、`Install-BackupStudio.cmd` | 部分：语法检查与 `-WhatIf` 干跑通过，未在干净 Windows 上实装 |
 | 13 | 容器交付 | `Dockerfile`、`docker-compose.yml`；镜像 tar 由 `Utils/package-wsl.sh` 在 `WITH_DOCKER=1` 时产出 | 待验证：本机无 Docker |
 
@@ -31,7 +31,7 @@
 | 检查项 | 结果 | 说明 |
 | :--- | :--- | :--- |
 | 三份文档结构完整 | 通过 | 均含封面信息表、章节编号、术语、追溯、变更记录 |
-| 版本一致 | 通过 | 三份文档与 `CMakeLists.txt` 均为 1.8.0；历史基线统一为 `3e928d3`，1.8.0 改动尚在工作区 |
+| 版本一致 | 通过 | 三份文档与 `CMakeLists.txt` 均为 1.8.1；本次基线为 `v1.8.1`，10-14 的 1.8.0 与 `3e928d3` 记录仅为历史证据 |
 | 需求编号可追溯 | 通过 | FR-01..16 / NFR-01..10 ↔ 设计 4.x ↔ 用例 TC-* |
 | 术语一致 | 通过 | 归档/packed/encoded/BKP2/NBKP 等术语在 requirements 1.3 定义，全文统一 |
 | 命令与选项与代码一致 | 通过 | 取自 `cli/main.cpp` 与 `cli/arguments.cpp` 的实际白名单 |
@@ -132,7 +132,7 @@
 | CTest（`make test`） | 2/3 通过（DEF-01） |
 | 离屏 GUI 启动与截图非空 | 通过 |
 | `.github/`、`.workflow` 不进入提交 | 通过（`.gitignore` 忽略） |
-| `docs/` 不进入提交 | 通过（`.gitignore` 忽略，符合 `AGENTS.md`） |
+| `docs/` 随代码维护 | 已跟踪；本轮同步后端设计、需求与测试结果 |
 
 ## 8 待办与责任人
 
@@ -153,5 +153,6 @@
 
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
+| 1.3 | 2026-10-23 | 同步 1.8.1 代码与文档基线，记录后端复验；安装包维持 1.8.0 历史验收状态，1.8.1 待重新打包 | `v1.8.1`、`docs/test-report.md`、`CHANGELOG.md` |
 | 1.2 | 2026-10-14 | 交付物清单新增发布安装包、Windows WSL2 安装器与容器交付；待办新增容器与 systemd 验证项 | `backup_system_delivery/release/1.8.0/`、`Utils/package-wsl.sh`、实机验收日志 |
 | 1.0 | 2026-10-14 | 首次编写；登记文档、UML、证据、工具矩阵与待办 | 本机实机验证日志、Git 统计、`AGENTS.md` |

@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.8.1 — 2026-10-23
+
+- Consolidate client response validation and remove redundant authentication
+  exception conversion.
+- Apply explicit server options after configuration loading regardless of
+  argument order; reject duplicate options and incomplete configuration reads.
+- Clean uploaded archives when either archive or metadata synchronization
+  fails, and reject malformed metadata instead of listing it as valid.
+- Keep listener ownership in the server thread, poll for shutdown and reclaim
+  finished sessions while idle. Bound overload replies and propagate cancellation
+  to error responses; release the account lock before network replies.
+- Send frame headers and payloads together to avoid delayed-ACK stalls; reuse
+  chunk buffers and secure temporary-file cleanup for downloads. Hash uploads
+  before authentication so local preparation cannot expire an idle session.
+- Reuse stage files when compression or encryption is disabled, preserving
+  checksum validation, progress and cancellation without redundant file copies.
+- Add configuration, storage-fault, malformed-metadata, capacity/recycling and
+  LZ77 output-failure regressions; record the backend audit and performance checks.
+
 ## 1.8.0 — 2026-10-14
 
 - Add release installers: `backup-studio-client` (Qt desktop client plus the
@@ -19,7 +38,7 @@
   `decompress-lz77` progress stages.
 - Extend the editable StarUML model with use-case, three sequence diagrams and
   deployment views; the public-interface class diagram is unchanged. Keep the
-  course documents themselves local under the ignored docs directory.
+  course documents and evidence in the repository's docs directory.
 - Flatten public headers into libs/ and sample files into exp/; update include
   paths and examples, keeping generated output outside the sample source tree.
 - Stop tracking GitHub workflow configuration; retain it locally and ignore

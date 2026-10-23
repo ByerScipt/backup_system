@@ -92,6 +92,74 @@ private:
 
 void testNetworkFailures()
 {
+    TempDirectory temp;
+    const auto archive = temp.path / "empty.bak";
+    writeBytes(archive, {});
+    // A full server must reject excess connections, recycle a disconnected
+    // slot and stop even while another client is idle.
+    backup::network::ServerConfig capacity;
+    capacity.bindAddress = "127.0.0.1";
+    capacity.port = reservePort();
+    capacity.maxConnections = 1;
+    capacity.storagePath = (temp.path / "capacity").string();
+    check(capacity.port != 0, "cannot reserve capacity regression port");
+    backup::network::BackupServer limited(capacity);
+    std::atomic_bool runningOkay{false};
+    std::thread service([&]() { runningOkay = limited.run(); });
+    try
+    {
+        net::Socket idle;
+        for (int attempt = 0; attempt < 50 && !idle.valid(); ++attempt)
+        {
+            try
+            {
+                idle = net::connectTo("127.0.0.1", capacity.port);
+            }
+            catch (const std::exception&)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        }
+        check(idle.valid(), "capacity server did not start");
+        net::Socket extra = net::connectTo("127.0.0.1", capacity.port);
+        net::setTimeouts(extra.get(), 2);
+        auto rejected = net::receiveFrame(extra.get());
+        check(rejected && rejected->type == net::MessageType::Error &&
+                  net::errorFromFrame(*rejected).find("limit") !=
+                      std::string::npos,
+              "full server did not reject the excess connection");
+        idle.close();
+        backup::network::BackupClient recycled("127.0.0.1", capacity.port,
+                                               "recycled", "password");
+        bool registered = false;
+        std::string failure;
+        for (int attempt = 0; attempt < 50 && !registered; ++attempt)
+        {
+            registered = recycled.registerUser(failure);
+            if (!registered)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        }
+        check(registered,
+              "closed connection slot was not recycled: " + failure);
+        auto waiting = net::connectTo("127.0.0.1", capacity.port);
+        const auto stopping = std::chrono::steady_clock::now();
+        limited.stop();
+        service.join();
+        check(runningOkay && std::chrono::steady_clock::now() - stopping <
+                                 std::chrono::seconds(2),
+              "idle connection prevented prompt shutdown");
+    }
+    catch (...)
+    {
+        limited.stop();
+        if (service.joinable())
+        {
+            service.join();
+        }
+        throw;
+    }
     // Login waits for a peer that accepts TCP but never sends its challenge.
     ScriptedServer stalled(
         [](int fd, std::atomic_bool& finished)
@@ -115,7 +183,8 @@ void testNetworkFailures()
         });
     std::string id, error;
     const auto started = std::chrono::steady_clock::now();
-    bool uploaded = client.upload("unused", "test", id, error, {}, &cancelled);
+    bool uploaded =
+        client.upload(archive.string(), "test", id, error, {}, &cancelled);
     const auto elapsed = std::chrono::steady_clock::now() - started;
     canceller.join();
     stalled.verify();
@@ -137,9 +206,6 @@ void testNetworkFailures()
     check(!registered && !error.empty(),
           "accepted registration with wrong request ID");
 
-    TempDirectory temp;
-    const auto archive = temp.path / "empty.bak";
-    writeBytes(archive, {});
     for (bool wrongRequest : {true, false})
     {
         ScriptedServer uploadServer(

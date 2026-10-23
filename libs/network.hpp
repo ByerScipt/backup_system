@@ -47,12 +47,13 @@ public:
     // A bindAddress that is not an IPv4 literal fails run() without binding.
     // Keep this object alive until run() has returned and its thread is joined.
     bool run();
+    // Requests cancellation; run() owns and closes its listener. Idle accept
+    // waits poll this flag at most every 100 ms, then join active sessions.
     void stop();
 
 private:
     ServerConfig config_;
     std::atomic_bool stopRequested_{false};
-    std::atomic_int listenFd_{-1};
 };
 
 class BackupClient

@@ -121,7 +121,8 @@ void sendFrame(int fd, MessageType type, uint32_t requestId,
                const std::vector<uint8_t>& payload = {},
                std::atomic_bool* cancel = nullptr);
 std::optional<Frame> receiveFrame(int fd, std::atomic_bool* cancel = nullptr);
-void sendError(int fd, uint32_t requestId, const std::string& message);
+void sendError(int fd, uint32_t requestId, const std::string& message,
+               std::atomic_bool* cancel = nullptr);
 std::string errorFromFrame(const Frame& frame);
 Socket connectTo(const std::string& host, uint16_t port,
                  std::atomic_bool* cancel = nullptr);

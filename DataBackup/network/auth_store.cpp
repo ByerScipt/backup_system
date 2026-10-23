@@ -215,7 +215,7 @@ RemoteBackupEntry readMeta(const fs::path& path, const std::string& id)
     uint8_t nb[2]{};
     in.read(reinterpret_cast<char*>(nb), 2);
     uint16_t n = nb[0] | (nb[1] << 8);
-    ensure(n <= 4096, "backup name is too long");
+    ensure(in.good() && n <= 256, "invalid backup metadata name length");
     RemoteBackupEntry e;
     e.id = id;
     e.name.resize(n);
@@ -236,6 +236,12 @@ RemoteBackupEntry readMeta(const fs::path& path, const std::string& id)
     e.digest.resize(64);
     in.read(e.digest.data(), 64);
     ensure(in.good(), "truncated backup metadata");
+    ensure(e.name.find('\0') == std::string::npos &&
+               std::all_of(e.digest.begin(), e.digest.end(),
+                           [](unsigned char c) { return std::isxdigit(c); }),
+           "invalid backup metadata name or checksum");
+    ensure(in.peek() == std::char_traits<char>::eof() && !in.bad(),
+           "backup metadata has trailing or unreadable data");
     return e;
 }
 
@@ -263,6 +269,8 @@ std::vector<RemoteBackupEntry> listEntries(const fs::path& storage,
             std::string id = name.substr(0, 32);
             if (validBackupId(id))
             {
+                ensure(entries.size() < 4096,
+                       "backup list exceeds protocol limit");
                 entries.push_back(readMeta(item.path(), id));
             }
         }
@@ -290,8 +298,11 @@ std::optional<UserRecord> findUser(const fs::path& storage,
 void setTimeouts(int fd, uint32_t seconds)
 {
     timeval timeout{static_cast<time_t>(seconds), 0};
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+    ensure(setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) ==
+                   0 &&
+               setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout,
+                          sizeof(timeout)) == 0,
+           "cannot configure socket timeouts");
 }
 
 } // namespace backup::network::detail
