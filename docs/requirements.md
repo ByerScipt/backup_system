@@ -319,5 +319,5 @@
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
 | 1.3 | 2026-10-23 | 同步 1.8.1 基线；明确配置覆盖、元数据校验和上传失败清理约束；功能与格式保持兼容 | `v1.8.1`、`CHANGELOG.md`、后端回归测试 |
-| 1.2 | 2026-10-14 | 新增 `bind_address`/`--bind` 与发布部署需求（客户端/服务端/一体包安装包）；UC-06 与配置表同步 | `CMakeLists.txt` 1.8.0、`libs/network.hpp`、`Utils/package-wsl.sh`、实机验收日志 |
+| 1.2 | 2026-10-14 | 新增 `bind_address`/`--bind` 与发布部署需求（客户端/服务端/一体包安装包）；UC-06 与配置表同步 | `CMakeLists.txt` 1.8.0、`libs/network.hpp`、`Utils/package-wsl.sh` |
 | 1.0 | 2026-10-14 | 首次编写，覆盖 1.7.1 功能、非功能、数据与接口需求 | 代码基线 `3e928d3`、`README.md`、`CHANGELOG.md` |

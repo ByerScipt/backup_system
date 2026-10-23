@@ -3,68 +3,43 @@
 | 项目 | 内容 |
 | :--- | :--- |
 | 文档名称 | 软件测试报告 |
-| 文档版本 | 1.3 |
+| 文档版本 | 1.4 |
 | 被测版本 | 1.8.1（`CMakeLists.txt` `project(... VERSION 1.8.1)`） |
 | 被测代码基线 | `v1.8.1`（基于 `6e2529d`）；下文 10-14 的 1.8.0 记录保留为历史证据 |
 | 测试日期 | 最新 2026-10-23；历史 2026-10-14 |
-| 测试执行 | 项目组（本机 WSL2 实机执行，命令与原始日志见附录） |
-| 结论 | 10-23 后端修复 CTest 3/3、格式检查通过；10-14 Qt 6.4.2 的 DEF-01 记录仍保留，不能以本机 Qt 6.2.4 通过宣告其修复 |
+| 测试执行 | 项目组；复现命令见附录 A，已归档日志见附录 D |
+| 结论 | 1.8.1 的 CTest 3/3 通过；1.8.0 在 Qt 6.4.2 下的 DEF-01 保留，Qt 6.2.4 通过不能证明其已修复 |
 
-> 按日期区分当前复验与历史证据；10-14 原始证据在 `docs/evidence/`，10-23
-> 隔离构建和性能输出在 `/tmp/backup-180-audit.pNPknL/`，临时目录不是长期证据库。
+> 测试日志随文档保存在 `docs/evidence/`，附录 D 按版本列出。
+> 日志中的目录占位符仅用于路径脱敏，测试输出、耗时和结果保持原样。
 
 ## 2026-10-23 后端复验
 
-使用普通用户 UID 1000、WSL2、GCC 11.4、Qt 6.2.4、Release 隔离构建。
-修复基于 1.8.0 的 `6e2529d`，最终发布为 1.8.1；仓库原有 bin 下的 1.7.1
-可执行文件没有用于当前验收。
+被测代码为 `v1.8.1`（`8fdcaa9`）。环境为普通用户 UID 1000、WSL2、GCC 11.4、
+Qt 6.2.4，采用 Release 构建。
 
 | 场景 | 结果与测试入口 |
 | --- | --- |
-| `--config` 位于参数前/后 | 修复前出现 `--config discarded explicit server overrides`；修复后两种顺序均监听指定地址端口；`test_cli.py` |
-| 配置路径是目录、重复选项、空存储参数 | 拒绝，不能静默按缺省配置启动；`test_network.cpp`、`test_cli.py` |
-| 上传文件/目录、元数据文件/目录 fsync 故障 | 扩展为 1–4 四个注入点；修复前目录同步失败留下孤立归档，修复后列表和存储目录均为空；`test_io.cpp` |
-| 元数据尾随字节、非法摘要字符 | 修复前错误返回正常列表；修复后拒绝且保留原文件；`test_network.cpp` |
-| maxConnections=1 | 拒绝第二连接、回收首个连接、允许后续注册、带空闲客户端正常停机；`test_network_failures.cpp` |
-| LZ77 输出设备写满 | 压缩和解压均报错；`test_io.cpp` |
+| `--config` 位于参数前/后 | 两种顺序均监听显式指定的地址端口；`test/test_cli.py` |
+| 配置路径是目录、重复选项、空存储参数 | 拒绝，不能静默按缺省配置启动；`test/test_network.cpp`、`test/test_cli.py` |
+| 上传文件/目录、元数据文件/目录 fsync 故障 | 1–4 四个注入点全部清理未完成产物；`test/test_io.cpp` |
+| 元数据尾随字节、非法摘要字符 | 拒绝且保留原文件；`test/test_network.cpp` |
+| maxConnections=1 | 拒绝第二连接、回收首个连接、允许后续注册、带空闲客户端正常停机；`test/test_network_failures.cpp` |
+| LZ77 输出设备写满 | 压缩和解压均报错；`test/test_io.cpp` |
 | 既有完整回归 | 24 种算法组合、损坏/越界/权限、网络取消及 GUI 工作流均通过 |
 
-完整构建与 clang-format 18.1.8 format-check 通过。CTest：核心/网络 6.91 秒、
-CLI 0.95 秒、GUI 7.59 秒，3/3 通过，总计 15.44 秒。WSL 脚本隔离测试 7/7 通过。
+发布门禁：Release 配置、clang-format 18 格式检查和全量构建通过。
+CTest 核心/网络 6.97 秒、CLI 0.95 秒、GUI 7.62 秒，3/3 通过。
+逐项输出与结果见 [1.8.1 CTest 日志](evidence/ctest-detail-181.log)。
 
-网络专项 `backup-tests --network` 本机耗时：修复前保留的基线二进制 18.80 秒，
-修改后 2.50 秒（当时已增加元数据/同步失败回归，尚未加入容量回收回归）。这是集成测试
-工作负载的单次耗时对比，主要收益来自小帧发送；不能作为真实网络大文件吞吐率结论。
+性能相关实现见 `DataBackup/network/io.cpp` 的帧合并发送、
+`DataBackup/network/client.cpp` 的块缓冲区复用，以及 `DataBackup/core/engine.cpp`
+和 `DataBackup/core/archive.cpp` 的无变换阶段文件复用。内存与耗时验收可按附录 A
+运行 `Utils/run_performance_test.sh`，历史测量见 4.3.5。
 
-160 MiB index/none/none 备份还原在 128 MiB 虚拟内存上限下通过，
-往返 5209 ms、备份/还原最大 RSS 均 5084 KiB，SHA-256 一致。
-复现脚本为 `Utils/run_performance_test.sh`；输出在上述临时目录的
-`performance/output/evidence/`。本轮没有修改压缩格式或关闭完整性校验。
-
-本轮侧重后端。Qt 6.4.2 特定布局问题、Windows 安装器及安装包切换场景没有据此宣告修复；
-以下 10-14 测试矩阵、缺陷及结论均属于原环境的历史记录。
+以下第 2、4–7 节保留 2026-10-14 的历史环境、结果及缺陷记录。
 
 ## 1 概述
-
-### 10-23 代码精简复验补充
-
-网络客户端集中八处响应校验，移除认证内部重复的异常转换；本次精简前后
-`client.cpp` 从 386 行降至 326 行。GUI 保持原控件与测试文件结构。
-以下为精简过程中的验证记录，最终发布门禁另列于本节。
-完整构建、format-check 和 CTest 3/3 通过：核心/网络 6.77 秒、CLI 1.04 秒、
-GUI 7.45 秒，总计 15.26 秒。
-
-额外 XCB/WSLg 桌面测试首次遇到弹框居中失败（页面 1，偏移 -528,-362），
-运行时同时报告 `/mnt/wslg/runtime-dir` 权限为 0777 而非 0700。
-将精简前的 GUI 控件和测试源码在临时目录编译对照，桌面测试通过；
-精简后的桌面测试单独重跑也通过，包含点击、弹框和完整用户工作流。
-首次失败原因尚未确定，不据此宣告桌面布局问题已解决。
-
-1.8.1 最终发布门禁（恢复原 GUI 文件结构后）：Release 配置、clang-format 18
-格式检查、全量构建通过；CTest 核心/网络 6.97 秒、CLI 0.95 秒、GUI 7.62 秒，
-3/3 通过，总计 15.54 秒。离屏 GUI 启动并生成有效主窗口截图；CLI 与服务端
-均报告 1.8.1。日志位于 `/tmp/backup-180-audit.pNPknL/build/Testing/Temporary/LastTest.log`，
-截图位于 `/tmp/backup-180-audit.pNPknL/gui-smoke-181.png`。
 
 ### 1.1 测试目标
 
@@ -82,7 +57,7 @@ GUI 7.45 秒，总计 15.26 秒。
 | CLI 参数与提示、GUI 离屏工作流 | 第三方安全审计（自研算法仅做 KAT 与边界验证） |
 | 性能与峰值内存（160 MiB 样本） | |
 
-## 2 测试环境
+## 2 测试环境（2026-10-14 历史记录）
 
 | 项 | 值 |
 | :--- | :--- |
@@ -93,7 +68,7 @@ GUI 7.45 秒，总计 15.26 秒。
 | 桌面依赖 | Qt 6.4.2（Widgets/Test/Network）、Noto Sans CJK 字体 |
 | 图形平台 | `QT_QPA_PLATFORM=offscreen`（离屏） |
 | 构建账户 | `builder`（UID 1000，非 root，权限用例按普通用户执行） |
-| 构建副本 | `/home/builder/backup-system-build.FnDI8K`（ext4，非 `/mnt`；一键脚本自动分配） |
+| 构建文件系统 | WSL Linux 的 ext4 文件系统；由 `Utils/build-wsl.sh` 分配独立构建副本 |
 
 ## 3 测试策略与用例组织
 
@@ -109,7 +84,7 @@ GUI 7.45 秒，总计 15.26 秒。
 断言点静态统计（本次基线）：`check(...)` 239 处（核心/网络/CLI 辅助），
 `require(...)` 72 处（GUI）。
 
-## 4 测试执行与结果
+## 4 测试执行与结果（2026-10-14 历史记录）
 
 ### 4.1 构建与格式检查
 
@@ -253,7 +228,8 @@ OK
 #### 4.3.6 GUI 离屏起停与截图
 
 ```
-QT_QPA_PLATFORM=offscreen BACKUP_GUI_CAPTURE=/tmp/gui-smoke-180.png timeout 10s ./bin/backup-gui
+mkdir -p output/evidence
+QT_QPA_PLATFORM=offscreen BACKUP_GUI_CAPTURE=output/evidence/gui-smoke.png timeout 10s ./bin/backup-gui
 退出码 0；截图 docs/evidence/gui-smoke-180.png 50 998 字节（非空）
 ```
 
@@ -303,26 +279,15 @@ libstdc++ 头文件）：
 结论：畸形压缩流不会造成崩溃、挂死或错误数据落地；要么被 LZ77 解码器的边界
 校验拒绝，要么落到 packed 摘要校验上。
 
-#### 4.3.9 发布安装包（新增，通过）
+#### 4.3.9 发布安装包（TC-PKG-01..12，待补证）
 
-发布脚本 `Utils/package-wsl.sh` 在 WSL2（Ubuntu 24.04）中跑完整门禁后由 CPack
-生成三个 deb 与一个 tar.gz，并解包复跑已安装二进制；随后在实机用 apt 安装一体包
-做端到端验收（2026-10-14，包内版本 1.8.0，代码基线 `df416a0` + 本次打包改动）。
+发布实现已入库：`Utils/package-wsl.sh`、`CMakeLists.txt`、`packaging/`、
+`Install-BackupStudio.cmd`、`Dockerfile` 与 `docker-compose.yml`。
+构建入口及产物说明见 `README.md` 的 Packaging 节，安装方式见
+`packaging/install-notes.md`。
 
-| 用例 ID | 用例 | 结果 |
-| :--- | :--- | :--- |
-| TC-PKG-01 | 版本门禁：CMake 版本、标签提交与 CHANGELOG 段一致；脏工作区/未打标签默认拒绝 | 通过（本次以 `ALLOW_DIRTY=1 ALLOW_UNTAGGED=1` 试跑） |
-| TC-PKG-02 | 客户端包依赖含 `qt6-qpa-plugins`、`fonts-noto-cjk` 与自动计算的 Qt 库；服务端包不继承 Qt 依赖 | 通过 |
-| TC-PKG-03 | 安装布局：`usr/bin`、`usr/share`、`/etc/backup-studio/databackup.conf`、`/lib/systemd/system/backup-studio.service` + 一体包 drop-in | 通过 |
-| TC-PKG-04 | 解包后运行：`backup-cli`/`backup-server` 报告 1.8.0；无 RPATH/RUNPATH；不链接构建目录 | 通过 |
-| TC-PKG-05 | 实机安装一体包：创建 `backup-studio` 系统账户、写入 conffile 与单元、`systemd-analyze verify` 无输出 | 通过 |
-| TC-PKG-06 | 按配置只监听回环：`ss -ltn` 显示 `127.0.0.1:18848`（`bind_address` 生效） | 通过 |
-| TC-PKG-07 | 远程往返：注册 → 上传（chacha20）→ 列表 → 还原，内容比对一致 | 通过 |
-| TC-PKG-08 | 已安装桌面端离屏启动并产出截图（50 998 字节） | 通过 |
-| TC-PKG-09 | 卸载语义：`apt-get remove` 后二进制消失、conffile 保留、数据目录不被删除、系统账户保留 | 通过 |
-| TC-PKG-10 | 容器镜像构建与运行 | **未执行**（本机无 Docker；脚本在 `WITH_DOCKER=1` 时构建并 `docker save`） |
-| TC-PKG-11 | systemd 服务实际启动/开机自启 | **未执行**（该 WSL 发行版未启用 systemd；单元语法已校验） |
-| TC-PKG-12 | Windows WSL2 安装器 | **部分**（PowerShell 语法检查与 `-WhatIf` 干跑通过；未在干净 Windows 上实装） |
+仓库尚未归档发布包及其安装、卸载、容器运行、systemd 自启和 Windows 安装验收日志，
+本报告将这些交付验收项标为待补证。
 
 ## 5 缺陷记录
 
@@ -409,13 +374,13 @@ libstdc++ 头文件）：
 - Windows/WSLg 交互式界面验收尚未在本机执行，需在真实 Windows 桌面完成。
 - MSYS2/Cygwin 后备环境未参与本次验证（平台差异会导致部分用例跳过）。
 
-## 7 结论与遗留问题
+## 7 结论与遗留问题（2026-10-14 历史记录）
 
 1. 构建、格式检查、核心、网络、CLI、WSL 启动器与性能项全部通过；
    归档格式、协议与安全约束未发现缺陷。
 2. 唯一失败项 DEF-01 属界面布局回归，已定位到 `makeCard` 垂直居中与
    `QFormLayout` 隐藏行不占位的组合原因，修复方向明确，待下一迭代实施。
-3. 遗留：WSLg 交互验收、Teambition 看板与成员分工记录、cpplint /
+3. 遗留：发布包及安装验收、WSLg 交互验收、Teambition 看板与成员分工记录、cpplint /
    gtest / valgrind / gprof / perf 等课程点名工具的证据仍需补齐，
    详见 `docs/course-checklist.md`。
 
@@ -423,21 +388,24 @@ libstdc++ 头文件）：
 
 ```bash
 # 一键（Git Bash → WSL2）：格式检查 + 并行构建 + CTest + 离屏 GUI 截图
-GUEST_DIR=/home/builder/backup-studio-validation-20261014 ./Utils/build-wsl.sh
+./Utils/build-wsl.sh
 
 # 单独执行
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBACKUP_BUILD_GUI=ON
+cmake --build build --target format-check
+cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 python3 test/test_cli.py bin/backup-cli bin/backup-server
 python3 test/test_build_wsl.py
 QT_QPA_PLATFORM=offscreen ./bin/backup-gui-tests
-BACKUP_GUI_EVIDENCE_DIR=/tmp/gui-evidence QT_QPA_PLATFORM=offscreen ./bin/backup-gui-tests
-DELIVERY_ROOT=/tmp/perf-evidence MEMORY_KIB=131072 SIZE_MIB=160 \
+mkdir -p output/evidence
+BACKUP_GUI_EVIDENCE_DIR="$(pwd)/output/evidence" QT_QPA_PLATFORM=offscreen ./bin/backup-gui-tests
+DELIVERY_ROOT="$(pwd)/output/benchmark" MEMORY_KIB=131072 SIZE_MIB=160 \
   ./Utils/run_performance_test.sh bin/backup-cli
 
-# 发布安装包（Git Bash → WSL2）：门禁 + CPack + 解包复跑，产物落到交付目录
-ALLOW_DIRTY=1 ALLOW_UNTAGGED=1 ./Utils/package-wsl.sh
-# 实机安装验收
-sudo apt-get install -y backup_system_delivery/release/1.8.0/backup-studio_1.8.0_amd64.deb
+# 发布安装包（Git Bash → WSL2）：从已发布标签构建，输出由命令生成
+git switch --detach v1.8.1
+DELIVERY_ROOT="$(pwd)/output/delivery" ./Utils/package-wsl.sh
 ```
 
 ## 附录 B 环境变量与证据目录
@@ -446,21 +414,28 @@ sudo apt-get install -y backup_system_delivery/release/1.8.0/backup-studio_1.8.0
 | :--- | :--- |
 | `BACKUP_GUI_CAPTURE` | 离屏启动后保存主窗口截图 |
 | `BACKUP_GUI_EVIDENCE_DIR` | GUI 测试保存登录/注册对齐截图（DEF-01 现场） |
-| `DELIVERY_ROOT` | 性能脚本的证据输出根目录 |
+| `DELIVERY_ROOT` | 性能脚本将证据写入所选目录下的 `output/evidence/`；这些输出由执行命令生成 |
 
 ## 附录 C 文档变更记录
 
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
-| 1.3 | 2026-10-23 | 同步 1.8.1，记录配置、同步故障、元数据、容量回收与 LZ77 写入失败回归；区分当前复验与历史环境缺陷 | `v1.8.1`、本机隔离构建与测试日志 |
-| 1.2 | 2026-10-14 | 新增 4.3.9 发布安装包实测（TC-PKG-01..12）、TC-NET-15 与 TC-CLI-01 的 `--bind` 用例；未执行项如实标注 | WSL2 实机日志、`backup_system_delivery/release/1.8.0/`、`Utils/package-wsl.sh` |
+| 1.4 | 2026-10-23 | 文档引用统一为仓库文件、发布标签和可复现命令；归档 1.8.1 CTest 日志并脱敏历史日志路径；安装包验收按入库证据重标 | `v1.8.1`、`docs/evidence/`、`Utils/package-wsl.sh` |
+| 1.3 | 2026-10-23 | 同步 1.8.1，记录配置、同步故障、元数据、容量回收与 LZ77 写入失败回归；区分当前复验与历史环境缺陷 | `v1.8.1`、`docs/evidence/ctest-detail-181.log` |
+| 1.2 | 2026-10-14 | 新增发布安装包检查项（TC-PKG-01..12）、TC-NET-15 与 TC-CLI-01 的 `--bind` 用例 | `Utils/package-wsl.sh`、`libs/network.hpp` |
 | 1.1 | 2026-10-14 | 同步 1.8.0：CTest 与性能数据更新为本次实机结果；新增 TC-LZ77-01..04、4.3.7 压缩效果对比与 4.3.8 解码健壮性扫描；DEF-01 补充 1.8.0 复核 | WSL2 实机日志（附录 D）、`CMakeLists.txt` 1.8.0、`CHANGELOG.md` |
 | 1.0 | 2026-10-14 | 首次编写；填写本机真实执行结果与 DEF-01 | WSL2 实机日志（附录 D）、`CHANGELOG.md` |
 
-## 附录 D 原始日志位置
+## 附录 D 已归档日志与截图
+
+文本日志只替换了具体机器的路径：`$SOURCE_DIR` 表示仓库根目录，`$BUILD_ROOT`
+表示独立构建副本，`$BUILD_DIR` 表示构建目录，`$BIN_DIR` 表示可执行文件目录，
+`$FIXTURE_DIR` 表示测试数据目录，`$RUNTIME_DIR` 表示图形运行时目录。
+这些是日志阅读占位符，不是运行命令的前置配置。
 
 | 文件 | 内容 |
 | :--- | :--- |
+| `docs/evidence/ctest-detail-181.log` | 1.8.1 三项 CTest 的逐项输出、耗时与通过结果 |
 | `docs/evidence/build-wsl-180.log` | 1.8.0 一键脚本日志（format-check、构建、CTest） |
 | `docs/evidence/ctest-detail-180.log` | 1.8.0 三项 CTest 详细输出（含 DEF-01） |
 | `docs/evidence/lz77-comparison-180.log` | 4.3.7 压缩对比与 LZ77 峰值内存原始输出 |

@@ -509,6 +509,6 @@ flowchart LR
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
 | 1.3 | 2026-10-23 | 同步 1.8.1：服务线程生命周期、失败清理、帧合并发送、暂存文件复用及客户端响应校验去重；BKP2/NBKP 格式不变 | `v1.8.1`、`core/archive.cpp`、`core/engine.cpp`、`network/*.cpp` |
-| 1.2 | 2026-10-14 | 新增发布打包设计（3.3 目录、4.6 监听配置、7.5 安装包与 WSL2 安装器）与 `bind_address` | `CMakeLists.txt` 1.8.0、`Utils/package-wsl.sh`、实机验收日志 |
+| 1.2 | 2026-10-14 | 新增发布打包设计（3.3 目录、4.6 监听配置、7.5 安装包与 WSL2 安装器）与 `bind_address` | `CMakeLists.txt` 1.8.0、`Utils/package-wsl.sh`、`packaging/` |
 | 1.1 | 2026-10-14 | 同步 1.8.0 基线：新增 LZ77 压缩阶段（4.3.1 格式与不变量、压缩 id 3、版本 3 门控）；模块清单与备份时序图补充 LZ77 | `CMakeLists.txt` 1.8.0、`core/compress_lz77.cpp`、`CHANGELOG.md` |
 | 1.0 | 2026-10-14 | 首次编写；覆盖架构、归档格式、压缩加密、还原安全、网络协议、CLI/GUI 与 UML 模型索引 | 代码基线 `3e928d3`；`CHANGELOG.md` 1.0–1.7.1；`DataBackup.mdj` |
