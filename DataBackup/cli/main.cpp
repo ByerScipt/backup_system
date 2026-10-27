@@ -12,13 +12,15 @@ namespace
 void validateArguments(const std::string& command, const Arguments& args)
 {
     static const std::map<std::string, std::set<std::string>> allowed{
-        {"backup", {"-o", "--pack", "--compress", "--encrypt", "--key-file"}},
+        {"backup",
+         {"-o", "--pack", "--compress", "--encrypt", "--key-file",
+          "--include"}},
         {"restore", {"-d", "--key-file", "--overwrite"}},
         {"inspect", {}},
         {"user", {"--server", "--username", "--account-password-file"}},
         {"remote-backup",
          {"--server", "--username", "--account-password-file", "--name",
-          "--pack", "--compress", "--encrypt", "--key-file"}},
+          "--pack", "--compress", "--encrypt", "--key-file", "--include"}},
         {"remote-list", {"--server", "--username", "--account-password-file"}},
         {"remote-restore",
          {"--server", "--username", "--account-password-file", "-d",
@@ -43,6 +45,13 @@ void validateArguments(const std::string& command, const Arguments& args)
     for (const auto& flag : args.flags)
     {
         validate(flag);
+    }
+    // Repeatable options are stored apart from single-valued ones, so they need
+    // the same per-command check; otherwise --include would be accepted by
+    // commands that never archive a source tree.
+    for (const auto& repeated : args.repeated)
+    {
+        validate(repeated.first);
     }
     // Other commands validate their required operand in the command handler.
     if ((command == "user" || command == "remote-list") &&

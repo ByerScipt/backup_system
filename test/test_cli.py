@@ -29,6 +29,13 @@ for value in ("localhost", "127.0.0.1:8848", "999.1.1.1", "::1", "127.0.0.1 ", "
 
 rejected([cli, "inspect", "unused", "--encrypt", "aes256"], "option")
 rejected([cli, "restore", "unused", "-d", "unused", "--pack", "index"], "option")
+# --include is repeatable, so it is validated apart from single-valued options.
+rejected([cli, "inspect", "unused", "--include", "entry"], "option")
+rejected([cli, "restore", "unused", "-d", "unused", "--include", "entry"], "option")
+rejected([cli, "remote-restore", "unused", "-d", "unused", "--server",
+          "127.0.0.1:8848", "--username", "user", "--include", "entry"],
+         "option")
+rejected([cli, "backup", "unused", "-o", "a", "--include"], "missing value")
 rejected([cli, "remote-list", "unexpected-positional"], "positional")
 rejected([cli, "user", "register", "unexpected-positional"], "positional")
 rejected([cli, "backup", "unused", "-o", "a", "-o", "b"], "duplicate")
