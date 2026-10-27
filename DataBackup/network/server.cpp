@@ -84,6 +84,8 @@ ServerConfig ServerConfig::load(const std::string& path)
             throw NetError("unknown server setting: " + key);
         }
     }
+    ensure(in.eof() && !in.bad(),
+           "cannot read complete server config: " + path);
     return config;
 }
 
@@ -117,12 +119,21 @@ bool BackupServer::run()
         }
     };
     bool success = false;
+    Socket listener;
     try
     {
+        ensure(config_.port != 0 && config_.maxConnections > 0 &&
+                   config_.maxConnections <= 1024 &&
+                   config_.timeoutSeconds > 0 && !config_.storagePath.empty(),
+               "invalid server configuration");
+        sessions.reserve(config_.maxConnections);
         fs::create_directories(config_.storagePath);
-        int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+        listener = Socket(::socket(AF_INET, SOCK_STREAM, 0));
+        const int fd = listener.get();
         ensure(fd >= 0, "cannot create listening socket");
-        listenFd_.store(fd);
+        const int flags = ::fcntl(fd, F_GETFL, 0);
+        ensure(flags >= 0 && ::fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0,
+               "cannot configure listening socket");
         int yes = 1;
         setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
         ensure(isIPv4Address(config_.bindAddress),
@@ -142,41 +153,54 @@ bool BackupServer::run()
                   << config_.port << "\n";
         while (!stopRequested_)
         {
-            int client = ::accept(fd, nullptr, nullptr);
-            if (client < 0)
+            reap(false);
+            pollfd state{fd, POLLIN, 0};
+            const int ready = ::poll(&state, 1, 100);
+            if (ready < 0 && errno == EINTR)
             {
-                if (errno == EINTR)
+                continue;
+            }
+            ensure(ready >= 0 && !(state.revents & (POLLERR | POLLNVAL)),
+                   "listener poll failed");
+            if (ready == 0 || stopRequested_)
+            {
+                continue;
+            }
+            Socket client(::accept(fd, nullptr, nullptr));
+            if (!client.valid())
+            {
+                if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK ||
+                    errno == ECONNABORTED)
                 {
                     continue;
                 }
-                if (stopRequested_)
-                {
-                    break;
-                }
-                continue;
+                throw NetError("cannot accept client: " +
+                               std::string(std::strerror(errno)));
             }
-            reap(false);
             if (sessions.size() >= config_.maxConnections)
             {
                 try
                 {
-                    sendError(client, 0, "server connection limit reached");
+                    setTimeouts(client.get(), 1);
+                    sendError(client.get(), 0,
+                              "server connection limit reached",
+                              &stopRequested_);
                 }
                 catch (...)
                 {
                 }
-                ::close(client);
                 continue;
             }
             auto finished = std::make_shared<std::atomic_bool>(false);
             sessions.push_back({std::thread(
-                                    [this, client, finished]()
+                                    [this, clientFd = client.get(), finished]()
                                     {
-                                        handleSession(client, config_,
+                                        handleSession(clientFd, config_,
                                                       &stopRequested_);
                                         finished->store(true);
                                     }),
                                 std::move(finished)});
+            client.release(); // The worker now owns the accepted socket.
         }
         success = true;
     }
@@ -185,11 +209,7 @@ bool BackupServer::run()
         std::cerr << "Server error: " << e.what() << "\n";
     }
     stopRequested_ = true;
-    int listening = listenFd_.exchange(-1);
-    if (listening >= 0)
-    {
-        ::close(listening);
-    }
+    listener.close();
     reap(true);
     return success;
 }
@@ -197,11 +217,5 @@ bool BackupServer::run()
 void BackupServer::stop()
 {
     stopRequested_ = true;
-    int listening = listenFd_.exchange(-1);
-    if (listening >= 0)
-    {
-        ::shutdown(listening, SHUT_RDWR);
-        ::close(listening);
-    }
 }
 } // namespace backup::network

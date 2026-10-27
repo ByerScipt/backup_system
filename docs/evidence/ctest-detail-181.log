@@ -1,0 +1,116 @@
+Source: v1.8.1 (8fdcaa9), CTest release verification on 2026-10-23.
+Machine paths are replaced with the directory placeholders documented in
+../test-report.md, Appendix D. Test output and results are unchanged.
+
+Start testing: Oct 23 08:47 CST
+----------------------------------------------------------
+1/3 Testing: backup-tests
+1/3 Test: backup-tests
+Command: "$BIN_DIR/backup-tests"
+Directory: $BUILD_DIR
+"backup-tests" start time: Oct 23 08:47 CST
+Output:
+----------------------------------------------------------
+[1/4] SHA-256, cipher vectors, and LZ77 compression
+[2/4] 24 complete-tree algorithm combinations
+[3/4] corruption, bounds, conflicts, and path races
+[4/4] account-isolated network roundtrip and session recycling
+backup-server listening on 127.0.0.1:45333
+backup-server listening on 0.0.0.0:46809
+backup-server listening on 127.0.0.1:45181
+backup-server listening on 127.0.0.1:45181
+All backup-system tests passed.
+<end of output>
+Test time =   6.97 sec
+----------------------------------------------------------
+Test Passed.
+"backup-tests" end time: Oct 23 08:48 CST
+"backup-tests" time elapsed: 00:00:06
+----------------------------------------------------------
+
+2/3 Testing: backup-cli-tests
+2/3 Test: backup-cli-tests
+Command: "/usr/bin/python3.10" "$SOURCE_DIR/test/test_cli.py" "$BIN_DIR/backup-cli" "$BIN_DIR/backup-server"
+Directory: $BUILD_DIR
+"backup-cli-tests" start time: Oct 23 08:48 CST
+Output:
+----------------------------------------------------------
+CLI argument validation and restore-option roundtrips passed.
+<end of output>
+Test time =   0.95 sec
+----------------------------------------------------------
+Test Passed.
+"backup-cli-tests" end time: Oct 23 08:48 CST
+"backup-cli-tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/3 Testing: backup-gui-tests
+3/3 Test: backup-gui-tests
+Command: "$BIN_DIR/backup-gui-tests"
+Directory: $BUILD_DIR
+"backup-gui-tests" start time: Oct 23 08:48 CST
+Output:
+----------------------------------------------------------
+QStandardPaths: wrong permissions on runtime directory $RUNTIME_DIR, 0777 instead of 0700
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support raise()
+This plugin does not support grabbing the keyboard
+This plugin does not support raise()
+This plugin does not support grabbing the keyboard
+This plugin does not support raise()
+This plugin does not support grabbing the keyboard
+This plugin does not support raise()
+This plugin does not support raise()
+This plugin does not support grabbing the keyboard
+This plugin does not support raise()
+This plugin does not support raise()
+This plugin does not support grabbing the keyboard
+This plugin does not support raise()
+This plugin does not support raise()
+This plugin does not support grabbing the keyboard
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+This plugin does not support propagateSizeHints()
+GUI workflows, progress, overwrite and deferred-close tests passed.
+<end of output>
+Test time =   7.62 sec
+----------------------------------------------------------
+Test Passed.
+"backup-gui-tests" end time: Oct 23 08:48 CST
+"backup-gui-tests" time elapsed: 00:00:07
+----------------------------------------------------------
+
+End testing: Oct 23 08:48 CST

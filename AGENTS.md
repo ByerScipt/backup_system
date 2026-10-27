@@ -62,10 +62,10 @@
 - 首选 WSL2（Ubuntu 24.04，由官方 cloud-image rootfs 导入）作为 Linux 构建与运行
   环境，一键脚本：`./Utils/build-wsl.sh`（同步到 ext4 → `format-check` → 并行构建 →
   CTest → 离屏 GUI 截图校验）。本机用 `make test`；GUI 用
-  `QT_QPA_PLATFORM=offscreen BACKUP_GUI_CAPTURE=/tmp/backup-studio.png ./bin/backup-gui`
+  `QT_QPA_PLATFORM=offscreen BACKUP_GUI_CAPTURE=build/backup-studio.png ./bin/backup-gui`
   验证启动。
 - 构建副本放在 Linux 文件系统；脚本默认创建独立目录，也可通过 `GUEST_DIR` 指定
-  尚不存在的绝对路径。保留已有目录，失败时保留构建副本供诊断。不要用 `/mnt/*`：DrvFs 无法
+  尚不存在的绝对路径。保留已有目录，失败时保留构建副本供诊断。不要用 Windows 挂载盘：DrvFs 无法
   表达 Unix 权限与属主，硬链接/ inode 语义也与 CI 不一致，会让权限类用例失真。
 - 依赖：`build-essential cmake ninja-build pkg-config qt6-base-dev qt6-base-dev-tools
   qt6-wayland libgl1-mesa-dev clang-format-18 fonts-noto-cjk`。构建账户必须是非 root

@@ -21,6 +21,9 @@ for value in ("0", "65536", "65537", "-1", "+80", "80junk", "80.5", " 80", "4294
 for value in ("0", "-1", "1025", "2junk", "4294967297"):
     rejected([server, "--max-connections", value, "--help"], "max-connections")
 
+rejected([server, "--port", "8848", "--port", "8849"], "duplicate")
+rejected([server, "--storage", "", "--help"], "storage")
+
 for value in ("localhost", "127.0.0.1:8848", "999.1.1.1", "::1", "127.0.0.1 ", ""):
     rejected([server, "--bind", value, "--help"], "bind")
 
@@ -42,6 +45,37 @@ with tempfile.TemporaryDirectory(prefix="backup-cli-test-") as directory:
     (source / "file").write_bytes(b"restore options fixture")
     key = root / "key"
     key.write_text("test password")
+    # Command-line overrides win independently of where --config occurs.
+    config = root / "server.conf"
+    config.write_text("bind_address = 127.0.0.2\nport = 8848\n")
+    for config_first in (False, True):
+        with socket.socket() as reservation:
+            reservation.bind(("127.0.0.1", 0))
+            override_port = reservation.getsockname()[1]
+        overrides = ["--bind", "127.0.0.1", "--port", str(override_port),
+                     "--storage", str(root / "override-storage")]
+        config_args = ["--config", str(config)]
+        args = config_args + overrides if config_first else overrides + config_args
+        process = subprocess.Popen([server, *args], cwd=root,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   text=True)
+        try:
+            deadline = time.monotonic() + 1
+            while time.monotonic() < deadline:
+                try:
+                    with socket.create_connection(("127.0.0.1", override_port), timeout=0.1):
+                        break
+                except OSError:
+                    time.sleep(0.02)
+            else:
+                raise AssertionError("--config discarded explicit server overrides")
+        finally:
+            process.terminate()
+            try:
+                process.communicate(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.communicate(timeout=2)
     for compression in ("none", "rle", "huffman", "lz77"):
         for encryption in ("none", "chacha20", "aes256"):
             name = compression + "-" + encryption

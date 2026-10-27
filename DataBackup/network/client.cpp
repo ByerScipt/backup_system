@@ -6,52 +6,42 @@ using namespace detail;
 
 namespace
 {
-bool authenticateClient(int fd, uint32_t& requestId,
-                        const std::string& username,
-                        const std::string& password, std::string& error,
-                        std::atomic_bool* cancel)
+Frame receiveResponse(int fd, MessageType type, uint32_t requestId,
+                      std::atomic_bool* cancel)
 {
-    try
+    auto response = receiveFrame(fd, cancel);
+    ensure(response.has_value(), "server closed before response");
+    if (response->type == MessageType::Error)
     {
-        std::vector<uint8_t> start;
-        putString(start, username);
-        sendFrame(fd, MessageType::LoginStart, ++requestId, start, cancel);
-        auto challenge = receiveFrame(fd, cancel);
-        ensure(challenge.has_value(), "server closed during login");
-        if (challenge->type == MessageType::Error)
-        {
-            throw NetError(errorFromFrame(*challenge));
-        }
-        ensure(challenge->type == MessageType::LoginChallenge &&
-                   challenge->requestId == requestId,
-               "unexpected login challenge");
-        Reader reader(challenge->payload);
-        auto salt = reader.bytes(16);
-        auto nonce = reader.bytes(16);
-        reader.end();
-        auto verifier = verifierFor(password, salt);
-        auto proof = proofFor(verifier, nonce);
-        std::vector<uint8_t> payload(proof.begin(), proof.end());
-        sendFrame(fd, MessageType::LoginProof, requestId, payload, cancel);
-        auto response = receiveFrame(fd, cancel);
-        ensure(response.has_value(), "server closed during login");
-        if (response->type == MessageType::Error)
-        {
-            throw NetError(errorFromFrame(*response));
-        }
-        ensure(response->type == MessageType::LoginResponse &&
-                   response->requestId == requestId,
-               "unexpected login response");
-        Reader status(response->payload);
-        ensure(status.u8() == 0, "login rejected");
-        status.end();
-        return true;
+        throw NetError(errorFromFrame(*response));
     }
-    catch (const std::exception& e)
-    {
-        error = e.what();
-        return false;
-    }
+    ensure(response->type == type && response->requestId == requestId,
+           "unexpected server response");
+    return std::move(*response);
+}
+
+void authenticateClient(int fd, uint32_t& requestId,
+                        const std::string& username,
+                        const std::string& password, std::atomic_bool* cancel)
+{
+    std::vector<uint8_t> start;
+    putString(start, username);
+    sendFrame(fd, MessageType::LoginStart, ++requestId, start, cancel);
+    auto challenge =
+        receiveResponse(fd, MessageType::LoginChallenge, requestId, cancel);
+    Reader reader(challenge.payload);
+    auto salt = reader.bytes(16);
+    auto nonce = reader.bytes(16);
+    reader.end();
+    auto verifier = verifierFor(password, salt);
+    auto proof = proofFor(verifier, nonce);
+    std::vector<uint8_t> payload(proof.begin(), proof.end());
+    sendFrame(fd, MessageType::LoginProof, requestId, payload, cancel);
+    auto response =
+        receiveResponse(fd, MessageType::LoginResponse, requestId, cancel);
+    Reader status(response.payload);
+    ensure(status.u8() == 0, "login rejected");
+    status.end();
 }
 
 } // namespace
@@ -79,16 +69,9 @@ bool BackupClient::registerUser(std::string& error, std::atomic_bool* cancel)
         payload.insert(payload.end(), verifier.begin(), verifier.end());
         sendFrame(socket.get(), MessageType::RegisterRequest, 1, payload,
                   cancel);
-        auto response = receiveFrame(socket.get(), cancel);
-        ensure(response.has_value(), "server closed during registration");
-        if (response->type == MessageType::Error)
-        {
-            throw NetError(errorFromFrame(*response));
-        }
-        ensure(response->type == MessageType::RegisterResponse &&
-                   response->requestId == 1,
-               "unexpected registration response");
-        Reader reader(response->payload);
+        auto response = receiveResponse(
+            socket.get(), MessageType::RegisterResponse, 1, cancel);
+        Reader reader(response.payload);
         ensure(reader.u8() == 0, "registration rejected");
         reader.end();
         return true;
@@ -109,8 +92,8 @@ bool BackupClient::login(std::string& error, std::atomic_bool* cancel)
         ensure(!password_.empty(), "account password is required");
         Socket socket = connectTo(host_, port_, cancel);
         uint32_t request = 0;
-        return authenticateClient(socket.get(), request, username_, password_,
-                                  error, cancel);
+        authenticateClient(socket.get(), request, username_, password_, cancel);
+        return true;
     }
     catch (const std::exception& e)
     {
@@ -126,21 +109,12 @@ bool BackupClient::deleteAccount(std::string& error, std::atomic_bool* cancel)
     {
         Socket socket = connectTo(host_, port_, cancel);
         uint32_t request = 0;
-        ensure(authenticateClient(socket.get(), request, username_, password_,
-                                  error, cancel),
-               error);
+        authenticateClient(socket.get(), request, username_, password_, cancel);
         sendFrame(socket.get(), MessageType::DeleteAccountRequest, ++request,
                   {}, cancel);
-        auto response = receiveFrame(socket.get(), cancel);
-        ensure(response.has_value(), "server closed during account deletion");
-        if (response->type == MessageType::Error)
-        {
-            throw NetError(errorFromFrame(*response));
-        }
-        ensure(response->type == MessageType::DeleteAccountResponse &&
-                   response->requestId == request,
-               "unexpected account deletion response");
-        Reader reader(response->payload);
+        auto response = receiveResponse(
+            socket.get(), MessageType::DeleteAccountResponse, request, cancel);
+        Reader reader(response.payload);
         ensure(reader.u8() == 0, "account deletion rejected");
         reader.end();
         return true;
@@ -160,21 +134,12 @@ std::vector<RemoteBackupEntry> BackupClient::list(std::string& error,
     {
         Socket socket = connectTo(host_, port_, cancel);
         uint32_t request = 0;
-        ensure(authenticateClient(socket.get(), request, username_, password_,
-                                  error, cancel),
-               error);
+        authenticateClient(socket.get(), request, username_, password_, cancel);
         sendFrame(socket.get(), MessageType::ListRequest, ++request, {},
                   cancel);
-        auto response = receiveFrame(socket.get(), cancel);
-        ensure(response.has_value(), "server closed during list request");
-        if (response->type == MessageType::Error)
-        {
-            throw NetError(errorFromFrame(*response));
-        }
-        ensure(response->type == MessageType::ListResponse &&
-                   response->requestId == request,
-               "unexpected list response");
-        Reader reader(response->payload);
+        auto response = receiveResponse(socket.get(), MessageType::ListResponse,
+                                        request, cancel);
+        Reader reader(response.payload);
         uint32_t count = reader.u32();
         ensure(count <= 4096, "backup list count exceeds limit");
         std::vector<RemoteBackupEntry> entries;
@@ -210,14 +175,16 @@ bool BackupClient::upload(const std::string& archivePath,
     try
     {
         checkCancelled(cancel);
+        ensure(displayName.size() <= 256 &&
+                   displayName.find('\0') == std::string::npos,
+               "invalid backup display name");
+        const auto size = static_cast<uint64_t>(fs::file_size(archivePath));
+        const auto digest = sha256File(archivePath, 0, UINT64_MAX, cancel);
+        // Hash before opening a session: large local files must not consume
+        // the server's idle timeout or an authenticated connection slot.
         Socket socket = connectTo(host_, port_, cancel);
         uint32_t request = 0;
-        ensure(authenticateClient(socket.get(), request, username_, password_,
-                                  error, cancel),
-               error);
-        checkCancelled(cancel);
-        uint64_t size = static_cast<uint64_t>(fs::file_size(archivePath));
-        auto digest = sha256File(archivePath, 0, UINT64_MAX, cancel);
+        authenticateClient(socket.get(), request, username_, password_, cancel);
         checkCancelled(cancel);
         std::vector<uint8_t> start;
         putString(start, displayName);
@@ -225,16 +192,9 @@ bool BackupClient::upload(const std::string& archivePath,
         start.insert(start.end(), digest.begin(), digest.end());
         sendFrame(socket.get(), MessageType::UploadStart, ++request, start,
                   cancel);
-        auto ready = receiveFrame(socket.get(), cancel);
-        ensure(ready.has_value(), "server closed before upload");
-        if (ready->type == MessageType::Error)
-        {
-            throw NetError(errorFromFrame(*ready));
-        }
-        ensure(ready->type == MessageType::UploadReady &&
-                   ready->requestId == request,
-               "unexpected upload response");
-        Reader idReader(ready->payload);
+        auto ready = receiveResponse(socket.get(), MessageType::UploadReady,
+                                     request, cancel);
+        Reader idReader(ready.payload);
         const std::string preparedId = idReader.string();
         idReader.end();
         ensure(validBackupId(preparedId), "invalid uploaded backup identifier");
@@ -252,10 +212,10 @@ bool BackupClient::upload(const std::string& archivePath,
             {
                 continue;
             }
-            sendFrame(
-                socket.get(), MessageType::UploadChunk, request,
-                {chunk.begin(), chunk.begin() + static_cast<ptrdiff_t>(got)},
-                cancel);
+            chunk.resize(got);
+            sendFrame(socket.get(), MessageType::UploadChunk, request, chunk,
+                      cancel);
+            chunk.resize(kChunkSize);
             sent += got;
             reportProgress(progress, "network-upload", sent, size);
         }
@@ -263,16 +223,9 @@ bool BackupClient::upload(const std::string& archivePath,
                "archive changed or could not be read during upload");
         checkCancelled(cancel);
         sendFrame(socket.get(), MessageType::UploadEnd, request, {}, cancel);
-        auto result = receiveFrame(socket.get(), cancel);
-        ensure(result.has_value(), "server closed after upload");
-        if (result->type == MessageType::Error)
-        {
-            throw NetError(errorFromFrame(*result));
-        }
-        ensure(result->type == MessageType::UploadResult &&
-                   result->requestId == request,
-               "unexpected upload completion response");
-        Reader done(result->payload);
+        auto result = receiveResponse(socket.get(), MessageType::UploadResult,
+                                      request, cancel);
+        Reader done(result.payload);
         ensure(done.string() == preparedId,
                "uploaded backup identifier changed");
         done.end();
@@ -303,24 +256,15 @@ bool BackupClient::download(const std::string& backupId,
         ensure(errno == ENOENT, "cannot inspect download output path");
         Socket socket = connectTo(host_, port_, cancel);
         uint32_t request = 0;
-        ensure(authenticateClient(socket.get(), request, username_, password_,
-                                  error, cancel),
-               error);
+        authenticateClient(socket.get(), request, username_, password_, cancel);
         checkCancelled(cancel);
         std::vector<uint8_t> payload;
         putString(payload, backupId);
         sendFrame(socket.get(), MessageType::DownloadRequest, ++request,
                   payload, cancel);
-        auto start = receiveFrame(socket.get(), cancel);
-        ensure(start.has_value(), "server closed before download");
-        if (start->type == MessageType::Error)
-        {
-            throw NetError(errorFromFrame(*start));
-        }
-        ensure(start->type == MessageType::DownloadStart &&
-                   start->requestId == request,
-               "unexpected download response");
-        Reader reader(start->payload);
+        auto start = receiveResponse(socket.get(), MessageType::DownloadStart,
+                                     request, cancel);
+        Reader reader(start.payload);
         uint64_t declaredSize = reader.u64();
         auto digestBytes = reader.bytes(32);
         reader.end();
@@ -329,19 +273,10 @@ bool BackupClient::download(const std::string& backupId,
                   declaredDigest.begin());
         fs::path output = fs::absolute(outputPath);
         fs::create_directories(output.parent_path());
-        fs::path temp = output.string() + ".tmp-" + randomId();
-        struct Cleanup
-        {
-            fs::path path;
-            ~Cleanup()
-            {
-                std::error_code ec;
-                fs::remove(path, ec);
-            }
-        } cleanup{temp};
+        backup::detail::TempFile staging(output.parent_path());
+        const auto& temp = staging.path();
         std::ofstream out(temp, std::ios::binary | std::ios::trunc);
         ensure(out.good(), "cannot create download output");
-        ::chmod(temp.c_str(), 0600);
         uint64_t received = 0;
         while (true)
         {

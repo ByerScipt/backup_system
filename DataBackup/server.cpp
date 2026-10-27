@@ -3,6 +3,7 @@
 #include <charconv>
 #include <csignal>
 #include <iostream>
+#include <map>
 #include <string>
 
 namespace
@@ -39,49 +40,70 @@ int main(int argc, char* argv[])
             std::cout << "backup-server " << BACKUP_SYSTEM_VERSION << "\n";
             return 0;
         }
-        backup::network::ServerConfig config;
+        std::map<std::string, std::string> arguments;
+        bool showHelp = false;
         for (int i = 1; i < argc; ++i)
         {
             std::string option = argv[i];
-            if (option == "--config" && i + 1 < argc)
+            if (option == "--help" || option == "-h")
             {
-                config = backup::network::ServerConfig::load(argv[++i]);
+                showHelp = true;
+                continue;
             }
-            else if (option == "--bind" && i + 1 < argc)
+            if ((option != "--config" && option != "--bind" &&
+                 option != "--port" && option != "--storage" &&
+                 option != "--max-connections") ||
+                i + 1 == argc)
             {
-                config.bindAddress = argv[++i];
+                throw std::runtime_error("unknown or incomplete option: " +
+                                         option);
+            }
+            if (!arguments.emplace(option, argv[++i]).second)
+            {
+                throw std::runtime_error("duplicate option: " + option);
+            }
+        }
+        auto config =
+            arguments.count("--config")
+                ? backup::network::ServerConfig::load(arguments.at("--config"))
+                : backup::network::ServerConfig{};
+        // Load defaults once; explicit options always take precedence.
+        for (const auto& [option, value] : arguments)
+        {
+            if (option == "--bind")
+            {
+                config.bindAddress = value;
                 if (!backup::network::isIPv4Address(config.bindAddress))
                 {
                     throw std::runtime_error("invalid value for " + option +
                                              ": " + config.bindAddress);
                 }
             }
-            else if (option == "--port" && i + 1 < argc)
+            else if (option == "--port")
             {
-                config.port = static_cast<uint16_t>(
-                    numericOption(argv[++i], 65535, option));
+                config.port =
+                    static_cast<uint16_t>(numericOption(value, 65535, option));
             }
-            else if (option == "--storage" && i + 1 < argc)
+            else if (option == "--storage")
             {
-                config.storagePath = argv[++i];
+                if (value.empty())
+                {
+                    throw std::runtime_error("empty value for " + option);
+                }
+                config.storagePath = value;
             }
-            else if (option == "--max-connections" && i + 1 < argc)
+            else if (option == "--max-connections")
             {
-                config.maxConnections = numericOption(argv[++i], 1024, option);
+                config.maxConnections = numericOption(value, 1024, option);
             }
-            else if (option == "--help" || option == "-h")
-            {
-                std::cout << "Usage: backup-server [--config FILE] [--bind "
-                             "ADDRESS] [--port PORT]\n"
-                             "                     [--storage DIR] "
-                             "[--max-connections N]\n";
-                return 0;
-            }
-            else
-            {
-                throw std::runtime_error("unknown or incomplete option: " +
-                                         option);
-            }
+        }
+        if (showHelp)
+        {
+            std::cout << "Usage: backup-server [--config FILE] [--bind "
+                         "ADDRESS] [--port PORT]\n"
+                         "                     [--storage DIR] "
+                         "[--max-connections N]\n";
+            return 0;
         }
         backup::network::BackupServer server(config);
         gServer = &server;

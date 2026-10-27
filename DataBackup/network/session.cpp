@@ -132,7 +132,6 @@ void handleUpload(int fd, uint32_t requestId, const Frame& start,
     fs::path final = dir / (id + ".bak");
     checkCancelled(cancel);
     std::error_code ec;
-    commitStoredFile(temp, final);
     RemoteBackupEntry entry;
     entry.id = id;
     entry.name = displayName.empty() ? id : displayName;
@@ -142,6 +141,7 @@ void handleUpload(int fd, uint32_t requestId, const Frame& start,
     entry.digest = hexDigest(declaredDigest);
     try
     {
+        commitStoredFile(temp, final);
         writeMeta(dir / (id + ".meta"), entry);
     }
     catch (...)
@@ -191,10 +191,9 @@ void handleDownload(int fd, uint32_t requestId, const Frame& request,
         size_t got = static_cast<size_t>(in.gcount());
         if (got)
         {
-            sendFrame(
-                fd, MessageType::DownloadChunk, requestId,
-                {chunk.begin(), chunk.begin() + static_cast<ptrdiff_t>(got)},
-                cancel);
+            chunk.resize(got);
+            sendFrame(fd, MessageType::DownloadChunk, requestId, chunk, cancel);
+            chunk.resize(kChunkSize);
         }
     }
     ensure(in.eof(), "cannot read stored backup");
@@ -206,7 +205,6 @@ void handleDownload(int fd, uint32_t requestId, const Frame& request,
 void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
 {
     Socket socket(fd);
-    setTimeouts(fd, config.timeoutSeconds);
     std::string authenticatedUser;
     AuthenticatedSession session;
     std::optional<UserRecord> pendingUser;
@@ -215,6 +213,7 @@ void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
     uint32_t challengeRequest = 0;
     try
     {
+        setTimeouts(fd, config.timeoutSeconds);
         while (true)
         {
             auto maybe = receiveFrame(fd, cancel);
@@ -232,18 +231,21 @@ void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
                 auto verifier = r.bytes(32);
                 r.end();
                 ensure(validUsername(name), "invalid username");
-                std::lock_guard<std::mutex> lock(gStorageMutex);
-                auto users = loadUsers(config.storagePath);
-                ensure(std::none_of(users.begin(), users.end(),
-                                    [&](const auto& u)
-                                    { return u.name == name; }),
-                       "username already exists");
-                UserRecord u;
-                u.name = name;
-                std::copy(salt.begin(), salt.end(), u.salt.begin());
-                std::copy(verifier.begin(), verifier.end(), u.verifier.begin());
-                users.push_back(u);
-                saveUsers(config.storagePath, users);
+                {
+                    std::lock_guard<std::mutex> lock(gStorageMutex);
+                    auto users = loadUsers(config.storagePath);
+                    ensure(std::none_of(users.begin(), users.end(),
+                                        [&](const auto& u)
+                                        { return u.name == name; }),
+                           "username already exists");
+                    UserRecord u;
+                    u.name = name;
+                    std::copy(salt.begin(), salt.end(), u.salt.begin());
+                    std::copy(verifier.begin(), verifier.end(),
+                              u.verifier.begin());
+                    users.push_back(u);
+                    saveUsers(config.storagePath, users);
+                }
                 std::vector<uint8_t> ok{0};
                 sendFrame(fd, MessageType::RegisterResponse, frame.requestId,
                           ok, cancel);
@@ -342,7 +344,7 @@ void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
         }
         try
         {
-            sendError(fd, currentRequest, e.what());
+            sendError(fd, currentRequest, e.what(), cancel);
         }
         catch (...)
         {

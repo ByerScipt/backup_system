@@ -1,44 +1,44 @@
-# 课程交付检查单（Backup Studio 1.8.0）
+# 课程交付检查单（Backup Studio 1.8.1）
 
 | 项目 | 内容 |
 | :--- | :--- |
-| 检查单版本 | 1.1 |
-| 检查日期 | 2026-10-14 |
-| 对应代码基线 | `main` 分支 `3e928d3`（2026-10-02）+ 工作区 1.8.0 改动（LZ77） |
-| 对应软件版本 | 1.8.0 |
-| 说明 | 本文件与 `docs/requirements.md`、`docs/design.md`、`docs/test-report.md` 配套；按 `AGENTS.md` 约定，课程文档只保存在本机 `docs/`（被 `.gitignore` 忽略），不进入仓库。 |
+| 检查单版本 | 1.4 |
+| 检查日期 | 2026-10-23 |
+| 对应代码基线 | `v1.8.1`（基于 `6e2529d` 的后端修复与性能优化） |
+| 对应软件版本 | 1.8.1 |
+| 说明 | 交付状态以仓库文件及已归档证据为依据；当前 CTest 结果见 `docs/evidence/ctest-detail-181.log`。 |
 
 ## 1 交付物清单
 
 | # | 交付物 | 位置 | 状态 |
 | ---: | :--- | :--- | :--- |
-| 1 | 需求分析说明书 | `docs/requirements.md`（18.6 KB） | 已完成 |
-| 2 | 系统设计文档 | `docs/design.md`（26.2 KB） | 已完成 |
-| 3 | 软件测试报告 | `docs/test-report.md`（20.5 KB） | 已完成（含 1 项真实缺陷 DEF-01；新增 LZ77 用例与对比） |
+| 1 | 需求分析说明书 | `docs/requirements.md` | 已完成 |
+| 2 | 系统设计文档 | `docs/design.md` | 已完成 |
+| 3 | 软件测试报告 | `docs/test-report.md` | 已完成（保留历史缺陷 DEF-01；含 LZ77 与后端修复回归） |
 | 4 | UML 模型（StarUML） | `DataBackup.mdj`（6 张图，已入库） | 已完成 |
-| 5 | 测试证据 | `docs/evidence/`（构建日志、CTest、性能、截图） | 已完成 |
-| 6 | 图生成与校验工具 | `docs/tools/make-diagrams.py`、`docs/tools/validate-mdj.py` | 已完成（本地工具） |
+| 5 | 测试证据 | `docs/evidence/`（按版本归档的构建日志、CTest、性能、截图） | 已归档材料见测试报告附录 D；其余待补 |
+| 6 | 图生成与校验工具 | `docs/tools/make-diagrams.py`、`docs/tools/validate-mdj.py` | 已入库 |
 | 7 | 文档内嵌图源 | `docs/mermaid/*.mmd`（5 个） | 已完成 |
 | 8 | 项目看板（Teambition） | — | **待补** |
 | 9 | 成员贡献表 | 本文件第 4 节（真实 Git 统计） | 已完成 |
 | 10 | 演示录像 / 证书 | — | **待补** |
-| 11 | 发布安装包（客户端/服务端/一体包） | `backup_system_delivery/release/1.8.0/`：三个 deb + tar.gz + `SHA256SUMS` + `RELEASE-MANIFEST.txt` + `install-notes.md` | 已完成（实机 apt 安装与远程往返验收，见测试报告 4.3.9） |
-| 12 | Windows（WSL2）安装器 | `packaging/windows/install-wsl.ps1`、`Install-BackupStudio.cmd` | 部分：语法检查与 `-WhatIf` 干跑通过，未在干净 Windows 上实装 |
-| 13 | 容器交付 | `Dockerfile`、`docker-compose.yml`；镜像 tar 由 `Utils/package-wsl.sh` 在 `WITH_DOCKER=1` 时产出 | 待验证：本机无 Docker |
+| 11 | 发布安装包（客户端/服务端/一体包） | `Utils/package-wsl.sh`、`packaging/install-notes.md` | 构建入口已入库；发布包与安装验收日志待补 |
+| 12 | Windows（WSL2）安装器 | `packaging/windows/install-wsl.ps1`、`Install-BackupStudio.cmd` | 实现已入库；Windows 安装验收日志待补 |
+| 13 | 容器交付 | `Dockerfile`、`docker-compose.yml` | 构建配置已入库；镜像及运行验收日志待补 |
 
 ## 2 文档规范性检查
 
 | 检查项 | 结果 | 说明 |
 | :--- | :--- | :--- |
 | 三份文档结构完整 | 通过 | 均含封面信息表、章节编号、术语、追溯、变更记录 |
-| 版本一致 | 通过 | 三份文档与 `CMakeLists.txt` 均为 1.8.0；历史基线统一为 `3e928d3`，1.8.0 改动尚在工作区 |
+| 版本一致 | 通过 | 三份文档与 `CMakeLists.txt` 均为 1.8.1；本次基线为 `v1.8.1`，10-14 的 1.8.0 与 `3e928d3` 记录仅为历史证据 |
 | 需求编号可追溯 | 通过 | FR-01..16 / NFR-01..10 ↔ 设计 4.x ↔ 用例 TC-* |
 | 术语一致 | 通过 | 归档/packed/encoded/BKP2/NBKP 等术语在 requirements 1.3 定义，全文统一 |
 | 命令与选项与代码一致 | 通过 | 取自 `cli/main.cpp` 与 `cli/arguments.cpp` 的实际白名单 |
 | 数据与格式与代码一致 | 通过 | 头部 112 字节、标志位、条目类型取自 `core/internal.hpp`、`core/archive.cpp`；压缩 id 0–3、版本 1/2/3 与 LZ77 流格式见 `docs/design.md` 4.2/4.3.1 |
 | 用例编号与用例名一致 | 通过 | 测试报告 TC-* 编号与需求附录 A 追溯矩阵一致 |
 | 作者与日期真实 | 通过 | 作者取自 Git 提交历史；日期为实际执行日期 |
-| 结果不虚构 | 通过 | 测试结果来自本机 WSL2 实机日志；失败项如实记录并给出根因 |
+| 结果可核对 | 通过 | 结果引用 `docs/evidence/` 中的已归档材料；当前结果与历史缺陷按版本区分 |
 
 ## 3 UML 建模（StarUML）
 
@@ -57,7 +57,7 @@
 模型维护方式：`docs/tools/make-diagrams.py` 可按同一份定义重建用例图、时序图与
 部署图，并同步输出 `docs/mermaid/*.mmd`，保证 Markdown 内嵌图与 `.mdj` 一致。
 
-## 4 成员贡献（真实 Git 统计）
+## 4 成员贡献（截至 `3e928d3` 的历史 Git 统计）
 
 | 成员 | 提交数 | 主要范围（按提交信息归类） |
 | :--- | ---: | :--- |
@@ -73,7 +73,10 @@
 发现的小问题：`E-Dawnize` 在历史提交中使用过两个邮箱身份
 （QQ 邮箱与 GitHub noreply），提交前建议统一 `user.email` 配置。
 
-## 5 验证证据（本次实机执行）
+## 5 验证证据
+
+1.8.1 的核心/网络、CLI、GUI 三项 CTest 均通过，逐项输出见
+`docs/evidence/ctest-detail-181.log`。下表为 2026-10-14 的历史验收材料。
 
 | 证据 | 命令 | 结果 |
 | :--- | :--- | :--- |
@@ -95,12 +98,12 @@
 
 | 工具 | 课程要求 | 当前证据 | 状态 |
 | :--- | :--- | :--- | :--- |
-| Teambition | 项目管理 | 仓库内无记录 | **缺**：需补看板截图与任务/分工记录（本机 `docs/evidence/`） |
+| Teambition | 项目管理 | 仓库内无记录 | **缺**：需归档看板截图与任务/分工记录 |
 | StarUML | UML 建模 | `DataBackup.mdj`（6 张图，已入库） | **已有** |
 | VSCode | IDE | `.vscode/settings.json`（compile_commands、C++17） | **部分**：缺 `launch.json`（gdb 调试配置）与 `tasks.json` |
 | make | 构建 | `Makefile`（configure/build/test/format-check/gui） | **已有** |
 | gdb | 调试 | 无使用记录 | **缺**：需补一次真实调试会话记录（命令与输出） |
-| git | 版本控制 | 24 次提交、4 位成员、分支 `main` | **已有** |
+| git | 版本控制 | 真实提交、作者与分支见 Git 历史；第 4 节保留早期统计 | **已有** |
 | cpplint | 代码检测 | 使用 clang-format 18 + clang-tidy（`Checks: -*,clang-analyzer-*`） | **缺 cpplint**：需补一次 `cpplint` 运行报告，或在文档中说明等价工具与映射 |
 | gtest | 单元测试 | 自研 `check()` 断言 + CTest + Python + Qt Test | **缺 gtest**：需补 gtest 目标（可用 FetchContent，与现有 CTest 并存） |
 | valgrind | 内存检测 | 无 | **缺**：需补 `valgrind --leak-check=full ./bin/backup-tests` 报告 |
@@ -126,13 +129,11 @@
 
 | 门禁 | 状态 |
 | :--- | :--- |
-| 配置（`make configure`） | 通过 |
-| 格式检查（`make format-check`） | 通过 |
-| 并行构建（`make build`） | 通过 |
-| CTest（`make test`） | 2/3 通过（DEF-01） |
-| 离屏 GUI 启动与截图非空 | 通过 |
+| 配置、格式检查、并行构建 | 1.8.1 已通过，复现命令见测试报告附录 A |
+| CTest | 1.8.1 为 3/3 通过（`docs/evidence/ctest-detail-181.log`）；1.8.0 的 Qt 6.4.2 历史缺陷 DEF-01 保留 |
+| GUI | 1.8.1 离屏工作流测试通过；1.8.0 启动截图见 `docs/evidence/gui-smoke-180.png` |
 | `.github/`、`.workflow` 不进入提交 | 通过（`.gitignore` 忽略） |
-| `docs/` 不进入提交 | 通过（`.gitignore` 忽略，符合 `AGENTS.md`） |
+| `docs/` 随代码维护 | 已跟踪；本轮同步后端设计、需求与测试结果 |
 
 ## 8 待办与责任人
 
@@ -153,5 +154,7 @@
 
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
-| 1.2 | 2026-10-14 | 交付物清单新增发布安装包、Windows WSL2 安装器与容器交付；待办新增容器与 systemd 验证项 | `backup_system_delivery/release/1.8.0/`、`Utils/package-wsl.sh`、实机验收日志 |
-| 1.0 | 2026-10-14 | 首次编写；登记文档、UML、证据、工具矩阵与待办 | 本机实机验证日志、Git 统计、`AGENTS.md` |
+| 1.4 | 2026-10-23 | 清理仓库外产物引用；按已入库材料区分实现、交付物与验收证据；同步当前 CTest 门禁 | `docs/evidence/`、`Utils/package-wsl.sh`、`docs/test-report.md` |
+| 1.3 | 2026-10-23 | 同步 1.8.1 代码与文档基线，记录后端复验 | `v1.8.1`、`docs/test-report.md`、`CHANGELOG.md` |
+| 1.2 | 2026-10-14 | 交付物清单新增发布安装包、Windows WSL2 安装器与容器交付；待办新增容器与 systemd 验证项 | `Utils/package-wsl.sh`、`packaging/`、`Dockerfile` |
+| 1.0 | 2026-10-14 | 首次编写；登记文档、UML、证据、工具矩阵与待办 | `docs/evidence/`、Git 历史、`AGENTS.md` |

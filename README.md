@@ -122,13 +122,13 @@ Replace `BACKUP_ID` with the ID returned by upload or listing. Account passwords
 
 ## Packaging
 
-`Utils/package-wsl.sh` builds the release installers inside WSL2 and copies
-them to the delivery directory (`../backup_system_delivery` by default). It
-only packages a tagged commit, so tag and commit first:
+`Utils/package-wsl.sh` builds the release installers inside WSL2. From Git
+Bash, check out the published release tag and choose an output directory:
 
 ```bash
-git tag -a v1.8.0 -m "Backup Studio 1.8.0"
-./Utils/package-wsl.sh          # WITH_DOCKER=1 also builds the server image
+git switch --detach v1.8.1
+DELIVERY_ROOT="$(pwd)/output/delivery" ./Utils/package-wsl.sh
+# WITH_DOCKER=1 also builds the server image
 ```
 
 The release gate runs the format check, the parallel build, CTest and the
@@ -207,11 +207,13 @@ these do not replace Windows/WSLg interactive acceptance.
 An optional memory-limit check backs up and restores a 160 MiB sparse file with a 128 MiB virtual-memory limit per process. It uses indexed packing without compression or encryption:
 
 ```bash
-DELIVERY_ROOT=/tmp/backup-studio-benchmark \
+DELIVERY_ROOT="$(pwd)/output/benchmark" \
   ./Utils/run_performance_test.sh bin/backup-cli
 ```
 
-The script compares source and restored hashes and writes timing and memory measurements to `/tmp/backup-studio-benchmark/output/evidence/`.
+The script compares source and restored hashes and writes timing and memory
+measurements to `output/benchmark/output/evidence/`. These files are generated
+when the command runs.
 
 ## Repository layout
 

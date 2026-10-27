@@ -145,17 +145,16 @@ void sendFrame(int fd, MessageType type, uint32_t requestId,
                const std::vector<uint8_t>& payload, std::atomic_bool* cancel)
 {
     ensure(payload.size() <= kMaxPayload, "network frame exceeds size limit");
-    std::vector<uint8_t> header;
-    header.insert(header.end(), kMagic.begin(), kMagic.end());
-    putU16(header, kProtocolVersion);
-    putU16(header, static_cast<uint16_t>(type));
-    putU32(header, requestId);
-    putU32(header, static_cast<uint32_t>(payload.size()));
-    sendAll(fd, header.data(), header.size(), cancel);
-    if (!payload.empty())
-    {
-        sendAll(fd, payload.data(), payload.size(), cancel);
-    }
+    // Keep small requests in one send to avoid TCP delayed-ACK stalls.
+    std::vector<uint8_t> frame;
+    frame.reserve(16 + payload.size());
+    frame.insert(frame.end(), kMagic.begin(), kMagic.end());
+    putU16(frame, kProtocolVersion);
+    putU16(frame, static_cast<uint16_t>(type));
+    putU32(frame, requestId);
+    putU32(frame, static_cast<uint32_t>(payload.size()));
+    frame.insert(frame.end(), payload.begin(), payload.end());
+    sendAll(fd, frame.data(), frame.size(), cancel);
 }
 
 std::optional<Frame> receiveFrame(int fd, std::atomic_bool* cancel)
@@ -185,11 +184,12 @@ std::optional<Frame> receiveFrame(int fd, std::atomic_bool* cancel)
     return frame;
 }
 
-void sendError(int fd, uint32_t requestId, const std::string& message)
+void sendError(int fd, uint32_t requestId, const std::string& message,
+               std::atomic_bool* cancel)
 {
     std::vector<uint8_t> payload;
     putString(payload, message);
-    sendFrame(fd, MessageType::Error, requestId, payload);
+    sendFrame(fd, MessageType::Error, requestId, payload, cancel);
 }
 
 std::string errorFromFrame(const Frame& frame)

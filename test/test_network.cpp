@@ -5,6 +5,16 @@ namespace
 {
 void testServerConfig(const fs::path& workspace)
 {
+    bool directoryRejected = false;
+    try
+    {
+        network::ServerConfig::load(workspace.string());
+    }
+    catch (const std::exception&)
+    {
+        directoryRejected = true;
+    }
+    check(directoryRejected, "directory was accepted as a server config");
     const fs::path path = workspace / "server.conf";
     for (const std::string setting :
          {"port = 65537", "port = -65535", "port = 8848junk",
@@ -229,6 +239,22 @@ void testNetwork(const fs::path& workspace, const fs::path& archive)
         check(error.empty(), "successful download retained a stale error");
         check(sha256File(downloaded.string()) == sha256File(archive.string()),
               "network roundtrip checksum mismatch");
+        const auto metadata =
+            network::detail::userDirectory(config.storagePath, "alice") /
+            (id + ".meta");
+        const auto originalMetadata = readBytes(metadata);
+        auto trailingMetadata = originalMetadata;
+        trailingMetadata.push_back(0);
+        auto invalidDigest = originalMetadata;
+        invalidDigest.back() = 'z';
+        for (const auto& damaged : {trailingMetadata, invalidDigest})
+        {
+            writeBytes(metadata, damaged);
+            const auto invalidEntries = alice.list(error);
+            writeBytes(metadata, originalMetadata);
+            check(invalidEntries.empty() && !error.empty(),
+                  "malformed backup metadata was accepted as a valid listing");
+        }
 
         fs::path brokenDownload = workspace / "broken-download.bak";
         check(::symlink("missing-download", brokenDownload.c_str()) == 0,

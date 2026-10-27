@@ -128,7 +128,7 @@ void testUploadSyncFailure()
         std::string error;
         check(client.registerUser(error),
               "cannot register sync fixture: " + error);
-        for (int call : {3, 4})
+        for (int call : {1, 2, 3, 4})
         {
             failSyncCall =
                 call; // Uploaded file + directory, metadata file + directory.
@@ -138,7 +138,7 @@ void testUploadSyncFailure()
             const bool injected = failSyncCall == 0;
             failSyncCall = 0;
             check(injected && !uploaded,
-                  "metadata synchronization failure was not reported");
+                  "upload synchronization failure was not reported");
             check(client.list(error).empty() && error.empty(),
                   "failed upload remained listed");
             const auto dir =
@@ -171,8 +171,10 @@ void testPipelineIo()
     const auto entries = pipeline::scanDirectory(source, size, {});
     const auto rle = temp.path / "rle";
     const auto huffman = temp.path / "huffman";
+    const auto lz77 = temp.path / "lz77";
     pipeline::rleCompress(input, rle, {});
     pipeline::huffmanCompress(input, huffman, {});
+    pipeline::lz77Compress(input, lz77, {});
     const std::vector<std::pair<std::string, std::function<void()>>> operations{
         {"stream pack",
          [&] { pipeline::packStream(entries, "/dev/full", size, {}); }},
@@ -187,6 +189,10 @@ void testPipelineIo()
          [&] { pipeline::huffmanCompress(input, "/dev/full", {}); }},
         {"Huffman decode",
          [&] { pipeline::huffmanDecompress(huffman, "/dev/full", 5, {}); }},
+        {"LZ77 encode",
+         [&] { pipeline::lz77Compress(input, "/dev/full", {}); }},
+        {"LZ77 decode",
+         [&] { pipeline::lz77Decompress(lz77, "/dev/full", 5, {}); }},
         {"ChaCha20",
          [&]
          {

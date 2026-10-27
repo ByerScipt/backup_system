@@ -1,4 +1,4 @@
-	Command being timed: "bash -c ulimit -v "$1"; exec "$2" restore "$3" -d "$4" _ 131072 /home/builder/backup-studio-validation-20261014/bin/backup-cli /tmp/backup-system-performance/large.bak /tmp/backup-system-performance/restored"
+	Command being timed: "bash -c ulimit -v "$1"; exec "$2" restore "$3" -d "$4" _ 131072 $BUILD_ROOT/bin/backup-cli $FIXTURE_DIR/large.bak $FIXTURE_DIR/restored"
 	User time (seconds): 1.65
 	System time (seconds): 0.43
 	Percent of CPU this job got: 98%

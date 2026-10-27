@@ -1,6 +1,6 @@
 repetitive corpus 108468000 bytes
 == mixed corpus ==
-25575042	/tmp/lz77-comparison-180/mixed
+25575042	$FIXTURE_DIR/mixed
 none         25673681 bytes  0:00.246360
 rle          24189926 bytes  0:00.346256
 huffman      20520959 bytes  0:00.856356
@@ -9,7 +9,7 @@ lz77          8954934 bytes  0:01.0811960
 mixed: LZ77 round trip matches the source tree
 
 == repetitive corpus ==
-108468000	/tmp/lz77-comparison-180/repetitive
+108468000	$FIXTURE_DIR/repetitive
 none        108468307 bytes  0:00.935484
 rle         109315694 bytes  0:01.025668
 huffman      58950607 bytes  0:02.355488
