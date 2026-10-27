@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.9.0 — 2026-10-27
+
+- Add entry selection: `BackupOptions::includes` archives only the paths chosen
+  below a source directory, keeps the directories above them so the original
+  structure survives, and rejects absolute paths, `..` segments, empty names and
+  entries that are missing from the source. An empty list keeps the whole tree,
+  so existing callers are unaffected.
+- Add `BackupEngine::scanSource()`: it walks a source exactly like `create()`
+  and reports the relative path, type, size and modification time of every
+  entry, without following symlinks.
+- Add the repeatable `--include PATH` option to `backup` and `remote-backup`,
+  and validate repeatable options against each command's allow-list so the other
+  commands reject it.
+- Add the Qt entry selector to the local and remote backup pages: a checkable
+  tree with name, type, size and modification time, name/type/age filters,
+  select-all and clear actions, a live summary, and a selection that belongs to
+  one source directory and is dropped when the source path changes.
+- Merge the 1.8.1 backend fixes and the course documents into the development
+  line; the BKP2 archive format and the NBKP protocol are unchanged.
+
 ## 1.8.1 — 2026-10-23
 
 - Consolidate client response validation and remove redundant authentication

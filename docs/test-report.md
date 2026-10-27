@@ -3,12 +3,12 @@
 | 项目 | 内容 |
 | :--- | :--- |
 | 文档名称 | 软件测试报告 |
-| 文档版本 | 1.4 |
-| 被测版本 | 1.8.1（`CMakeLists.txt` `project(... VERSION 1.8.1)`） |
-| 被测代码基线 | `v1.8.1`（基于 `6e2529d`）；下文 10-14 的 1.8.0 记录保留为历史证据 |
-| 测试日期 | 最新 2026-10-23；历史 2026-10-14 |
+| 文档版本 | 1.5 |
+| 被测版本 | 1.9.0（`CMakeLists.txt` `project(... VERSION 1.9.0)`） |
+| 被测代码基线 | `dev/entry-selection`（含 `v1.8.1`）；下文 10-14 的 1.8.0 记录保留为历史证据 |
+| 测试日期 | 最新 2026-10-27；历史 2026-10-23、2026-10-14 |
 | 测试执行 | 项目组；复现命令见附录 A，已归档日志见附录 D |
-| 结论 | 1.8.1 的 CTest 3/3 通过；1.8.0 在 Qt 6.4.2 下的 DEF-01 保留，Qt 6.2.4 通过不能证明其已修复 |
+| 结论 | 1.9.0 条目选择在 MSYS2/Cygwin 后备环境通过核心文件系统子集与 CLI 用例；GUI 与 [2/4]–[4/4] 未在本机执行；1.8.1 的 3/3 通过记录保留为最近一次完整结果 |
 
 > 测试日志随文档保存在 `docs/evidence/`，附录 D 按版本列出。
 > 日志中的目录占位符仅用于路径脱敏，测试输出、耗时和结果保持原样。
@@ -38,6 +38,46 @@ CTest 核心/网络 6.97 秒、CLI 0.95 秒、GUI 7.62 秒，3/3 通过。
 运行 `Utils/run_performance_test.sh`，历史测量见 4.3.5。
 
 以下第 2、4–7 节保留 2026-10-14 的历史环境、结果及缺陷记录。
+
+## 2026-10-27 条目选择复验（开发分支）
+
+被测代码为 `dev/entry-selection`（已并入 `v1.8.1`）。本机没有 WSL 发行版、Docker
+或 Linux 文件系统，本次复验在 MSYS2/Cygwin 后备环境完成：GCC 16.2、CMake 4.4.4、
+Ninja，未安装 Qt 6，因此只覆盖核心与 CLI 两层。为让行为用例能在该环境运行，
+在**仓库外的临时副本**中做了三处本地改动，均不进入仓库，也不改变 POSIX 平台行为：
+
+| 本地改动 | 原因 |
+| :--- | :--- |
+| 只读句柄上的 `fsync()` 返回 `EACCES` 时按成功处理 | Cygwin 无法对只读句柄刷新缓冲；POSIX 平台可正常 `fsync` |
+| 跳过 `testUnreadableSource`、`testMetadataFailure` | Cygwin 不按 POSIX 权限位拒绝访问，ACL 无法表达 Unix 权限 |
+| 放宽 `scanSource` 的符号链接类型断言 | 无管理员权限时 Cygwin 创建的是文件副本，不是原生符号链接 |
+
+| 检查项 | 结果与入口 |
+| --- | --- |
+| 全量编译（核心、网络、CLI、服务器、测试；`-DBACKUP_BUILD_GUI=OFF`） | 通过；GCC 16 在既有 LZ77 用例 `test_compress.cpp:283` 报 1 条数组越界告警（该代码本轮未改动，1.8.1 的 GCC 11 基线未触发） |
+| 格式检查 `clang-format 18.1.8 --dry-run --Werror`（49 个源文件） | 通过 |
+| `backup-tests --filesystem`（[1/4]，含条目选择用例） | 通过，跳过 3 项（见上表） |
+| `test/test_cli.py`（含 `--include` 与白名单拒绝） | 通过 |
+| `backup-tests` [2/4]–[4/4]（24 组合、失败模式、网络） | 未执行：Cygwin 无法把还原条目 `chown` 到其他属主，用例在元数据阶段中止 |
+| GUI 构建、`backup-gui-tests` 与离屏启动截图 | 未执行：本机无 Qt 6 |
+
+条目选择用例（`test/test_selection.cpp`、`test/test_cli.py`）：
+
+| 用例 | 场景 | 结果 |
+| :--- | :--- | :--- |
+| TC-SEL-01 | 空选择等价于整目录；归档、预览与还原的条目数与元数据一致 | 通过 |
+| TC-SEL-02 | 只选中嵌套文件，祖先目录 `docs`、`docs/manual` 一并归档 | 通过 |
+| TC-SEL-03 | 选中目录保留整棵子树（`src`） | 通过 |
+| TC-SEL-04 | 两条不相邻分支（`top.txt` 与 `src/nested/deep.bin`） | 通过 |
+| TC-SEL-05 | 空目录与符号链接条目 | 通过（符号链接以文件副本建夹具，类型断言已放宽） |
+| TC-SEL-06 | 非规整重复路径 `./docs//manual/../manual/guide.txt` 规整去重后只归档一次 | 通过 |
+| TC-SEL-07 | 只选硬链接别名时退化为普通文件；成对选择时保持硬链接（`st_ino` 相同、`st_nlink` 为 2） | 通过 |
+| TC-SEL-08 | 缺失条目、绝对路径、`..`、空串、`.` 被拒绝且不生成归档；`scanSource` 的路径顺序、类型、大小与 mtime 与目录树一致 | 通过 |
+| TC-CLI-07 | `--include` 只归档选中项并保留结构；`inspect`/`restore`/`remote-restore` 拒绝该选项；缺值报错 | 通过 |
+
+未覆盖：GUI 选择对话框的勾选、筛选、摘要与「源目录变化清空选择」由
+`test/test_gui_jobs.cpp` 的 `testEntrySelection` 覆盖，本次未运行；WSL 全量 CTest、
+离屏 GUI 截图与性能项仍待补（见 `docs/course-checklist.md` 第 8 节）。
 
 ## 1 概述
 
@@ -358,6 +398,7 @@ libstdc++ 头文件）：
 | FR-12 | TC-NET-01、TC-NET-13、TC-CLI-04 | 通过 |
 | FR-13 | TC-IO-04、TC-GUI-05 | 通过 |
 | FR-16 | TC-NET-02、TC-NET-13、TC-NET-14 | 通过 |
+| FR-17 | TC-SEL-01..08、TC-CLI-07（2026-10-27 节） | 通过（Cygwin 后备环境；GUI 用例未执行） |
 | NFR-01 | TC-PERF-01（4.3.5） | 通过 |
 | NFR-02/04 | TC-SEC-01..05、TC-IO-01..03、TC-LZ77-01/03 | 通过 |
 | NFR-03 | TC-SEC-06..12、TC-NET-03 | 通过 |
@@ -372,7 +413,8 @@ libstdc++ 头文件）：
 - 属主/权限还原用例在非 root 账户下对部分场景自动跳过（本次 `builder`
   为普通用户，跳过情况未单独记录为失败）。
 - Windows/WSLg 交互式界面验收尚未在本机执行，需在真实 Windows 桌面完成。
-- MSYS2/Cygwin 后备环境未参与本次验证（平台差异会导致部分用例跳过）。
+- MSYS2/Cygwin 后备环境未参与 10-14 的验证；2026-10-27 的条目选择复验在该环境完成，
+  本地改动与跳过项已在该节列出。
 
 ## 7 结论与遗留问题（2026-10-14 历史记录）
 
@@ -420,6 +462,7 @@ DELIVERY_ROOT="$(pwd)/output/delivery" ./Utils/package-wsl.sh
 
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
+| 1.5 | 2026-10-27 | 新增 2026-10-27 条目选择复验：后备环境、3 处本地改动、TC-SEL-01..08 与 TC-CLI-07 结果；明确 GUI 与 [2/4]–[4/4] 未执行 | `dev/entry-selection`、`docs/evidence/entry-selection-msys-190.log` |
 | 1.4 | 2026-10-23 | 文档引用统一为仓库文件、发布标签和可复现命令；归档 1.8.1 CTest 日志并脱敏历史日志路径；安装包验收按入库证据重标 | `v1.8.1`、`docs/evidence/`、`Utils/package-wsl.sh` |
 | 1.3 | 2026-10-23 | 同步 1.8.1，记录配置、同步故障、元数据、容量回收与 LZ77 写入失败回归；区分当前复验与历史环境缺陷 | `v1.8.1`、`docs/evidence/ctest-detail-181.log` |
 | 1.2 | 2026-10-14 | 新增发布安装包检查项（TC-PKG-01..12）、TC-NET-15 与 TC-CLI-01 的 `--bind` 用例 | `Utils/package-wsl.sh`、`libs/network.hpp` |
@@ -435,6 +478,7 @@ DELIVERY_ROOT="$(pwd)/output/delivery" ./Utils/package-wsl.sh
 
 | 文件 | 内容 |
 | :--- | :--- |
+| `docs/evidence/entry-selection-msys-190.log` | 2026-10-27 条目选择复验的原始输出（环境、本地改动、编译、[1/4]、CLI 与格式检查） |
 | `docs/evidence/ctest-detail-181.log` | 1.8.1 三项 CTest 的逐项输出、耗时与通过结果 |
 | `docs/evidence/build-wsl-180.log` | 1.8.0 一键脚本日志（format-check、构建、CTest） |
 | `docs/evidence/ctest-detail-180.log` | 1.8.0 三项 CTest 详细输出（含 DEF-01） |

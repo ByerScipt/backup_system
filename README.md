@@ -88,8 +88,11 @@ Encryption prompts for an archive password; restore requires the same password. 
 | `--pack` | `stream`, `index` | `stream` |
 | `--compress` | `none`, `rle`, `huffman`, `lz77` | `none` |
 | `--encrypt` | `none`, `chacha20`, `aes256` | `none` |
+| `--include` | Source-relative path; repeat for several entries | Whole tree |
 
 An archive must be written outside the source tree, to a path that does not already exist. Restore rejects conflicting paths unless `--overwrite` is supplied. In the GUI, local restore also offers a conflict preview before extraction.
+
+`--include` archives only the named entries below `SOURCE`, and the directories above them are stored as well, so a restore reproduces the original layout; a selected directory keeps its whole subtree. Absolute paths, `..` segments and entries that do not exist are rejected. The local and remote backup pages in the GUI offer the same selection through a checkable tree with name, type and time filters.
 
 ## Remote backup and restore
 

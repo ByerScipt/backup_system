@@ -1,12 +1,12 @@
-# 课程交付检查单（Backup Studio 1.8.1）
+# 课程交付检查单（Backup Studio 1.9.0）
 
 | 项目 | 内容 |
 | :--- | :--- |
-| 检查单版本 | 1.4 |
-| 检查日期 | 2026-10-23 |
-| 对应代码基线 | `v1.8.1`（基于 `6e2529d` 的后端修复与性能优化） |
-| 对应软件版本 | 1.8.1 |
-| 说明 | 交付状态以仓库文件及已归档证据为依据；当前 CTest 结果见 `docs/evidence/ctest-detail-181.log`。 |
+| 检查单版本 | 1.5 |
+| 检查日期 | 2026-10-27 |
+| 对应代码基线 | `dev/entry-selection`（含 `v1.8.1` 后端修复与条目选择） |
+| 对应软件版本 | 1.9.0 |
+| 说明 | 交付状态以仓库文件及已归档证据为依据；1.9.0 的条目选择复验结果见 `docs/evidence/entry-selection-msys-190.log`，1.8.1 的完整 CTest 结果见 `docs/evidence/ctest-detail-181.log`。 |
 
 ## 1 交付物清单
 
@@ -15,7 +15,7 @@
 | 1 | 需求分析说明书 | `docs/requirements.md` | 已完成 |
 | 2 | 系统设计文档 | `docs/design.md` | 已完成 |
 | 3 | 软件测试报告 | `docs/test-report.md` | 已完成（保留历史缺陷 DEF-01；含 LZ77 与后端修复回归） |
-| 4 | UML 模型（StarUML） | `DataBackup.mdj`（6 张图，已入库） | 已完成 |
+| 4 | UML 模型（StarUML） | `DataBackup.mdj`（6 张图，已入库） | 已完成（1.8.1 基线；1.9.0 条目选择待同步到模型与 mermaid 图） |
 | 5 | 测试证据 | `docs/evidence/`（按版本归档的构建日志、CTest、性能、截图） | 已归档材料见测试报告附录 D；其余待补 |
 | 6 | 图生成与校验工具 | `docs/tools/make-diagrams.py`、`docs/tools/validate-mdj.py` | 已入库 |
 | 7 | 文档内嵌图源 | `docs/mermaid/*.mmd`（5 个） | 已完成 |
@@ -31,10 +31,10 @@
 | 检查项 | 结果 | 说明 |
 | :--- | :--- | :--- |
 | 三份文档结构完整 | 通过 | 均含封面信息表、章节编号、术语、追溯、变更记录 |
-| 版本一致 | 通过 | 三份文档与 `CMakeLists.txt` 均为 1.8.1；本次基线为 `v1.8.1`，10-14 的 1.8.0 与 `3e928d3` 记录仅为历史证据 |
-| 需求编号可追溯 | 通过 | FR-01..16 / NFR-01..10 ↔ 设计 4.x ↔ 用例 TC-* |
+| 版本一致 | 通过 | 三份文档与 `CMakeLists.txt` 均为 1.9.0（开发分支基线 `dev/entry-selection`）；10-23、10-14 的记录为历史证据 |
+| 需求编号可追溯 | 通过 | FR-01..17 / NFR-01..10 ↔ 设计 4.x ↔ 用例 TC-* |
 | 术语一致 | 通过 | 归档/packed/encoded/BKP2/NBKP 等术语在 requirements 1.3 定义，全文统一 |
-| 命令与选项与代码一致 | 通过 | 取自 `cli/main.cpp` 与 `cli/arguments.cpp` 的实际白名单 |
+| 命令与选项与代码一致 | 通过 | 取自 `cli/main.cpp` 与 `cli/arguments.cpp` 的实际白名单；`--include` 可重复，且与单值选项共用同一白名单校验 |
 | 数据与格式与代码一致 | 通过 | 头部 112 字节、标志位、条目类型取自 `core/internal.hpp`、`core/archive.cpp`；压缩 id 0–3、版本 1/2/3 与 LZ77 流格式见 `docs/design.md` 4.2/4.3.1 |
 | 用例编号与用例名一致 | 通过 | 测试报告 TC-* 编号与需求附录 A 追溯矩阵一致 |
 | 作者与日期真实 | 通过 | 作者取自 Git 提交历史；日期为实际执行日期 |
@@ -91,6 +91,11 @@
 | GUI 离屏起停 | `BACKUP_GUI_CAPTURE=... backup-gui` | 退出码 0，截图 50 998 字节 |
 | 日志与截图 | `docs/evidence/` | 已归档 |
 
+1.9.0 条目选择的复验在 MSYS2/Cygwin 后备环境完成（无 WSL、Docker 与 Qt 6）：
+核心文件系统子集与 CLI 测试通过，格式检查通过；GUI 构建与 [2/4]–[4/4] 用例
+未执行。本地改动与跳过项见 `docs/test-report.md` 2026-10-27 节，
+原始输出见 `docs/evidence/entry-selection-msys-190.log`。
+
 未执行：`make test` 的完整串联（在 Windows Git Bash 中会调用 WSL 脚本），
 以及 Windows/WSLg 交互式界面验收。
 
@@ -129,11 +134,11 @@
 
 | 门禁 | 状态 |
 | :--- | :--- |
-| 配置、格式检查、并行构建 | 1.8.1 已通过，复现命令见测试报告附录 A |
-| CTest | 1.8.1 为 3/3 通过（`docs/evidence/ctest-detail-181.log`）；1.8.0 的 Qt 6.4.2 历史缺陷 DEF-01 保留 |
-| GUI | 1.8.1 离屏工作流测试通过；1.8.0 启动截图见 `docs/evidence/gui-smoke-180.png` |
+| 配置、格式检查、并行构建 | 1.9.0：配置与 `clang-format 18.1.8` 检查通过；核心、网络、CLI、服务器与测试目标编译通过（无 Qt 6，GUI 目标未构建） |
+| CTest | 1.9.0：`backup-tests --filesystem` 与 `test_cli.py` 通过（后备环境，见测试报告 2026-10-27 节）；GUI 与 [2/4]–[4/4] 未执行。1.8.1 为 3/3 通过（`docs/evidence/ctest-detail-181.log`） |
+| GUI | 1.9.0 未验证（本机无 Qt 6）；1.8.1 离屏工作流测试通过，1.8.0 启动截图见 `docs/evidence/gui-smoke-180.png` |
 | `.github/`、`.workflow` 不进入提交 | 通过（`.gitignore` 忽略） |
-| `docs/` 随代码维护 | 已跟踪；本轮同步后端设计、需求与测试结果 |
+| `docs/` 随代码维护 | 已跟踪；本轮同步条目选择的设计、需求与测试结果 |
 
 ## 8 待办与责任人
 
@@ -149,11 +154,14 @@
 | 8 | 统一提交身份邮箱（E-Dawnize 两个身份） | E-Dawnize | 下次提交 |
 | 9 | 在有 Docker 的机器上构建并运行服务端镜像，留存 `docker load`/远端往返证据 | 待定 | 演示前 |
 | 10 | 在启用 systemd 的主机（或开启 systemd 的 WSL 发行版）验证服务开机自启与重启 | 待定 | 演示前 |
+| 11 | 在 WSL 实机重跑 1.9.0 全量 CTest（含 GUI）与离屏截图，替换后备环境结果 | 全员 | 演示前 |
+| 12 | 把条目选择补入 `DataBackup.mdj`（用例/时序图）与 `docs/mermaid/` 图源 | Byer | 下次提交 |
 
 ## 9 检查单变更记录
 
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
+| 1.5 | 2026-10-27 | 同步 1.9.0 条目选择基线：需求编号扩到 FR-17、门禁状态改为后备环境实测、待办增加 WSL 全量复验与 UML 同步 | `dev/entry-selection`、`docs/test-report.md`、`CHANGELOG.md` 1.9.0 |
 | 1.4 | 2026-10-23 | 清理仓库外产物引用；按已入库材料区分实现、交付物与验收证据；同步当前 CTest 门禁 | `docs/evidence/`、`Utils/package-wsl.sh`、`docs/test-report.md` |
 | 1.3 | 2026-10-23 | 同步 1.8.1 代码与文档基线，记录后端复验 | `v1.8.1`、`docs/test-report.md`、`CHANGELOG.md` |
 | 1.2 | 2026-10-14 | 交付物清单新增发布安装包、Windows WSL2 安装器与容器交付；待办新增容器与 systemd 验证项 | `Utils/package-wsl.sh`、`packaging/`、`Dockerfile` |

@@ -1,0 +1,49 @@
+# 1.9.0 条目选择复验输出（MSYS2/Cygwin 后备环境，2026-10-27）
+
+# 环境：Windows + MSYS2 msys（Cygwin）GCC 16.2.0 / CMake 4.4.4 / Ninja；
+#       本机无 WSL 发行版、Docker 与 Qt 6，因此未构建 GUI。
+# 复验在仓库外的临时副本 $BUILD_ROOT 中执行，并做了三处本地改动（不进入仓库）：
+#   1) 只读句柄上的 fsync() 返回 EACCES 时按成功处理（Cygwin 限制）；
+#   2) 跳过 testUnreadableSource、testMetadataFailure（Cygwin 不按 POSIX 权限位拒绝访问）；
+#   3) 放宽 scanSource 的符号链接类型断言（无管理员权限时 Cygwin 只复制文件）。
+# 后果：下面 test_selection.cpp:194 的 unused 告警由第 3 处改动引起；
+#       test_compress.cpp 的 GCC 16 数组越界告警属于既有用例，本轮未改动该文件。
+# 本日志只作后备环境的行为证据，不能替代 WSL 实机的完整 CTest 与 GUI 验收。
+
+$ g++ --version
+g++ (GCC) 16.2.0
+
+$ cmake --version
+cmake version 4.4.4
+
+$ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBACKUP_BUILD_GUI=OFF
+    CMAKE_C_COMPILER
+
+
+-- Build files have been written to: $BUILD_ROOT/build
+
+$ cmake --build build -j 8
+build exit=0
+[18/36] Linking CXX static library libbackup_core.a
+[21/36] Linking CXX static library libbackup_network.a
+[31/36] Linking CXX executable $BUILD_ROOT/bin/backup-cli.exe
+[33/36] Linking CXX executable $BUILD_ROOT/bin/backup-server.exe
+[36/36] Linking CXX executable $BUILD_ROOT/bin/backup-tests.exe
+/usr/lib/gcc/x86_64-pc-cygwin/16.2.0/include/c++/bits/stl_construct.h:110:16: warning: array subscript 20000 is outside array bounds of 'unsigned char [20000]' [-Warray-bounds=]
+$BUILD_ROOT/test/test_selection.cpp:194:10: warning: variable 'sawSymlink' set but not used [-Wunused-but-set-variable=]
+
+$ ./bin/backup-tests --filesystem
+[1/4] SHA-256, cipher vectors, LZ77 and selection
+[skip] testUnreadableSource: Cygwin does not enforce POSIX modes
+[skip] testMetadataFailure: Cygwin does not enforce POSIX modes
+[skip] symlink typing: Cygwin created a copy, not a link
+Filesystem regression tests passed.
+exit=0
+
+$ python3 test/test_cli.py bin/backup-cli bin/backup-server
+CLI argument validation and restore-option roundtrips passed.
+exit=0
+
+$ clang-format-18 --dry-run --Werror <49 sources of libs/ DataBackup/ GUI/ test/>
+clang-format version 18.1.8
+exit=0
