@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
             testNetwork(temp.path, archive);
             return 0;
         }
-        std::cout << "[1/4] SHA-256, cipher vectors, and LZ77 compression\n";
+        std::cout << "[1/4] SHA-256, cipher vectors, LZ77 and selection\n";
         testSha256();
         testCryptoVectors();
         testLz77RoundTrip();
@@ -34,6 +34,7 @@ int main(int argc, char* argv[])
         testSourceFifoRace();
         testCancellation();
         testHardLinks();
+        testSelection();
         if (argc == 2 && std::string(argv[1]) == "--filesystem")
         {
             std::cout << "Filesystem regression tests passed.\n";

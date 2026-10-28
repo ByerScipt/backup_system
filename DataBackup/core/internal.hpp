@@ -139,6 +139,8 @@ EntryType entryTypeFromMode(mode_t mode);
 Entry makeEntry(const fs::path& full, const std::string& archivePath);
 std::vector<Entry> scanDirectory(const fs::path& source, uint64_t& inputBytes,
                                  const BackupOptions& options);
+// Reports source entries for a selection UI; never follows symlinks.
+std::vector<SourceEntryInfo> listSourceEntries(const fs::path& source);
 void writeEntryMetadata(std::ostream& out, const Entry& e, bool withOffset);
 Entry readEntryMetadata(std::istream& in, bool withOffset);
 bool sameFileState(const struct stat& st, const Entry& e);

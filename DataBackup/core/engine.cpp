@@ -145,6 +145,16 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
     return result;
 }
 
+std::vector<SourceEntryInfo>
+BackupEngine::scanSource(const std::string& sourceDirectory)
+{
+    std::error_code ec;
+    fs::path source = fs::canonical(sourceDirectory, ec);
+    detail::ensure(!ec, "source must be an existing directory");
+    detail::ensure(fs::is_directory(source, ec), "source must be a directory");
+    return detail::listSourceEntries(source);
+}
+
 BackupResult BackupEngine::restore(const std::string& archivePath,
                                    const std::string& destinationDirectory,
                                    const RestoreOptions& options)

@@ -3,10 +3,12 @@
 #include "network.hpp"
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <atomic>
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <vector>
 class QComboBox;
 class QFont;
 class QFormLayout;
@@ -122,6 +124,8 @@ QFormLayout* makeForm();
 QLabel* makeHint(const QString& text);
 QHBoxLayout* pathRow(QLineEdit*& edit, QPushButton*& browse,
                      const QString& objectName);
+QHBoxLayout* selectionRow(QPushButton*& button, QLabel*& summary);
+std::vector<std::string> toUtf8Strings(const QStringList& values);
 JobControls addJobControls(QVBoxLayout* layout, const QString& startText);
 void startJob(QWidget* owner, const JobControls& controls, Job job,
               std::function<void()> afterSuccess = {});
@@ -143,6 +147,10 @@ QString selectArchive(QWidget* owner, const QString& title,
                       const QString& initialPath = {});
 QString selectArchiveOutput(QWidget* owner, const QString& title,
                             const QString& initialPath = {});
+// Lets the user pick the entries below a source directory. Returns false when
+// the dialog was cancelled; an empty selection means "the whole directory".
+bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
+                         QStringList* selection);
 void bindPathPicker(QWidget* owner, QPushButton* button, QLineEdit* edit,
                     const QString& title,
                     QString (*picker)(QWidget*, const QString&,

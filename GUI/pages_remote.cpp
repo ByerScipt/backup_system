@@ -1,6 +1,8 @@
 #include "ui.hpp"
 #include <QFormLayout>
 #include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QVBoxLayout>
 
 #include <QCheckBox>
@@ -13,6 +15,7 @@
 #include <QWidget>
 #include <atomic>
 #include <exception>
+#include <memory>
 #include <stdexcept>
 
 namespace backup::gui
@@ -30,6 +33,10 @@ QWidget* remoteBackupPage()
     QLineEdit* source;
     QPushButton* browse;
     archiveForm->addRow("源目录", pathRow(source, browse, "sourcePath"));
+    QPushButton* selectEntries;
+    QLabel* selectionSummary;
+    archiveForm->addRow("备份内容",
+                        selectionRow(selectEntries, selectionSummary));
     auto* name = new QLineEdit;
     name->setClearButtonEnabled(true);
     name->setObjectName("backupName");
@@ -48,6 +55,34 @@ QWidget* remoteBackupPage()
     page.footer->addWidget(task.frame);
 
     bindPathPicker(page.widget, browse, source, "选择源目录", selectDirectory);
+    auto selection = std::make_shared<QStringList>();
+    QObject::connect(source, &QLineEdit::textChanged, page.widget,
+                     [=]()
+                     {
+                         selection->clear();
+                         selectionSummary->setText("全部内容");
+                     });
+    QObject::connect(
+        selectEntries, &QPushButton::clicked, page.widget,
+        [=]()
+        {
+            const QString directory = source->text().trimmed();
+            if (directory.isEmpty())
+            {
+                QMessageBox::warning(page.widget, "输入有误",
+                                     "请先选择源目录。");
+                return;
+            }
+            QStringList chosen = *selection;
+            if (!selectSourceEntries(page.widget, directory, &chosen))
+            {
+                return;
+            }
+            *selection = chosen;
+            selectionSummary->setText(
+                chosen.isEmpty() ? QString("全部内容")
+                                 : QString("已选 %1 项").arg(chosen.size()));
+        });
     QObject::connect(
         controls.start, &QPushButton::clicked, page.widget,
         [=]()
@@ -75,6 +110,7 @@ QWidget* remoteBackupPage()
                 return;
             }
 
+            const auto includes = toUtf8Strings(*selection);
             startJob(
                 page.widget, controls,
                 [=](std::atomic_bool* cancel, const ProgressCallback& progress)
@@ -88,6 +124,7 @@ QWidget* remoteBackupPage()
 
                     auto options =
                         algorithmOptions(algorithms, cancel, progress);
+                    options.includes = includes;
                     auto created = BackupEngine::create(
                         src.toStdString(), temporary.toStdString(), options);
                     if (!created.success)

@@ -12,13 +12,15 @@ namespace
 void validateArguments(const std::string& command, const Arguments& args)
 {
     static const std::map<std::string, std::set<std::string>> allowed{
-        {"backup", {"-o", "--pack", "--compress", "--encrypt", "--key-file"}},
+        {"backup",
+         {"-o", "--pack", "--compress", "--encrypt", "--key-file",
+          "--include"}},
         {"restore", {"-d", "--key-file", "--overwrite"}},
         {"inspect", {}},
         {"user", {"--server", "--username", "--account-password-file"}},
         {"remote-backup",
          {"--server", "--username", "--account-password-file", "--name",
-          "--pack", "--compress", "--encrypt", "--key-file"}},
+          "--pack", "--compress", "--encrypt", "--key-file", "--include"}},
         {"remote-list", {"--server", "--username", "--account-password-file"}},
         {"remote-restore",
          {"--server", "--username", "--account-password-file", "-d",
@@ -44,6 +46,13 @@ void validateArguments(const std::string& command, const Arguments& args)
     {
         validate(flag);
     }
+    // Repeatable options are stored apart from single-valued ones, so they need
+    // the same per-command check; otherwise --include would be accepted by
+    // commands that never archive a source tree.
+    for (const auto& repeated : args.repeated)
+    {
+        validate(repeated.first);
+    }
     // Other commands validate their required operand in the command handler.
     if ((command == "user" || command == "remote-list") &&
         !args.positional.empty())
@@ -59,7 +68,7 @@ void usage()
 Local:
   backup-cli backup SOURCE -o ARCHIVE --pack stream|index
       [--compress none|rle|huffman|lz77] [--encrypt none|chacha20|aes256]
-      [--key-file FILE]
+      [--key-file FILE] [--include PATH]...
   backup-cli restore ARCHIVE -d DEST [--key-file FILE] [--overwrite]
   backup-cli inspect ARCHIVE
 
@@ -67,7 +76,8 @@ Remote:
   backup-cli user register --server HOST:PORT --username NAME
       [--account-password-file FILE]
   backup-cli remote-backup SOURCE --server HOST:PORT --username NAME
-      [--account-password-file FILE] [--name NAME] [local algorithm options]
+      [--account-password-file FILE] [--name NAME] [--include PATH]...
+      [local algorithm options]
   backup-cli remote-list --server HOST:PORT --username NAME
       [--account-password-file FILE]
   backup-cli remote-restore BACKUP_ID -d DEST --server HOST:PORT --username NAME

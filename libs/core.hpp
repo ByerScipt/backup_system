@@ -51,6 +51,13 @@ struct BackupOptions
     CompressionAlgorithm compression = CompressionAlgorithm::None;
     EncryptionAlgorithm encryption = EncryptionAlgorithm::None;
     std::string password;
+    // Archive-relative selections: paths below the source root without its
+    // name ("docs/manual.txt"), using '/' separators. An empty list archives
+    // the whole tree. A selected directory keeps its entire subtree, and the
+    // directories above a selected entry are stored as well so the original
+    // structure survives. Absolute paths, ".." segments and entries that do
+    // not exist in the source are rejected.
+    std::vector<std::string> includes;
     ProgressCallback progress;
     std::atomic_bool* cancel = nullptr;
 };
@@ -99,6 +106,16 @@ struct RestorePreview
     std::vector<std::string> conflicts;
 };
 
+// One entry below a scanned source directory, as reported by scanSource().
+struct SourceEntryInfo
+{
+    std::string path;  // relative to the scanned directory, '/' separators
+    std::string type;  // file, directory, symlink, fifo, character-device,
+                       // block-device or unix-socket
+    uint64_t size = 0; // bytes of a regular file; 0 for every other type
+    int64_t mtimeSeconds = 0;
+};
+
 class BackupEngine
 {
 public:
@@ -127,6 +144,14 @@ public:
     // Checks header and encoded checksum only, without a password. Throws on
     // failure; it does not establish that decoded entry metadata is valid.
     static ArchiveInfo inspect(const std::string& archivePath);
+
+    // Lists every entry below sourceDirectory, without the directory itself.
+    // It walks the tree exactly like create(), so the returned paths can be
+    // fed straight into BackupOptions::includes; the order is stable and
+    // symlinks are reported without being followed. Throws std::exception on
+    // error and requires the directory to exist.
+    static std::vector<SourceEntryInfo>
+    scanSource(const std::string& sourceDirectory);
 };
 
 std::array<uint8_t, 32> sha256(const std::vector<uint8_t>& data);

@@ -89,6 +89,71 @@ Entry makeEntry(const fs::path& full, const std::string& archivePath)
     return e;
 }
 
+namespace
+{
+// A selection path is relative to the source root and must stay inside it.
+// Returns sorted, duplicate-free archive-relative paths.
+std::vector<std::string>
+normalizeIncludes(const std::vector<std::string>& includes)
+{
+    std::vector<std::string> normalized;
+    normalized.reserve(includes.size());
+    for (const auto& raw : includes)
+    {
+        ensure(!raw.empty(), "selected path must not be empty");
+        fs::path path(raw);
+        ensure(!path.is_absolute(),
+               "selected path must be relative to the source: " + raw);
+        fs::path clean = path.lexically_normal();
+        if (!clean.has_filename())
+        {
+            clean = clean.parent_path();
+        }
+        for (const auto& part : clean)
+        {
+            ensure(part != "..",
+                   "selected path must stay inside the source: " + raw);
+        }
+        ensure(clean != "." && !clean.empty(),
+               "selected path must name an entry inside the source: " + raw);
+        normalized.push_back(clean.generic_string());
+    }
+    std::sort(normalized.begin(), normalized.end());
+    normalized.erase(std::unique(normalized.begin(), normalized.end()),
+                     normalized.end());
+    return normalized;
+}
+
+// True when a selected path lies strictly below directory.
+bool selectsBelow(const std::vector<std::string>& selected,
+                  const std::string& directory)
+{
+    const std::string prefix = directory + "/";
+    auto it = std::lower_bound(selected.begin(), selected.end(), prefix);
+    return it != selected.end() && it->compare(0, prefix.size(), prefix) == 0;
+}
+
+// True when the entry itself or one of its ancestors is selected.
+bool insideSelection(const std::vector<std::string>& selected,
+                     const std::string& relative)
+{
+    std::string current = relative;
+    for (;;)
+    {
+        const auto slash = current.rfind('/');
+        if (slash == std::string::npos)
+        {
+            return false;
+        }
+        current.erase(slash);
+        if (std::binary_search(selected.begin(), selected.end(), current))
+        {
+            return true;
+        }
+    }
+}
+} // namespace
+
 std::vector<Entry> scanDirectory(const fs::path& source, uint64_t& inputBytes,
                                  const BackupOptions& options)
 {
@@ -99,6 +164,11 @@ std::vector<Entry> scanDirectory(const fs::path& source, uint64_t& inputBytes,
     std::string rootName = root.filename().string();
     ensure(!rootName.empty() && rootName != "." && rootName != "..",
            "cannot back up filesystem root directly");
+
+    // An empty selection keeps the historical whole-tree behaviour.
+    const std::vector<std::string> selected =
+        normalizeIncludes(options.includes);
+    const bool wholeTree = selected.empty();
 
     std::vector<Entry> entries;
     entries.push_back(makeEntry(root, rootName));
@@ -113,6 +183,20 @@ std::vector<Entry> scanDirectory(const fs::path& source, uint64_t& inputBytes,
         ensure(!ec, "cannot enumerate source directory: " + ec.message());
         fs::path relative = it->path().lexically_relative(root);
         ensure(!relative.empty(), "cannot calculate source-relative path");
+        const std::string relativePath = relative.generic_string();
+        if (!wholeTree)
+        {
+            const bool chosen = std::binary_search(
+                selected.begin(), selected.end(), relativePath);
+            if (!chosen && !selectsBelow(selected, relativePath) &&
+                !insideSelection(selected, relativePath))
+            {
+                // Skipping a directory skips everything below it, so an
+                // unselected branch is never walked.
+                it.disable_recursion_pending();
+                continue;
+            }
+        }
         std::string archivePath =
             (fs::path(rootName) / relative).generic_string();
         Entry entry = makeEntry(it->path(), archivePath);
@@ -128,6 +212,20 @@ std::vector<Entry> scanDirectory(const fs::path& source, uint64_t& inputBytes,
     ensure(entries.size() <= kMaxEntries, "source contains too many entries");
     std::sort(entries.begin() + 1, entries.end(),
               [](const Entry& a, const Entry& b) { return a.path < b.path; });
+    // A stale selection must fail loudly instead of producing a partial
+    // archive that looks complete. The root name sorts before its children,
+    // so the whole vector is ordered and can be searched.
+    for (const auto& path : selected)
+    {
+        const std::string archivePath =
+            (fs::path(rootName) / path).generic_string();
+        const auto found =
+            std::lower_bound(entries.begin(), entries.end(), archivePath,
+                             [](const Entry& entry, const std::string& value)
+                             { return entry.path < value; });
+        ensure(found != entries.end() && found->path == archivePath,
+               "selected entry does not exist in the source: " + path);
+    }
     // Stable ordering ensures every hardlink refers to an earlier content
     // entry.
     std::map<std::pair<uint64_t, uint64_t>, const Entry*> originals;
@@ -160,6 +258,40 @@ std::vector<Entry> scanDirectory(const fs::path& source, uint64_t& inputBytes,
         }
     }
     return entries;
+}
+
+std::vector<SourceEntryInfo> listSourceEntries(const fs::path& source)
+{
+    // A listing needs neither progress reports nor cancellation.
+    BackupOptions options;
+    uint64_t inputBytes = 0;
+    const std::vector<Entry> entries =
+        scanDirectory(source, inputBytes, options);
+    std::vector<SourceEntryInfo> listed;
+    if (entries.empty())
+    {
+        return listed;
+    }
+    listed.reserve(entries.size() - 1);
+    for (auto it = entries.begin() + 1; it != entries.end(); ++it)
+    {
+        // Archive paths are "<root name>/<relative path>"; the root name
+        // cannot contain '/', so the first separator ends it.
+        const auto slash = it->path.find('/');
+        ensure(slash != std::string::npos, "cannot calculate listing path");
+        SourceEntryInfo info;
+        info.path = it->path.substr(slash + 1);
+        // A hardlink alias looks like an ordinary file to the caller.
+        info.type = it->type == EntryType::Hardlink ? std::string("file")
+                                                    : entryTypeName(it->type);
+        if (it->type == EntryType::Regular || it->type == EntryType::Hardlink)
+        {
+            info.size = it->sourceSize;
+        }
+        info.mtimeSeconds = it->mtimeSec;
+        listed.push_back(std::move(info));
+    }
+    return listed;
 }
 
 void writeEntryMetadata(std::ostream& out, const Entry& e, bool withOffset)

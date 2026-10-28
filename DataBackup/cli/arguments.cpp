@@ -24,6 +24,15 @@ Arguments parseArgs(int argc, char* argv[], int start)
             }
             result.flags.push_back(value);
         }
+        else if (value == "--include")
+        {
+            // Repeatable: one --include per selected entry below SOURCE.
+            if (i + 1 >= argc)
+            {
+                throw std::runtime_error("missing value for option: " + value);
+            }
+            result.repeated.emplace_back(value, argv[++i]);
+        }
         else if (value == "-o" || value == "-d" || value == "--pack" ||
                  value == "--compress" || value == "--encrypt" ||
                  value == "--key-file" || value == "--server" ||
@@ -49,6 +58,20 @@ Arguments parseArgs(int argc, char* argv[], int start)
         }
     }
     return result;
+}
+
+std::vector<std::string> repeatedValues(const Arguments& args,
+                                        const std::string& name)
+{
+    std::vector<std::string> values;
+    for (const auto& [option, value] : args.repeated)
+    {
+        if (option == name)
+        {
+            values.push_back(value);
+        }
+    }
+    return values;
 }
 
 std::string requiredOption(const std::map<std::string, std::string>& options,
