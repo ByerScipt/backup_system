@@ -578,6 +578,19 @@ void testEntrySelection()
     std::ofstream(root / "source" / "docs" / "draft.txt") << "skipped";
     std::ofstream(root / "source" / "docs" / "other.txt") << "other";
     std::ofstream(root / "source" / "images" / "photo.bin") << "image";
+    std::ofstream(root / "source" / "images" / "photo.jpg") << "jpeg";
+    std::ofstream big(root / "source" / "images" / "big.raw");
+    big << std::string(2 * 1024 * 1024, 'x');
+    big.close();
+    std::ofstream(root / "source" / "docs" / "empty.cfg");
+    std::ofstream(root / "source" / ".config") << "hidden";
+    std::filesystem::create_directories(root / "source" / ".git");
+    std::ofstream(root / "source" / ".git" / "HEAD") << "ref";
+    // 100 days old: outside the 90-day band, inside the one-year band.
+    const auto oldTime = std::filesystem::file_time_type::clock::now() -
+                         std::chrono::hours(24 * 100);
+    std::filesystem::last_write_time(root / "source" / "docs" / "other.txt",
+                                     oldTime);
 
     std::unique_ptr<QWidget> page(backup::gui::localBackupPage());
     const QString source = QString::fromStdString((root / "source").string());
@@ -663,6 +676,105 @@ void testEntrySelection()
                         ->click();
                 }),
             "an empty directory cannot be selected for backup");
+
+    require(
+        driveEntrySelector(
+            page.get(), source, selection,
+            [](QDialog* dialog)
+            {
+                auto* tree = dialog->findChild<QTreeWidget*>("entryTree");
+                auto* category =
+                    dialog->findChild<QComboBox*>("entryCategoryFilter");
+                auto* size = dialog->findChild<QComboBox*>("entrySizeFilter");
+                auto* age = dialog->findChild<QComboBox*>("entryAgeFilter");
+                auto* showHidden =
+                    dialog->findChild<QCheckBox*>("entryShowHidden");
+                auto* check =
+                    dialog->findChild<QPushButton*>("checkFilteredEntries");
+                auto* uncheck =
+                    dialog->findChild<QPushButton*>("uncheckFilteredEntries");
+                require(tree != nullptr && category != nullptr &&
+                            size != nullptr && age != nullptr &&
+                            showHidden != nullptr && check != nullptr &&
+                            uncheck != nullptr,
+                        "selection dialog lacks the new filter widgets");
+                const auto find = [tree](const QString& name)
+                {
+                    const auto found = tree->findItems(
+                        name, Qt::MatchExactly | Qt::MatchRecursive, 0);
+                    return found.isEmpty() ? nullptr : found.first();
+                };
+                auto* photo = find("photo.jpg");
+                auto* report = find("report.txt");
+                auto* big = find("big.raw");
+                auto* images = find("images");
+                auto* empty = find("empty.cfg");
+                auto* other = find("other.txt");
+                auto* dotfile = find(".config");
+                auto* dotdir = find(".git");
+                require(photo != nullptr && report != nullptr &&
+                            big != nullptr && images != nullptr &&
+                            empty != nullptr && other != nullptr &&
+                            dotfile != nullptr && dotdir != nullptr,
+                        "selection tree lost fixture entries");
+                require(tree->columnCount() == 5,
+                        "entry tree has no category column");
+                require(photo->text(2) == "图片" && report->text(2) == "文档" &&
+                            big->text(2) == "其他" && images->text(2).isEmpty(),
+                        "category labels are wrong");
+                dialog->findChild<QPushButton*>("clearEntries")->click();
+                category->setCurrentIndex(category->findData("image"));
+                require(!photo->isHidden() && report->isHidden() &&
+                            big->isHidden() && !images->isHidden(),
+                        "category filter hides the wrong entries");
+                const QString evidence =
+                    qEnvironmentVariable("BACKUP_GUI_EVIDENCE_DIR");
+                if (!evidence.isEmpty())
+                {
+                    QDir().mkpath(evidence);
+                    require(
+                        dialog->grab().save(evidence + "/entry-selection.png"),
+                        "entry selection screenshot failed");
+                }
+                category->setCurrentIndex(0);
+                size->setCurrentIndex(3); // 1 MB – 100 MB
+                require(!big->isHidden() && photo->isHidden() &&
+                            report->isHidden(),
+                        "size band 1-100MB keeps the wrong entries");
+                size->setCurrentIndex(1); // 空文件
+                require(!empty->isHidden() && report->isHidden(),
+                        "empty-file band keeps the wrong entries");
+                size->setCurrentIndex(0);
+                age->setCurrentIndex(5); // 最近 90 天
+                require(other->isHidden(),
+                        "90-day band kept a 100-day-old file");
+                age->setCurrentIndex(6); // 最近一年
+                require(!other->isHidden(),
+                        "one-year band hid a 100-day-old file");
+                age->setCurrentIndex(0);
+                showHidden->setChecked(false);
+                require(dotfile->isHidden() && dotdir->isHidden() &&
+                            !report->isHidden(),
+                        "hidden toggle did not hide dot entries");
+                showHidden->setChecked(true);
+                require(!dotfile->isHidden() && !dotdir->isHidden(),
+                        "hidden toggle did not restore dot entries");
+                category->setCurrentIndex(category->findData("image"));
+                check->click();
+                require(photo->checkState(0) == Qt::Checked &&
+                            images->checkState(0) == Qt::PartiallyChecked,
+                        "checking filtered results forced a directory");
+                uncheck->click();
+                require(photo->checkState(0) == Qt::Unchecked &&
+                            images->checkState(0) == Qt::Unchecked,
+                        "unchecking filtered results kept the states");
+                check->click();
+                dialog->findChild<QDialogButtonBox*>()
+                    ->button(QDialogButtonBox::Ok)
+                    ->click();
+            }) &&
+            selection == QStringList{"images/photo.jpg"},
+        "filtered selection took in entries hidden by the filter");
 
     QString failure;
     bool driven = false;

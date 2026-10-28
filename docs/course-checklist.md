@@ -1,11 +1,11 @@
-# 课程交付检查单（Backup Studio 1.9.1）
+# 课程交付检查单（Backup Studio 1.10.0）
 
 | 项目 | 内容 |
 | :--- | :--- |
-| 检查单版本 | 1.6 |
+| 检查单版本 | 1.7 |
 | 检查日期 | 2026-10-28 |
 | 对应代码基线 | 与本文件所在 Git 提交的源码一致 |
-| 对应软件版本 | 1.9.1 |
+| 对应软件版本 | 1.10.0 |
 | 说明 | 当前 Linux 复验见 `docs/test-report.md` 的 2026-10-28 节；历史归档证据与当前结果按日期区分。 |
 
 ## 1 交付物清单
@@ -24,14 +24,14 @@
 | 10 | 演示录像 / 证书 | — | **待补** |
 | 11 | 发布安装包（客户端/服务端/一体包） | `Utils/package-wsl.sh`、`packaging/install-notes.md` | 构建入口已入库；发布包与安装验收日志待补 |
 | 12 | Windows（WSL2）安装器 | `packaging/windows/install-wsl.ps1`、`Install-BackupStudio.cmd` | 实现已入库；Windows 安装验收日志待补 |
-| 13 | 容器交付 | `Dockerfile`、`docker-compose.yml` | 构建配置已入库；镜像及运行验收日志待补 |
+| 13 | 容器交付 | `Dockerfile`、`docker-compose.yml` | 已完成：WSL2 Docker 29.1.3 实机构建与 compose 往返验收，证据 `docs/evidence/docker-verify-190.log`；systemd 主机验收见待办 |
 
 ## 2 文档规范性检查
 
 | 检查项 | 结果 | 说明 |
 | :--- | :--- | :--- |
 | 三份文档结构完整 | 通过 | 均含封面信息表、章节编号、术语、追溯、变更记录 |
-| 版本一致 | 通过 | 三份文档与 `CMakeLists.txt` 均为 1.9.1；历史版本记录保留原日期 |
+| 版本一致 | 通过 | 三份文档与 `CMakeLists.txt` 均为 1.10.0；历史版本记录保留原日期 |
 | 需求编号可追溯 | 通过 | FR-01..17 / NFR-01..10 ↔ 设计 4.x ↔ 用例 TC-* |
 | 术语一致 | 通过 | 归档/packed/encoded/BKP2/NBKP 等术语在 requirements 1.3 定义，全文统一 |
 | 命令与选项与代码一致 | 通过 | 取自 `cli/main.cpp` 与 `cli/arguments.cpp` 的实际白名单；`--include` 可重复，且与单值选项共用同一白名单校验 |
@@ -134,9 +134,9 @@
 
 | 门禁 | 状态 |
 | :--- | :--- |
-| 配置、格式检查、并行构建 | 1.9.1 全部通过，包含 Qt GUI 目标；见测试报告 2026-10-28 节 |
-| CTest | 1.9.1 为 3/3 通过，无跳过项；WSL 启动器 7/7 通过；见测试报告 2026-10-28 节 |
-| GUI | 新增选择框与本地/远程流程纳入 Qt 离屏回归；桌面显示不可连接，未作交互式桌面验收 |
+| 配置、格式检查、并行构建 | 1.10.0 全部通过，包含 Qt GUI 目标；见测试报告 2026-10-28 条目选择筛选与分类扩展节 |
+| CTest | 1.10.0 在 Ubuntu 24.04/Qt 6.4.2 为 2/3：`backup-gui-tests` 在 `testAccountAlignment` 处失败（DEF-01）；`--entry-selection` 与 `--dialog-placement` 子集均通过。1.9.1 的 3/3 来自 Qt 6.2.4 环境 |
+| GUI | 新增选择框与本地/远程流程纳入 Qt 离屏回归；该环境离屏截图非空；桌面显示不可连接，未作交互式桌面验收 |
 | `.github/`、`.workflow` 不进入提交 | 通过（`.gitignore` 忽略） |
 | `docs/` 随代码维护 | 已跟踪；本轮同步条目选择的设计、需求与测试结果 |
 
@@ -152,15 +152,15 @@
 | 6 | 导出 Teambition 看板与分工记录 | GGBang621 | 演示前 |
 | 7 | Windows/WSLg 交互式界面验收 | 全员 | 演示前 |
 | 8 | 统一提交身份邮箱（E-Dawnize 两个身份） | E-Dawnize | 下次提交 |
-| 9 | 在有 Docker 的机器上构建并运行服务端镜像，留存 `docker load`/远端往返证据 | 待定 | 演示前 |
-| 10 | 在启用 systemd 的主机（或开启 systemd 的 WSL 发行版）验证服务开机自启与重启 | 待定 | 演示前 |
-| 11 | 在目标答辩环境复核桌面交互；Linux 自动回归见测试报告 2026-10-28 节 | 全员 | 演示前 |
-| 12 | 把条目选择补入 `DataBackup.mdj`（用例/时序图）与 `docs/mermaid/` 图源 | Byer | 下次提交 |
+| 9 | 在启用 systemd 的主机（或开启 systemd 的 WSL 发行版）验证服务开机自启与重启 | 待定 | 演示前 |
+| 10 | 在目标答辩环境复核桌面交互；Linux 自动回归见测试报告 2026-10-28 节 | 全员 | 演示前 |
+| 11 | 把条目选择补入 `DataBackup.mdj`（用例/时序图）与 `docs/mermaid/` 图源 | Byer | 下次提交 |
 
 ## 9 检查单变更记录
 
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
+| 1.7 | 2026-10-28 | 同步 1.10.0：条目选择筛选与分类扩展的文档与回归；容器交付标记为已完成并归档 Docker 实机验收；门禁按 Qt 6.4.2 真实结果重述 | `docs/test-report.md`、`docs/evidence/docker-verify-190.log`、`GUI/select_entries.cpp`、`CHANGELOG.md` 1.10.0 |
 | 1.6 | 2026-10-28 | 同步 1.9.1 与条目选择修复回归；区分 Linux 离屏自动验证和待完成的桌面验收 | `docs/test-report.md`、`test/test_gui_jobs.cpp`、`CHANGELOG.md` 1.9.1 |
 | 1.5 | 2026-10-27 | 同步 1.9.0 条目选择基线：需求编号扩到 FR-17、门禁状态改为后备环境实测、待办增加 WSL 全量复验与 UML 同步 | `dev/entry-selection`、`docs/test-report.md`、`CHANGELOG.md` 1.9.0 |
 | 1.4 | 2026-10-23 | 清理仓库外产物引用；按已入库材料区分实现、交付物与验收证据；同步当前 CTest 门禁 | `docs/evidence/`、`Utils/package-wsl.sh`、`docs/test-report.md` |
