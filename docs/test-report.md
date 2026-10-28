@@ -3,15 +3,39 @@
 | 项目 | 内容 |
 | :--- | :--- |
 | 文档名称 | 软件测试报告 |
-| 文档版本 | 1.5 |
-| 被测版本 | 1.9.0（`CMakeLists.txt` `project(... VERSION 1.9.0)`） |
-| 被测代码基线 | `dev/entry-selection`（含 `v1.8.1`）；下文 10-14 的 1.8.0 记录保留为历史证据 |
-| 测试日期 | 最新 2026-10-27；历史 2026-10-23、2026-10-14 |
+| 文档版本 | 1.6 |
+| 被测版本 | 1.9.1（`CMakeLists.txt` `project(... VERSION 1.9.1)`） |
+| 被测代码基线 | 与本文件所在 Git 提交的源码一致；历史测试按日期单独列出 |
+| 测试日期 | 最新 2026-10-28；历史 2026-10-27、2026-10-23、2026-10-14 |
 | 测试执行 | 项目组；复现命令见附录 A，已归档日志见附录 D |
-| 结论 | 1.9.0 条目选择在 MSYS2/Cygwin 后备环境通过核心文件系统子集与 CLI 用例；GUI 与 [2/4]–[4/4] 未在本机执行；1.8.1 的 3/3 通过记录保留为最近一次完整结果 |
+| 结论 | Linux 完整回归结果见 2026-10-28 节；历史 Qt 6.4.2 布局缺陷 DEF-01 保留，Qt 6.2.4 通过不能证明其在其他 Qt 环境已修复 |
 
 > 测试日志随文档保存在 `docs/evidence/`，附录 D 按版本列出。
 > 日志中的目录占位符仅用于路径脱敏，测试输出、耗时和结果保持原样。
+
+## 2026-10-28 条目选择修复与 Linux 复验
+
+环境为 WSL2/Linux、普通用户 UID 1000、GCC 11.4、Qt 6.2.4，使用原版 POSIX
+代码与 Release 构建，不采用历史 Cygwin 的兼容改动或跳过项。
+
+| 用例 | 场景与测试入口 |
+| :--- | :--- |
+| TC-SEL-09 | 确定和取消结束对话框；取消保留原选择；`test/test_gui_jobs.cpp` 的 `driveEntrySelector`、`testEntrySelection` |
+| TC-SEL-10 | 只选两个嵌套文件且顶层也有两项时仍保留部分选择；全选重开、清空后禁用确认、空目录可确认；`testEntrySelection` |
+| TC-SEL-11 | 任务启动后修改源路径不影响当前归档；远程 GUI 选择后上传、下载还原且排除未选文件；`testEntrySelection`、`testUserWorkflow` |
+| TC-SEL-12 | `src/` 与 `src` 归档和还原结果相同；`test/test_selection.cpp` 的 `testSelection` |
+
+修复前，按钮测试报 `entry selector did not close`；尾斜杠用例报
+`selected entry does not exist in the source: src/`。这两类复现现已纳入自动回归。
+完整复验：clang-format 18.1.8、全量构建与离屏启动检查通过；CTest 核心/网络
+7.16 秒、CLI 1.01 秒、GUI 7.70 秒，3/3 通过，无跳过项。WSL 启动器 7/7 通过。
+另外补测选择性备份的全部 24 种打包/压缩/加密组合，中文及空格路径、还原内容和
+未选条目排除均通过。160 MiB 文件在每进程 128 MiB 虚拟内存限制下往返成功，
+SHA-256 一致；备份/还原峰值 RSS 均为 5088 KiB，耗时分别为 1.77/3.72 秒。
+这些是单次验收值，不代表跨机器的性能保证。
+
+复现入口为附录 A 的 CMake、format-check、CTest、WSL 启动器命令及
+`Utils/run_performance_test.sh`。本次不新增日志或截图产物到仓库。
 
 ## 2026-10-23 后端复验
 
@@ -83,7 +107,7 @@ Ninja，未安装 Qt 6，因此只覆盖核心与 CLI 两层。为让行为用�
 
 ### 1.1 测试目标
 
-验证 Backup Studio 1.8.1 是否满足 `docs/requirements.md` 的功能与非功能需求，
+验证 Backup Studio 1.9.1 是否满足 `docs/requirements.md` 的功能与非功能需求，
 重点覆盖：归档管线与 24 种算法组合（含新增 LZ77）、归档健壮性与还原安全、
 账户隔离与网络传输、CLI 参数校验、桌面端工作流，以及性能与内存约束。
 
@@ -398,7 +422,7 @@ libstdc++ 头文件）：
 | FR-12 | TC-NET-01、TC-NET-13、TC-CLI-04 | 通过 |
 | FR-13 | TC-IO-04、TC-GUI-05 | 通过 |
 | FR-16 | TC-NET-02、TC-NET-13、TC-NET-14 | 通过 |
-| FR-17 | TC-SEL-01..08、TC-CLI-07（2026-10-27 节） | 通过（Cygwin 后备环境；GUI 用例未执行） |
+| FR-17 | TC-SEL-01..12、TC-CLI-07 | 当前 Linux 复验见 2026-10-28 节；10-27 为历史部分验证 |
 | NFR-01 | TC-PERF-01（4.3.5） | 通过 |
 | NFR-02/04 | TC-SEC-01..05、TC-IO-01..03、TC-LZ77-01/03 | 通过 |
 | NFR-03 | TC-SEC-06..12、TC-NET-03 | 通过 |
@@ -462,6 +486,7 @@ DELIVERY_ROOT="$(pwd)/output/delivery" ./Utils/package-wsl.sh
 
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
+| 1.6 | 2026-10-28 | 同步 1.9.1，增加按钮、部分选择、空选、快照与尾斜杠回归，按当前 Linux 环境复验 | `test/test_gui_jobs.cpp`、`test/test_selection.cpp`、`CHANGELOG.md` 1.9.1 |
 | 1.5 | 2026-10-27 | 新增 2026-10-27 条目选择复验：后备环境、3 处本地改动、TC-SEL-01..08 与 TC-CLI-07 结果；明确 GUI 与 [2/4]–[4/4] 未执行 | `dev/entry-selection`、`docs/evidence/entry-selection-msys-190.log` |
 | 1.4 | 2026-10-23 | 文档引用统一为仓库文件、发布标签和可复现命令；归档 1.8.1 CTest 日志并脱敏历史日志路径；安装包验收按入库证据重标 | `v1.8.1`、`docs/evidence/`、`Utils/package-wsl.sh` |
 | 1.3 | 2026-10-23 | 同步 1.8.1，记录配置、同步故障、元数据、容量回收与 LZ77 写入失败回归；区分当前复验与历史环境缺陷 | `v1.8.1`、`docs/evidence/ctest-detail-181.log` |

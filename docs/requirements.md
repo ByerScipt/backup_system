@@ -3,13 +3,13 @@
 | 项目 | 内容 |
 | :--- | :--- |
 | 文档名称 | 需求分析说明书 |
-| 文档版本 | 1.4 |
-| 对应软件版本 | 1.9.0（`CMakeLists.txt` 的 `project(... VERSION)`） |
-| 对应代码基线 | `dev/entry-selection`（含 `v1.8.1` 后端修复与条目选择） |
-| 编制日期 | 2026-10-27 |
+| 文档版本 | 1.5 |
+| 对应软件版本 | 1.9.1（`CMakeLists.txt` 的 `project(... VERSION)`） |
+| 对应代码基线 | 与本文件所在 Git 提交的源码一致 |
+| 编制日期 | 2026-10-28 |
 | 编制 | Byer、E-Dawnize、ByerScipt、GGBang621（真实 Git 提交记录） |
 | 适用范围 | 课程交付：需求、设计、测试三份文档 |
-| 状态 | 开发分支基线（与 1.9.0 实现同步；GUI 验收待补） |
+| 状态 | 与 1.9.1 实现同步 |
 
 > 本文件与 `docs/design.md`、`docs/test-report.md`、`docs/course-checklist.md`
 > 同属课程交付材料，保存在版本库的 `docs/` 目录，按 `AGENTS.md` 随代码更新。
@@ -17,6 +17,7 @@
 > 配置读取错误必须上报，损坏备份元数据不能作为有效列表结果；上传同步失败须清理未完成产物。
 > 2026-10-27 补充条目选择需求（FR-17）：备份可只归档源目录下选中的条目；
 > 未选择时仍为整目录，归档格式与网络协议不变。
+> 1.9.1：GUI 初始显示全选；清空非空目录的勾选后禁止确认；运行中任务使用启动时的选择快照。
 
 ## 1 引言
 
@@ -51,7 +52,7 @@
 
 1. `README.md`：功能、构建、使用方式与设计摘要。
 2. `libs/core.hpp`、`libs/network.hpp`：公共接口与参数约束。
-3. `CHANGELOG.md`：1.0 至 1.8.1 的真实变更历史。
+3. `CHANGELOG.md`：1.0 至 1.9.1 的变更历史。
 4. `DataBackup.mdj`：StarUML 模型（类图、用例图、时序图、部署图）。
 5. `docs/design.md`、`docs/test-report.md`：设计与验证文档。
 
@@ -309,7 +310,7 @@
 | FR-12 | 4.6 | TC-CLI-04/05、TC-NET-13 | 通过 |
 | FR-13 | 4.1、4.9 | TC-IO-04、TC-GUI-05 | 通过 |
 | FR-16 | 4.6 | TC-NET-02/14 | 通过 |
-| FR-17 | 4.11 | TC-SEL-01..08、TC-CLI-07 | 通过（Cygwin 后备环境，见测试报告 2026-10-27 节） |
+| FR-17 | 4.11 | TC-SEL-01..08、TC-CLI-07、TC-SEL-09..12 | Linux 完整回归，见测试报告 2026-10-28 节 |
 | NFR-01 | 4.1、4.4 | TC-PERF-01 | 通过 |
 | NFR-02/04 | 4.2–4.5 | TC-SEC-01..12、TC-IO-01..03 | 通过 |
 | NFR-03 | 4.5、4.7 | TC-SEC-01..12、TC-NET-12 | 通过 |
@@ -324,6 +325,7 @@
 
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
+| 1.5 | 2026-10-28 | 同步 1.9.1，明确全选显示、清空确认及后台任务输入快照约束 | `GUI/select_entries.cpp`、`GUI/pages_local.cpp`、`GUI/pages_remote.cpp` |
 | 1.4 | 2026-10-27 | 新增 FR-17 条目选择（CLI `--include`、GUI 选择对话框）；UC-01、接口表、验收标准与追溯矩阵同步 | `libs/core.hpp`、`DataBackup/cli/`、`GUI/select_entries.cpp`、`CHANGELOG.md` 1.9.0 |
 | 1.3 | 2026-10-23 | 同步 1.8.1 基线；明确配置覆盖、元数据校验和上传失败清理约束；功能与格式保持兼容 | `v1.8.1`、`CHANGELOG.md`、后端回归测试 |
 | 1.2 | 2026-10-14 | 新增 `bind_address`/`--bind` 与发布部署需求（客户端/服务端/一体包安装包）；UC-06 与配置表同步 | `CMakeLists.txt` 1.8.0、`libs/network.hpp`、`Utils/package-wsl.sh` |

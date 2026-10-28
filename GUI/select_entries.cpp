@@ -287,6 +287,10 @@ bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
     box->button(QDialogButtonBox::Ok)->setText("确定");
     box->button(QDialogButtonBox::Ok)->setObjectName("primaryButton");
     box->button(QDialogButtonBox::Cancel)->setText("取消");
+    QObject::connect(box, &QDialogButtonBox::accepted, &dialog,
+                     &QDialog::accept);
+    QObject::connect(box, &QDialogButtonBox::rejected, &dialog,
+                     &QDialog::reject);
     layout->addWidget(box);
 
     QHash<QString, QTreeWidgetItem*> nodes;
@@ -323,10 +327,12 @@ bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
                 bytes += entry->size;
             }
         }
+        box->button(QDialogButtonBox::Ok)
+            ->setEnabled(selected != 0 || total == 0);
         if (selected == 0)
         {
             summary->setText(total == 0 ? "目录为空：将只备份该目录本身。"
-                                        : "未选择任何条目：将备份整个目录。");
+                                        : "请选择需要备份的条目。");
             return;
         }
         summary->setText(QString("已选择 %1/%2 项：%3 个文件，合计 %4")
@@ -422,8 +428,15 @@ bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
     tree->setSortingEnabled(true);
     tree->sortItems(0, Qt::AscendingOrder);
 
-    // Re-opening the dialog keeps the previous selection.
+    // Empty means the whole tree, including when the dialog is first opened.
     updating = true;
+    if (selection->isEmpty())
+    {
+        for (int index = 0; index < tree->topLevelItemCount(); ++index)
+        {
+            setSubtreeState(tree->topLevelItem(index), Qt::Checked);
+        }
+    }
     for (const QString& path : *selection)
     {
         if (auto* item = nodes.value(path))
@@ -440,12 +453,15 @@ bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
         return false;
     }
     QStringList chosen;
+    bool wholeTree = true;
     for (int index = 0; index < tree->topLevelItemCount(); ++index)
     {
-        collectChecked(tree->topLevelItem(index), chosen);
+        auto* item = tree->topLevelItem(index);
+        wholeTree = wholeTree && item->checkState(0) == Qt::Checked;
+        collectChecked(item, chosen);
     }
     // Every top-level entry selected is the same archive as "no selection".
-    if (chosen.size() == tree->topLevelItemCount())
+    if (wholeTree)
     {
         chosen.clear();
     }

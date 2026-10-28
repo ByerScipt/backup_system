@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.9.1 — 2026-10-28
+
+- Wire entry-selector confirmation and cancellation to the dialog; preserve
+  partial selections even when their count matches the number of root entries.
+- Show whole-tree selections as checked and disable confirmation after clearing
+  a nonempty tree, so clearing cannot silently request a whole-tree backup.
+- Snapshot local and remote selections before starting background jobs; later
+  form edits no longer change a running backup's inputs.
+- Accept normalized selection paths with trailing directory separators.
+- Add selector lifecycle, partial/all/empty selection, in-flight source-edit and
+  trailing-separator regressions. Keep the archive format and protocol unchanged.
+
 ## 1.9.0 — 2026-10-27
 
 - Add entry selection: `BackupOptions::includes` archives only the paths chosen

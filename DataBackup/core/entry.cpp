@@ -105,6 +105,10 @@ normalizeIncludes(const std::vector<std::string>& includes)
         ensure(!path.is_absolute(),
                "selected path must be relative to the source: " + raw);
         fs::path clean = path.lexically_normal();
+        if (!clean.has_filename())
+        {
+            clean = clean.parent_path();
+        }
         for (const auto& part : clean)
         {
             ensure(part != "..",

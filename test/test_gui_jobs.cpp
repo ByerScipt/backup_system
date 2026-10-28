@@ -511,6 +511,62 @@ void testPresentation()
 
 // The selector must archive only the checked entries, keep the structure and
 // drop the selection when the source directory changes.
+bool driveEntrySelector(QWidget* owner, const QString& source,
+                        QStringList& selection,
+                        const std::function<void(QDialog*)>& action,
+                        QPushButton* opener = nullptr)
+{
+    QString failure;
+    bool driven = false;
+    QTimer driver, deadline;
+    QObject::connect(&driver, &QTimer::timeout, owner,
+                     [&]()
+                     {
+                         auto* dialog = qobject_cast<QDialog*>(
+                             QApplication::activeModalWidget());
+                         if (driven || !dialog)
+                         {
+                             return;
+                         }
+                         driven = true;
+                         try
+                         {
+                             action(dialog);
+                         }
+                         catch (const std::exception& error)
+                         {
+                             failure = QString::fromUtf8(error.what());
+                             dialog->reject();
+                         }
+                     });
+    deadline.setSingleShot(true);
+    QObject::connect(&deadline, &QTimer::timeout, owner,
+                     [&]()
+                     {
+                         failure = "entry selector did not close";
+                         if (auto* dialog = qobject_cast<QDialog*>(
+                                 QApplication::activeModalWidget()))
+                         {
+                             dialog->reject();
+                         }
+                     });
+    driver.start(10);
+    deadline.start(1500);
+    bool accepted = true;
+    if (opener)
+    {
+        opener->click();
+    }
+    else
+    {
+        accepted = backup::gui::selectSourceEntries(owner, source, &selection);
+    }
+    require(driven && failure.isEmpty(), failure.isEmpty()
+                                             ? "entry selector never appeared"
+                                             : failure.toStdString().c_str());
+    return accepted;
+}
+
 void testEntrySelection()
 {
     QTemporaryDir directory;
@@ -520,6 +576,7 @@ void testEntrySelection()
     std::filesystem::create_directories(root / "source" / "images");
     std::ofstream(root / "source" / "docs" / "report.txt") << "selected";
     std::ofstream(root / "source" / "docs" / "draft.txt") << "skipped";
+    std::ofstream(root / "source" / "docs" / "other.txt") << "other";
     std::ofstream(root / "source" / "images" / "photo.bin") << "image";
 
     std::unique_ptr<QWidget> page(backup::gui::localBackupPage());
@@ -528,6 +585,84 @@ void testEntrySelection()
     field(page.get(), "outputPath")
         ->setText(QString::fromStdString((root / "selected.bak").string()));
     page->show();
+
+    QStringList selection{"docs/report.txt"};
+    require(
+        !driveEntrySelector(
+            page.get(), source, selection,
+            [](QDialog* dialog)
+            {
+                dialog->findChild<QPushButton*>("selectAllEntries")->click();
+                dialog->findChild<QDialogButtonBox*>()
+                    ->button(QDialogButtonBox::Cancel)
+                    ->click();
+            }) &&
+            selection == QStringList{"docs/report.txt"},
+        "cancel changed the previous selection");
+    require(driveEntrySelector(
+                page.get(), source, selection,
+                [](QDialog* dialog)
+                {
+                    auto* tree = dialog->findChild<QTreeWidget*>("entryTree");
+                    tree->findItems("draft.txt",
+                                    Qt::MatchExactly | Qt::MatchRecursive, 0)
+                        .front()
+                        ->setCheckState(0, Qt::Checked);
+                    dialog->findChild<QDialogButtonBox*>()
+                        ->button(QDialogButtonBox::Ok)
+                        ->click();
+                }) &&
+                selection.size() == 2 &&
+                selection.contains("docs/report.txt") &&
+                selection.contains("docs/draft.txt"),
+            "two nested selections became a whole-tree selection");
+    require(
+        driveEntrySelector(
+            page.get(), source, selection,
+            [](QDialog* dialog)
+            {
+                auto* box = dialog->findChild<QDialogButtonBox*>();
+                dialog->findChild<QPushButton*>("clearEntries")->click();
+                require(!box->button(QDialogButtonBox::Ok)->isEnabled(),
+                        "clearing selection can silently back up all");
+                dialog->findChild<QPushButton*>("selectAllEntries")->click();
+                box->button(QDialogButtonBox::Ok)->click();
+            }) &&
+            selection.isEmpty(),
+        "select all did not restore whole-tree selection");
+    require(driveEntrySelector(
+                page.get(), source, selection,
+                [](QDialog* dialog)
+                {
+                    auto* tree = dialog->findChild<QTreeWidget*>("entryTree");
+                    for (int index = 0; index < tree->topLevelItemCount();
+                         ++index)
+                    {
+                        require(tree->topLevelItem(index)->checkState(0) ==
+                                    Qt::Checked,
+                                "whole-tree selection is not shown checked");
+                    }
+                    dialog->findChild<QDialogButtonBox*>()
+                        ->button(QDialogButtonBox::Ok)
+                        ->click();
+                }) &&
+                selection.isEmpty(),
+            "reopening whole-tree selection changed its meaning");
+    std::filesystem::create_directory(root / "empty-source");
+    require(driveEntrySelector(
+                page.get(),
+                QString::fromStdString((root / "empty-source").string()),
+                selection,
+                [](QDialog* dialog)
+                {
+                    require(dialog->findChild<QTreeWidget*>("entryTree")
+                                    ->topLevelItemCount() == 0,
+                            "empty source contains unexpected entries");
+                    dialog->findChild<QDialogButtonBox*>()
+                        ->button(QDialogButtonBox::Ok)
+                        ->click();
+                }),
+            "an empty directory cannot be selected for backup");
 
     QString failure;
     bool driven = false;
@@ -570,6 +705,7 @@ void testEntrySelection()
                 dialog->reject();
                 return;
             }
+            dialog->findChild<QPushButton*>("clearEntries")->click();
             filter->setText("report");
             if (!draft->isHidden())
             {
@@ -593,8 +729,9 @@ void testEntrySelection()
     driver.start(10);
     page->findChild<QPushButton*>("selectEntries")->click();
     driver.stop();
-    require(driven, failure.isEmpty() ? "selection dialog never appeared"
-                                      : failure.toStdString().c_str());
+    require(driven && failure.isEmpty(), failure.isEmpty()
+                                             ? "selection dialog never appeared"
+                                             : failure.toStdString().c_str());
     require(page->findChild<QLabel*>("selectionSummary")
                 ->text()
                 .contains("已选 1 项"),
@@ -614,6 +751,8 @@ void testEntrySelection()
                      });
     guard.start(10);
     page->findChild<QPushButton*>("primaryButton")->click();
+    // Editing the next job's source must not mutate the running job's inputs.
+    field(page.get(), "sourcePath")->setText(source + "/docs");
     require(waitFor([&]() { return !page->property("jobRunning").toBool(); }),
             "selected backup did not finish");
     guard.stop();
@@ -636,7 +775,6 @@ void testEntrySelection()
             "an unselected directory was archived");
 
     // A new source directory must not inherit the previous selection.
-    field(page.get(), "sourcePath")->setText(source + "/docs");
     require(page->findChild<QLabel*>("selectionSummary")->text() == "全部内容",
             "changing the source kept a stale selection");
 }
@@ -800,8 +938,27 @@ void testUserWorkflow()
     field(upload, "sourcePath")
         ->setText(QString::fromStdString(source.string()));
     field(upload, "backupName")->setText("课堂备份");
+    std::ofstream(source / "不选.txt") << "not selected";
+    QStringList selected;
+    driveEntrySelector(
+        upload, QString::fromStdString(source.string()), selected,
+        [](QDialog* dialog)
+        {
+            dialog->findChild<QPushButton*>("clearEntries")->click();
+            dialog->findChild<QTreeWidget*>("entryTree")
+                ->findItems("说明 文本.txt", Qt::MatchExactly, 0)
+                .front()
+                ->setCheckState(0, Qt::Checked);
+            dialog->findChild<QDialogButtonBox*>()
+                ->button(QDialogButtonBox::Ok)
+                ->click();
+        },
+        upload->findChild<QPushButton*>("selectEntries"));
     run(upload);
     std::ofstream(source / "较大文件") << std::string(12000, 'x');
+    // A new source spelling resets the next upload to the whole tree.
+    field(upload, "sourcePath")
+        ->setText(QString::fromStdString(source.string()) + "/.");
     field(upload, "backupName")->setText("较大备份");
     run(upload);
     auto* history = navigate(4);
@@ -830,6 +987,9 @@ void testUserWorkflow()
             "selected ID was not filled");
     field(restoreRemote, "destinationPath")->setText(root + "/remote-restored");
     run(restoreRemote);
+    require(!std::filesystem::exists(std::filesystem::path(
+                (root + "/remote-restored/课堂 资料/不选.txt").toStdString())),
+            "remote selection archived an excluded file");
     for (const QString destination : {"local-restored", "remote-restored"})
     {
         QFile restored(root + "/" + destination + "/课堂 资料/说明 文本.txt");

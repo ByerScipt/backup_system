@@ -21,15 +21,15 @@ DNS resolution still follows the system resolver's timeout. Cancellation does
 not roll back already restored entries or server-side actions already committed.
 
 Ordinary-file hard links within the source tree are preserved. New
-archives use BKP2 format version 2; the reader also accepts version 1 archives
-using supported algorithms. Older applications reject version 2 archives.
+archives use BKP2 format version 2, or version 3 for LZ77; the reader accepts
+versions 1, 2 and 3 using supported algorithms. Older readers reject versions
+they do not support.
 Metadata restoration errors fail the operation. Entries already restored may
 remain after a failure.
 The restored timestamps are atime and mtime; ctime is recorded but cannot be
 restored, and creation time (btime), ACLs and extended attributes are not supported.
 
-Version history is in [CHANGELOG.md](CHANGELOG.md). The adjacent delivery output contains historical
-artifacts and must be regenerated before submission.
+Version history is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Build
 
@@ -92,7 +92,12 @@ Encryption prompts for an archive password; restore requires the same password. 
 
 An archive must be written outside the source tree, to a path that does not already exist. Restore rejects conflicting paths unless `--overwrite` is supplied. In the GUI, local restore also offers a conflict preview before extraction.
 
-`--include` archives only the named entries below `SOURCE`, and the directories above them are stored as well, so a restore reproduces the original layout; a selected directory keeps its whole subtree. Absolute paths, `..` segments and entries that do not exist are rejected. The local and remote backup pages in the GUI offer the same selection through a checkable tree with name, type and time filters.
+`--include` archives only the named entries below `SOURCE`, and the directories above them are stored as well, so a restore reproduces the original layout; a selected directory keeps its whole subtree. Absolute paths, normalized paths escaping the source and entries that do not exist are rejected. The local and remote backup pages in the GUI offer the same selection through a checkable tree with name, type and time filters.
+
+The selector initially checks the whole tree. Clearing every checkbox disables
+confirmation for a nonempty directory; Cancel keeps the previous selection.
+Running jobs use a snapshot of their selections, so later form edits apply only
+to the next backup.
 
 ## Remote backup and restore
 

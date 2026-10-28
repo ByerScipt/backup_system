@@ -113,13 +113,14 @@ QWidget* localBackupPage()
                 return;
             }
 
+            const auto includes = toUtf8Strings(*selection);
             startJob(
                 page.widget, controls,
                 [=](std::atomic_bool* cancel, const ProgressCallback& progress)
                 {
                     auto options =
                         algorithmOptions(algorithms, cancel, progress);
-                    options.includes = toUtf8Strings(*selection);
+                    options.includes = includes;
                     auto result = BackupEngine::create(
                         src.toStdString(), out.toStdString(), options);
                     if (!result.success)

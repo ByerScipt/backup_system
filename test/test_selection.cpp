@@ -163,6 +163,10 @@ void testSelection()
         {".", "src", "src/main.cpp", "src/nested", "src/nested/deep.bin"},
         number++);
     verifySelection(
+        workspace, source, "directory trailing slash", {"src/"},
+        {".", "src", "src/main.cpp", "src/nested", "src/nested/deep.bin"},
+        number++);
+    verifySelection(
         workspace, source, "two branches", {"top.txt", "src/nested/deep.bin"},
         {".", "top.txt", "src", "src/nested", "src/nested/deep.bin"}, number++);
     verifySelection(workspace, source, "empty directory", {"empty"},
