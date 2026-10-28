@@ -3,12 +3,12 @@
 | 项目 | 内容 |
 | :--- | :--- |
 | 文档名称 | 软件测试报告 |
-| 文档版本 | 1.6 |
-| 被测版本 | 1.9.1（`CMakeLists.txt` `project(... VERSION 1.9.1)`） |
+| 文档版本 | 1.7 |
+| 被测版本 | 1.10.0（`CMakeLists.txt` `project(... VERSION 1.10.0)`） |
 | 被测代码基线 | 与本文件所在 Git 提交的源码一致；历史测试按日期单独列出 |
 | 测试日期 | 最新 2026-10-28；历史 2026-10-27、2026-10-23、2026-10-14 |
 | 测试执行 | 项目组；复现命令见附录 A，已归档日志见附录 D |
-| 结论 | Linux 完整回归结果见 2026-10-28 节；历史 Qt 6.4.2 布局缺陷 DEF-01 保留，Qt 6.2.4 通过不能证明其在其他 Qt 环境已修复 |
+| 结论 | Linux 完整回归结果见 2026-10-28 节；历史 Qt 6.4.2 布局缺陷 DEF-01 保留（1.10.0 在 Qt 6.4.2 复现），Qt 6.2.4 通过不能证明其在其他 Qt 环境已修复 |
 
 > 测试日志随文档保存在 `docs/evidence/`，附录 D 按版本列出。
 > 日志中的目录占位符仅用于路径脱敏，测试输出、耗时和结果保持原样。
@@ -36,6 +36,30 @@ SHA-256 一致；备份/还原峰值 RSS 均为 5088 KiB，耗时分别为 1.77/
 
 复现入口为附录 A 的 CMake、format-check、CTest、WSL 启动器命令及
 `Utils/run_performance_test.sh`。本次不新增日志或截图产物到仓库。
+
+## 2026-10-28 条目选择筛选与分类扩展（1.10.0）
+
+环境为 WSL2 Ubuntu 24.04、普通用户 UID 1000、GCC 13.3.0、Qt 6.4.2、
+clang-format 18.1.3，Release 构建，`Utils/build-wsl.sh` 一键门禁。
+
+| 用例 | 场景与测试入口 | 结果 |
+| :--- | :--- | :--- |
+| TC-SEL-13 | 类别列与扩展名映射（图片/文档/其他），类别、大小档、90 天与一年时间档、隐藏开关的可见性；勾选筛选结果不强制勾选目录、不引入被隐藏条目；归档只含可见文件 | 通过（`backup-gui-tests --entry-selection`） |
+| TC-GUI-06 | 选择对话框新增控件完整、间距不裁切，截图归档 | 通过（`docs/evidence/entry-selection.png`） |
+
+门禁结果：format-check 通过；CLI、服务器、GUI 与两个测试目标全部构建成功；
+CTest 3 项中 2 项通过（`backup-tests` 2.74 秒、`backup-cli-tests` 0.41 秒），
+`backup-gui-tests` 在 `testAccountAlignment` 处失败（DEF-01，Qt 6.4.2），
+共享序列因此未到达后续工作流；以 `--entry-selection` 与 `--dialog-placement`
+单独执行均通过。离屏启动截图 50998 字节非空。逐项输出见
+[1.10.0 一键门禁日志](evidence/build-wsl-1100.log)。
+1.9.1 节记录的 3/3 通过来自 Qt 6.2.4 环境，不能证明 DEF-01 在 Qt 6.4.2 已修复。
+
+复现命令：`./Utils/build-wsl.sh`；单项验证：
+`QT_QPA_PLATFORM=offscreen $BIN_DIR/backup-gui-tests --entry-selection`，
+证据目录由 `BACKUP_GUI_EVIDENCE_DIR` 指定。本次归档
+`docs/evidence/tc-gui-entry.log`、`docs/evidence/tc-gui-dialog.log` 与
+`docs/evidence/entry-selection.png`。
 
 ## 2026-10-23 后端复验
 
@@ -97,6 +121,7 @@ Ninja，未安装 Qt 6，因此只覆盖核心与 CLI 两层。为让行为用�
 | TC-SEL-06 | 非规整重复路径 `./docs//manual/../manual/guide.txt` 规整去重后只归档一次 | 通过 |
 | TC-SEL-07 | 只选硬链接别名时退化为普通文件；成对选择时保持硬链接（`st_ino` 相同、`st_nlink` 为 2） | 通过 |
 | TC-SEL-08 | 缺失条目、绝对路径、`..`、空串、`.` 被拒绝且不生成归档；`scanSource` 的路径顺序、类型、大小与 mtime 与目录树一致 | 通过 |
+| TC-SEL-13 | 类别列与筛选：图片/文档/其他映射正确；类别、大小档、90 天/一年时间档与隐藏开关的可见性正确；勾选筛选结果只勾选可见文件、不强制勾选目录、不引入被隐藏条目 | 通过（2026-10-28，1.10.0） |
 | TC-CLI-07 | `--include` 只归档选中项并保留结构；`inspect`/`restore`/`remote-restore` 拒绝该选项；缺值报错 | 通过 |
 
 未覆盖：GUI 选择对话框的勾选、筛选、摘要与「源目录变化清空选择」由
@@ -107,7 +132,7 @@ Ninja，未安装 Qt 6，因此只覆盖核心与 CLI 两层。为让行为用�
 
 ### 1.1 测试目标
 
-验证 Backup Studio 1.9.1 是否满足 `docs/requirements.md` 的功能与非功能需求，
+验证 Backup Studio 1.10.0 是否满足 `docs/requirements.md` 的功能与非功能需求，
 重点覆盖：归档管线与 24 种算法组合（含新增 LZ77）、归档健壮性与还原安全、
 账户隔离与网络传输、CLI 参数校验、桌面端工作流，以及性能与内存约束。
 
@@ -255,6 +280,7 @@ CLI argument validation and restore-option roundtrips passed.
 | TC-GUI-03 | 历史列表搜索/排序/选择/整 ID 复制 | 通过 |
 | TC-GUI-04 | 与真实服务器注册/上传/列表/下载；加密本地往返 | 通过 |
 | TC-GUI-05 | 多任务关闭与取消等待清理 | 通过 |
+| TC-GUI-06 | 条目选择对话框的类别列、类别/大小/时间/隐藏筛选与勾选筛选结果动作；归档只含可见文件 | 通过（`--entry-selection` 子集） |
 
 失败原始输出：
 
@@ -422,7 +448,7 @@ libstdc++ 头文件）：
 | FR-12 | TC-NET-01、TC-NET-13、TC-CLI-04 | 通过 |
 | FR-13 | TC-IO-04、TC-GUI-05 | 通过 |
 | FR-16 | TC-NET-02、TC-NET-13、TC-NET-14 | 通过 |
-| FR-17 | TC-SEL-01..12、TC-CLI-07 | 当前 Linux 复验见 2026-10-28 节；10-27 为历史部分验证 |
+| FR-17 | TC-SEL-01..13、TC-CLI-07 | 当前 Linux 复验见 2026-10-28 节；10-27 为历史部分验证 |
 | NFR-01 | TC-PERF-01（4.3.5） | 通过 |
 | NFR-02/04 | TC-SEC-01..05、TC-IO-01..03、TC-LZ77-01/03 | 通过 |
 | NFR-03 | TC-SEC-06..12、TC-NET-03 | 通过 |
@@ -479,13 +505,14 @@ DELIVERY_ROOT="$(pwd)/output/delivery" ./Utils/package-wsl.sh
 | 环境变量 | 用途 |
 | :--- | :--- |
 | `BACKUP_GUI_CAPTURE` | 离屏启动后保存主窗口截图 |
-| `BACKUP_GUI_EVIDENCE_DIR` | GUI 测试保存登录/注册对齐截图（DEF-01 现场） |
+| `BACKUP_GUI_EVIDENCE_DIR` | GUI 测试保存登录/注册对齐截图（DEF-01 现场）与条目选择对话框截图 |
 | `DELIVERY_ROOT` | 性能脚本将证据写入所选目录下的 `output/evidence/`；这些输出由执行命令生成 |
 
 ## 附录 C 文档变更记录
 
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
+| 1.7 | 2026-10-28 | 同步 1.10.0：新增 2026-10-28 条目选择筛选与分类扩展节、TC-SEL-13 与 TC-GUI-06；记录 Ubuntu 24.04/Qt 6.4.2 门禁真实结果（CTest 2/3，DEF-01） | `GUI/select_entries.cpp`、`test/test_gui_jobs.cpp`、`docs/evidence/tc-gui-*.log`、`CHANGELOG.md` 1.10.0 |
 | 1.6 | 2026-10-28 | 同步 1.9.1，增加按钮、部分选择、空选、快照与尾斜杠回归，按当前 Linux 环境复验 | `test/test_gui_jobs.cpp`、`test/test_selection.cpp`、`CHANGELOG.md` 1.9.1 |
 | 1.5 | 2026-10-27 | 新增 2026-10-27 条目选择复验：后备环境、3 处本地改动、TC-SEL-01..08 与 TC-CLI-07 结果；明确 GUI 与 [2/4]–[4/4] 未执行 | `dev/entry-selection`、`docs/evidence/entry-selection-msys-190.log` |
 | 1.4 | 2026-10-23 | 文档引用统一为仓库文件、发布标签和可复现命令；归档 1.8.1 CTest 日志并脱敏历史日志路径；安装包验收按入库证据重标 | `v1.8.1`、`docs/evidence/`、`Utils/package-wsl.sh` |
@@ -503,6 +530,11 @@ DELIVERY_ROOT="$(pwd)/output/delivery" ./Utils/package-wsl.sh
 
 | 文件 | 内容 |
 | :--- | :--- |
+| `docs/evidence/build-wsl-1100.log` | 1.10.0 一键脚本日志（format-check、构建、CTest 2/3，含 DEF-01） |
+| `docs/evidence/entry-selection.png` | 1.10.0 条目选择对话框：类别列、五组筛选、勾选筛选结果动作（类别=图片时） |
+| `docs/evidence/tc-gui-entry.log` | 1.10.0 `backup-gui-tests --entry-selection` 输出（含 TC-SEL-13/TC-GUI-06） |
+| `docs/evidence/tc-gui-dialog.log` | 1.10.0 `backup-gui-tests --dialog-placement` 输出 |
+| `docs/evidence/docker-verify-190.log` | 2026-10-28 服务端镜像构建、compose 启停与 CLI 远端往返验收原始输出 |
 | `docs/evidence/entry-selection-msys-190.log` | 2026-10-27 条目选择复验的原始输出（环境、本地改动、编译、[1/4]、CLI 与格式检查） |
 | `docs/evidence/ctest-detail-181.log` | 1.8.1 三项 CTest 的逐项输出、耗时与通过结果 |
 | `docs/evidence/build-wsl-180.log` | 1.8.0 一键脚本日志（format-check、构建、CTest） |

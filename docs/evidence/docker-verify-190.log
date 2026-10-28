@@ -1,0 +1,46 @@
+== docker & image ==
+server 29.1.3
+Docker Compose version 2.40.3+ds1-0ubuntu1~24.04.1
+WARNING: This output is designed for human readability. For machine-readable output, please use --format.
+IMAGE                        ID             DISK USAGE   CONTENT SIZE   EXTRA
+backup-studio-server:1.9.0   b46a439d5fd4        119MB         30.1MB        
+== compose up ==
+ Network backup-system-build40bet4_default  Creating
+ Network backup-system-build40bet4_default  Created
+ Volume backup-system-build40bet4_backup-data  Creating
+ Volume backup-system-build40bet4_backup-data  Created
+ Container backup-studio-server  Creating
+ Container backup-studio-server  Created
+ Container backup-studio-server  Starting
+ Container backup-studio-server  Started
+NAME                   IMAGE                        COMMAND                  SERVICE         CREATED         STATUS         PORTS
+backup-studio-server   backup-studio-server:1.9.0   "backup-server --con…"   backup-server   3 seconds ago   Up 2 seconds   0.0.0.0:8848->8848/tcp, [::]:8848->8848/tcp
+-- server log tail --
+== CLI round trip ==
+User registered successfully.
+[scan] 2 demo-src/sub        [scan] 3 demo-src/sub/b.txt        [scan] 4 demo-src/hardlink-to-a.txt        [scan] 5 demo-src/symlink-to-a        [scan] 6 demo-src/a.txt        [pack] 6/12 demo-src/a.txt        [pack] 12/12 demo-src/sub/b.txt        [compress-copy] 604/604        [encrypt] 604/604        [finalize] 604/604        
+Remote backup complete. ID: 97010bbc033c31605aee9c38de1fc4a5
+Remote backups (1):
+97010bbc033c31605aee9c38de1fc4a5	t1	716 bytes	1793152963
+restoring id=97010bbc033c31605aee9c38de1fc4a5
+[read-archive] 604/604        [decrypt] 604/604        [decompress-copy] 604/604        [extract] 6/6 demo-src/a.txt        [restore-entry] 6 demo-src/a.txt        [restore-entry] 6 demo-src/hardlink-to-a.txt        [extract] 6/6 demo-src/sub/b.txt        [restore-entry] 12 demo-src/sub/b.txt        [restore-entry] 12 demo-src/symlink-to-a        
+Remote restore complete: 6 entries
+== verify restored content ==
+hardlink preserved (links=2)
+symlink preserved
+== volume content (as container user) ==
+ls: cannot access '/data/server_data/demo': No such file or directory
+== volume content (corrected) ==
+-rw------- 1 backup-studio backup-studio  62 Oct 28 02:02 /data/server_data/users.db
+-rw------- 1 backup-studio backup-studio 716 Oct 28 02:02 /data/server_data/users/2a97516c354b68848cdbd8f54a226a0a55b21ed138e207ad6c5cbb9c00aa5aea/97010bbc033c31605aee9c38de1fc4a5.bak
+-rw------- 1 backup-studio backup-studio  88 Oct 28 02:02 /data/server_data/users/2a97516c354b68848cdbd8f54a226a0a55b21ed138e207ad6c5cbb9c00aa5aea/97010bbc033c31605aee9c38de1fc4a5.meta
+== compose down ==
+ Container backup-studio-server  Stopping
+ Container backup-studio-server  Stopped
+ Container backup-studio-server  Removing
+ Container backup-studio-server  Removed
+ Network backup-system-build40bet4_default  Removing
+ Network backup-system-build40bet4_default  Removed
+backup-system-build40bet4_backup-data
+VOLUME_REMOVED
+DOCKER_VERIFY_OK

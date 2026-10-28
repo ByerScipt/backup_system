@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.10.0 — 2026-10-28
+
+- Extend the Qt entry selector with content categories: the tree gains a
+  category column and the filter row a category choice that maps regular files
+  to image, document, code, video, audio, archive, program or other by
+  extension. Directories, symlinks and special entries keep no category, so the
+  filter only narrows regular files and ancestor directories stay visible.
+- Add a size-band filter (empty, under 1 MB, 1–100 MB, at least 100 MB), extend
+  the age filter with 90 days and one year, and add a hidden-entry toggle for
+  dot-prefixed names; a hidden name hides its whole subtree.
+- Add “check filtered results” and “uncheck filtered results”. They set the
+  visible entries only and never force-check a directory, because a checked
+  directory archives its whole subtree and would pull in entries the filter
+  hid; directory states are recomputed from the children instead.
+- Widen the dialog to 1020×620 and rebalance the two action rows so the extra
+  filters and buttons fit without clipping; the archive format, the NBKP
+  protocol, the CLI and the core stay unchanged.
+- Cover category labels, category/size/age/hidden visibility, the filtered
+  check/uncheck states and the resulting archive contents with GUI regressions,
+  and keep a dialog screenshot as evidence.
+
 ## 1.9.1 — 2026-10-28
 
 - Wire entry-selector confirmation and cancellation to the dialog; preserve
