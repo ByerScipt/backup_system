@@ -1,6 +1,8 @@
 
 #include "arguments.hpp"
 #include "network.hpp"
+#include <charconv>
+#include <csignal>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -15,6 +17,12 @@ using namespace backup;
 
 namespace
 {
+std::atomic_bool automaticCancelled{false};
+void cancelAutomatic(int)
+{
+    automaticCancelled = true;
+}
+
 void progressReport(const ProgressEvent& event)
 {
     std::cerr << "\r[" << event.stage << "] ";
@@ -136,6 +144,61 @@ int localRestore(const Arguments& args)
     return 0;
 }
 
+int automaticBackup(const Arguments& args)
+{
+    if (args.positional.size() != 1)
+    {
+        throw std::runtime_error("watch requires one SOURCE directory");
+    }
+    auto options = backupOptions(args);
+    AutomaticOptions automatic;
+    automatic.realtime = hasFlag(args, "--realtime");
+    const auto number =
+        [&](const char* name, uint32_t fallback, uint32_t maximum)
+    {
+        const auto found = args.options.find(name);
+        if (found == args.options.end())
+        {
+            return fallback;
+        }
+        const auto& value = found->second;
+        uint32_t parsed = 0;
+        const auto result =
+            std::from_chars(value.data(), value.data() + value.size(), parsed);
+        if (result.ec != std::errc{} ||
+            result.ptr != value.data() + value.size() || parsed == 0 ||
+            parsed > maximum)
+        {
+            throw std::runtime_error(std::string("invalid value for ") + name);
+        }
+        return parsed;
+    };
+    automatic.interval = std::chrono::seconds(
+        number("--interval", automatic.realtime ? 1 : 60, 604800));
+    automatic.keep = number("--retain", 5, 10000);
+    automatic.maxBackups = number("--count", 0, 1000000);
+    const auto output = requiredOption(args.options, "-o");
+    automaticCancelled = false;
+    options.cancel = &automaticCancelled;
+    const auto previousInt = std::signal(SIGINT, cancelAutomatic);
+    const auto previousTerm = std::signal(SIGTERM, cancelAutomatic);
+    const auto result = BackupEngine::automatic(args.positional.front(), output,
+                                                options, automatic);
+    std::signal(SIGINT, previousInt);
+    std::signal(SIGTERM, previousTerm);
+    std::cerr << '\n';
+    if (automaticCancelled)
+    {
+        return 130;
+    }
+    if (!result.success)
+    {
+        throw std::runtime_error(result.message);
+    }
+    std::cout << result.message << '\n';
+    return 0;
+}
+
 int inspectArchive(const Arguments& args)
 {
     if (args.positional.size() != 1)
@@ -160,7 +223,14 @@ network::BackupClient remoteClient(const Arguments& args)
     std::string username = requiredOption(args.options, "--username");
     std::string accountPassword = secretFrom(
         args.options, "--account-password-file", "Account password: ");
-    return {endpoint.first, endpoint.second, username, accountPassword};
+    network::TlsOptions tls;
+    const auto ca = args.options.find("--tls-ca");
+    tls.enabled = hasFlag(args, "--tls") || ca != args.options.end();
+    if (ca != args.options.end())
+    {
+        tls.caFile = ca->second;
+    }
+    return {endpoint.first, endpoint.second, username, accountPassword, tls};
 }
 
 int registerUser(const Arguments& args)
@@ -194,7 +264,8 @@ int remoteBackup(const Arguments& args)
     std::string id, error;
     auto name = args.options.find("--name");
     if (!client.upload(temp, name == args.options.end() ? "" : name->second, id,
-                       error))
+                       error, progressReport, nullptr,
+                       hasFlag(args, "--incremental")))
     {
         throw std::runtime_error(error);
     }

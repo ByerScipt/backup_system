@@ -25,8 +25,6 @@ void reportProgress(const ProgressCallback& progress, const std::string& stage,
     }
 }
 
-namespace
-{
 using Clock = std::chrono::steady_clock;
 
 Clock::time_point ioDeadline(int fd, int option)
@@ -70,17 +68,24 @@ void waitReady(int fd, short events, Clock::time_point deadline,
         }
     }
 }
-} // namespace
-
 void sendAll(int fd, const uint8_t* data, size_t size, std::atomic_bool* cancel)
 {
     const auto deadline = ioDeadline(fd, SO_SNDTIMEO);
     size_t sent = 0;
     while (sent < size)
     {
-        waitReady(fd, POLLOUT, deadline, cancel);
-        ssize_t n =
-            ::send(fd, data + sent, size - sent, MSG_NOSIGNAL | MSG_DONTWAIT);
+        ssize_t n;
+        if (tlsActive(fd))
+        {
+            n = tlsTransfer(fd, const_cast<uint8_t*>(data + sent), size - sent,
+                            true, deadline, cancel);
+        }
+        else
+        {
+            waitReady(fd, POLLOUT, deadline, cancel);
+            n = ::send(fd, data + sent, size - sent,
+                       MSG_NOSIGNAL | MSG_DONTWAIT);
+        }
         if (n < 0 &&
             (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
         {
@@ -98,8 +103,17 @@ bool receiveAll(int fd, uint8_t* data, size_t size, bool allowCleanEof,
     size_t received = 0;
     while (received < size)
     {
-        waitReady(fd, POLLIN, deadline, cancel);
-        ssize_t n = ::recv(fd, data + received, size - received, MSG_DONTWAIT);
+        ssize_t n;
+        if (tlsActive(fd))
+        {
+            n = tlsTransfer(fd, data + received, size - received, false,
+                            deadline, cancel);
+        }
+        else
+        {
+            waitReady(fd, POLLIN, deadline, cancel);
+            n = ::recv(fd, data + received, size - received, MSG_DONTWAIT);
+        }
         if (n < 0 &&
             (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
         {

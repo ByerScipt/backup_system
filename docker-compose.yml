@@ -1,6 +1,6 @@
 # Separated deployment: the archive server runs on its own host and every
-# client reaches it over NBKP/TCP. The protocol has no TLS, so publish this
-# only on a trusted network and connect with encrypted archives.
+# client reaches it over NBKP/TCP. Defaults use plaintext on a trusted network;
+# for TLS, mount a configuration and PEM certificate/key readable by UID 10001.
 #
 # Build the image first, then start the service:
 #   docker build -t backup-studio-server:1.8.0 \

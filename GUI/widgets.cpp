@@ -356,7 +356,9 @@ void startJob(QWidget* owner, const JobControls& controls, Job job,
                 {
                     safeProgress->setFormat(stage);
                 }
-                if (!detail.isEmpty() && (completed == 0 || completed == total))
+                if (!detail.isEmpty() &&
+                    (completed == 0 || completed == total ||
+                     stage == "自动快照"))
                 {
                     appendLog(safeLog, stage + " · " + detail);
                 }
@@ -425,6 +427,7 @@ void startJob(QWidget* owner, const JobControls& controls, Job job,
 QString stageName(const QString& stage)
 {
     static const std::pair<const char*, const char*> names[] = {
+        {"automatic-backup", "自动快照"},
         {"scan", "扫描目录"},
         {"pack", "写入归档"},
         {"compress-rle", "RLE 压缩"},
@@ -439,6 +442,7 @@ QString stageName(const QString& stage)
         {"extract", "提取文件"},
         {"restore-entry", "恢复元数据"},
         {"network-upload", "上传归档"},
+        {"network-reuse", "复用云端数据"},
         {"network-download", "下载归档"},
         {"conflict-preview", "冲突预检"},
         {"compress-copy", "复制未压缩数据"},

@@ -5,7 +5,7 @@
 FROM ubuntu:24.04 AS build
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends cmake g++ make \
+ && apt-get install -y --no-install-recommends cmake g++ make libssl-dev \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
@@ -16,8 +16,12 @@ RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
 FROM ubuntu:24.04
 ARG BACKUP_VERSION=dev
 LABEL org.opencontainers.image.title="backup-studio-server" \
-      org.opencontainers.image.description="Backup Studio archive server (NBKP over TCP, no TLS)" \
+      org.opencontainers.image.description="Backup Studio archive server with optional TLS" \
       org.opencontainers.image.version="${BACKUP_VERSION}"
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libssl3t64 ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /src/bin/backup-server /usr/local/bin/backup-server
 COPY --from=build /src/bin/backup-cli /usr/local/bin/backup-cli

@@ -64,6 +64,10 @@ QWidget* remoteBackupPage(AccountSession* session)
     QComboBox *pack, *compression, *encryption;
     QLineEdit* key;
     addAlgorithmRows(archiveForm, pack, compression, encryption, key);
+    auto* incremental = new QCheckBox("复用云端未变数据");
+    incremental->setObjectName("incrementalUpload");
+    incremental->setToolTip("按块增量传输；加密归档可能没有可复用的数据块。");
+    archiveForm->addRow("增量", incremental);
     archiveCard.body->addLayout(archiveForm);
 
     page.layout->addWidget(accountCard.frame, 1);
@@ -135,6 +139,7 @@ QWidget* remoteBackupPage(AccountSession* session)
             const ServerValues serverValues = session->credentials();
 
             const auto includes = toUtf8Strings(*selection);
+            const bool reuse = incremental->isChecked();
             startJob(
                 page.widget, controls,
                 [=](std::atomic_bool* cancel, const ProgressCallback& progress)
@@ -161,7 +166,7 @@ QWidget* remoteBackupPage(AccountSession* session)
                     std::string error;
                     if (!client.upload(temporary.toStdString(),
                                        backupName.toStdString(), id, error,
-                                       progress, cancel))
+                                       progress, cancel, reuse))
                     {
                         throw std::runtime_error(error);
                     }
@@ -276,6 +281,7 @@ QWidget* remoteRestorePage(AccountSession* session)
                 return;
             }
             const ServerValues values = session->credentials();
+            const auto revision = session->revision();
             const QString previous = resolveId();
             startJob(
                 page.widget, controls,
@@ -293,7 +299,7 @@ QWidget* remoteRestorePage(AccountSession* session)
                 [=]()
                 {
                     // Ignore a response if the account changed mid-request.
-                    if (session->credentials().username != values.username)
+                    if (session->revision() != revision)
                     {
                         return;
                     }

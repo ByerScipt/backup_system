@@ -13,9 +13,9 @@ artifact is built from the tagged commit recorded in `RELEASE-MANIFEST.txt`;
 | `backup-studio-server-<version>-image.tar` | Container image, produced when the release ran with `WITH_DOCKER=1` | `docker load` then run as below |
 
 The packages are built on Ubuntu 24.04 (glibc 2.39) and target Ubuntu 24.04 or
-newer. Qt 6, the platform plugin and a CJK font are declared as Debian
-dependencies, so `apt-get install ./file.deb` resolves them; `dpkg -i` alone
-does not.
+newer. Debian dependencies include OpenSSL and CA certificates, plus Qt 6,
+the platform plugin and a CJK font for GUI builds. `apt-get install ./file.deb`
+resolves dependencies; `dpkg -i` alone does not.
 
 ## Single machine: all-in-one
 
@@ -26,8 +26,8 @@ systemctl status backup-studio   # local server, enabled by the installer
 ```
 
 The all-in-one package installs a systemd drop-in that starts the server with
-`--bind 127.0.0.1`. The NBKP protocol has no TLS, so the archive server must
-not be reachable from the network by default. To turn this machine into a
+`--bind 127.0.0.1`. The default connection uses plaintext and stays local.
+To turn this machine into a
 shared server, remove the drop-in, set `bind_address = 0.0.0.0` in
 `/etc/backup-studio/databackup.conf` and restart the unit:
 
@@ -50,6 +50,14 @@ sudo systemctl restart backup-studio
 Archives and accounts live in `/var/lib/backup-studio`, owned by the
 `backup-studio` system account. Removing or purging the package never deletes
 that directory.
+
+For TLS, set both `tls_certificate` and `tls_private_key` to PEM files in
+`/etc/backup-studio/databackup.conf`, then restart the service. The service
+account must be able to read them; keep the private key inaccessible to other
+users. Enable TLS in the client's login form or use CLI `--tls` (system CA
+trust) or `--tls-ca ca.pem` (custom trust). The certificate must cover the
+client's chosen server DNS name or IP address. Archive encryption and transport
+TLS are independent options.
 
 On each client machine:
 

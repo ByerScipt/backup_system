@@ -93,9 +93,38 @@ void testTransformBounds(const fs::path& workspace,
     expectRestoreFailure(nonZeroPadding, workspace / "huffman-padding-target");
 }
 
-void testIndexBounds(const fs::path& workspace,
-                     const std::vector<BuiltArchive>& archives)
+void testPackBounds(const fs::path& workspace,
+                    const std::vector<BuiltArchive>& archives)
 {
+    for (const auto pack : {PackAlgorithm::Stream, PackAlgorithm::Index})
+    {
+        const auto& archive =
+            findArchive(archives, pack, CompressionAlgorithm::None,
+                        EncryptionAlgorithm::None);
+        auto inflated = readBytes(archive.path);
+        const size_t trailer = inflated.size() - 32;
+        std::vector<size_t> countOffsets{120};
+        if (pack == PackAlgorithm::Index)
+        {
+            countOffsets = {112 + readLe64(inflated, trailer + 8) + 8,
+                            trailer + 24};
+        }
+        for (size_t offset : countOffsets)
+        {
+            for (size_t byte = 0; byte < 4; ++byte)
+            {
+                inflated[offset + byte] =
+                    static_cast<uint8_t>(1'000'000u >> (8 * byte));
+            }
+        }
+        refreshPayloadDigests(inflated, true);
+        const auto malformed =
+            workspace / (toString(pack) + "-inflated-count.bak");
+        writeBytes(malformed, inflated);
+        expectRestoreFailure(malformed, workspace / "inflated-count-target",
+                             "entry count exceeds packed bounds");
+    }
+
     const auto& source =
         findArchive(archives, PackAlgorithm::Index, CompressionAlgorithm::None,
                     EncryptionAlgorithm::None);
@@ -373,6 +402,6 @@ void testFailureModes(const fs::path& workspace, const fs::path& source,
                          workspace / "huffman-trailing-target");
 
     testTransformBounds(workspace, archives);
-    testIndexBounds(workspace, archives);
+    testPackBounds(workspace, archives);
     testRestoreRaces(workspace, source, archives);
 }

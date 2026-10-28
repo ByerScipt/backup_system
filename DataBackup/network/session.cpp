@@ -70,6 +70,24 @@ private:
     std::optional<SessionKey> key_;
 };
 
+std::vector<uint8_t> listPayload(const std::vector<RemoteBackupEntry>& entries)
+{
+    ensure(entries.size() <= 4096, "backup list exceeds protocol limit");
+    std::vector<uint8_t> payload;
+    putU32(payload, static_cast<uint32_t>(entries.size()));
+    for (const auto& entry : entries)
+    {
+        putString(payload, entry.id);
+        putString(payload, entry.name);
+        putU64(payload, entry.timestamp);
+        putU64(payload, entry.size);
+        putString(payload, entry.digest);
+        ensure(payload.size() <= kMaxPayload,
+               "backup list exceeds frame size limit");
+    }
+    return payload;
+}
+
 void handleUpload(int fd, uint32_t requestId, const Frame& start,
                   const fs::path& storage, const std::string& username,
                   std::atomic_bool* cancel)
@@ -78,11 +96,24 @@ void handleUpload(int fd, uint32_t requestId, const Frame& start,
     std::string displayName = reader.string();
     uint64_t declaredSize = reader.u64();
     auto digestBytes = reader.bytes(32);
+    const bool incremental = start.type == MessageType::UploadDeltaStart;
+    const auto baseId = incremental ? reader.string() : std::string();
     reader.end();
     ensure(displayName.size() <= 256, "backup display name is too long");
     std::array<uint8_t, 32> declaredDigest{};
     std::copy(digestBytes.begin(), digestBytes.end(), declaredDigest.begin());
     fs::path dir = userDirectory(storage, username);
+    std::ifstream base;
+    uint64_t baseSize = 0;
+    if (incremental)
+    {
+        ensure(validBackupId(baseId), "invalid incremental base identifier");
+        readMeta(dir / (baseId + ".meta"), baseId);
+        const auto path = dir / (baseId + ".bak");
+        baseSize = fs::file_size(path);
+        base.open(path, std::ios::binary);
+        ensure(base.good(), "cannot open incremental base");
+    }
     fs::create_directories(dir);
     ensure(chmod(dir.c_str(), 0700) == 0,
            "cannot secure user storage directory");
@@ -99,6 +130,42 @@ void handleUpload(int fd, uint32_t requestId, const Frame& start,
     std::vector<uint8_t> ready;
     putString(ready, id);
     sendFrame(fd, MessageType::UploadReady, requestId, ready, cancel);
+    if (incremental)
+    {
+        // Index only a bounded prefix. Larger files remain supported: blocks
+        // outside that prefix are sent normally. No restore chain is created.
+        std::vector<uint8_t> chunk(kChunkSize), hashes;
+        const auto blocks =
+            std::min<uint64_t>(1048576, declaredSize / kChunkSize +
+                                            (declaredSize % kChunkSize != 0));
+        for (size_t index = 0; index < blocks && base; ++index)
+        {
+            checkCancelled(cancel);
+            base.read(reinterpret_cast<char*>(chunk.data()), chunk.size());
+            const auto count = static_cast<size_t>(base.gcount());
+            if (!count)
+            {
+                break;
+            }
+            chunk.resize(count);
+            const auto hash = sha256(chunk);
+            hashes.insert(hashes.end(), hash.begin(), hash.end());
+            chunk.resize(kChunkSize);
+            if (hashes.size() == 4096)
+            {
+                sendFrame(fd, MessageType::UploadBaseHashes, requestId, hashes,
+                          cancel);
+                hashes.clear();
+            }
+        }
+        ensure(!base.bad(), "cannot index incremental base");
+        if (!hashes.empty())
+        {
+            sendFrame(fd, MessageType::UploadBaseHashes, requestId, hashes,
+                      cancel);
+        }
+        sendFrame(fd, MessageType::UploadBaseEnd, requestId, {}, cancel);
+    }
     uint64_t received = 0;
     while (true)
     {
@@ -111,8 +178,28 @@ void handleUpload(int fd, uint32_t requestId, const Frame& start,
             ensure(frame->payload.empty(), "upload end has trailing data");
             break;
         }
-        ensure(frame->type == MessageType::UploadChunk,
-               "unexpected message during upload");
+        if (frame->type == MessageType::UploadCopy)
+        {
+            Reader reference(frame->payload);
+            const auto offset = reference.u64();
+            const auto count = reference.u32();
+            reference.end();
+            ensure(incremental && count > 0 && count <= kChunkSize &&
+                       offset <= baseSize && count <= baseSize - offset &&
+                       count <= declaredSize - received,
+                   "invalid incremental block reference");
+            frame->payload.resize(count);
+            base.clear();
+            base.seekg(static_cast<std::streamoff>(offset));
+            base.read(reinterpret_cast<char*>(frame->payload.data()), count);
+            ensure(static_cast<size_t>(base.gcount()) == count,
+                   "incremental base changed during upload");
+        }
+        else
+        {
+            ensure(frame->type == MessageType::UploadChunk,
+                   "unexpected message during upload");
+        }
         ensure(frame->payload.size() <= declaredSize - received,
                "upload exceeds declared size");
         if (!frame->payload.empty())
@@ -139,21 +226,31 @@ void handleUpload(int fd, uint32_t requestId, const Frame& start,
         std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
     entry.size = declaredSize;
     entry.digest = hexDigest(declaredDigest);
-    try
     {
-        commitStoredFile(temp, final);
-        writeMeta(dir / (id + ".meta"), entry);
-    }
-    catch (...)
-    {
-        // Metadata may have been published before its directory fsync failed.
-        // Remove it first; if removal fails, retain the matching archive.
-        fs::remove(dir / (id + ".meta"), ec);
-        if (!ec)
+        // Admission and publication share the lock: simultaneous uploads must
+        // not each claim the last space in a history response.
+        std::lock_guard<std::mutex> lock(gStorageMutex);
+        checkCancelled(cancel);
+        auto entries = listEntries(storage, username);
+        entries.push_back(entry);
+        listPayload(entries);
+        checkCancelled(cancel);
+        try
         {
-            fs::remove(final, ec);
+            commitStoredFile(temp, final);
+            writeMeta(dir / (id + ".meta"), entry);
         }
-        throw;
+        catch (...)
+        {
+            // Metadata may have been published before directory fsync failed.
+            // Remove it first; if removal fails, retain the matching archive.
+            fs::remove(dir / (id + ".meta"), ec);
+            if (!ec)
+            {
+                fs::remove(final, ec);
+            }
+            throw;
+        }
     }
     std::vector<uint8_t> result;
     putString(result, id);
@@ -202,7 +299,8 @@ void handleDownload(int fd, uint32_t requestId, const Frame& request,
 
 } // namespace
 
-void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
+void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel,
+                   const TlsContext& tls)
 {
     Socket socket(fd);
     std::string authenticatedUser;
@@ -211,9 +309,11 @@ void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
     std::vector<uint8_t> pendingNonce;
     uint32_t currentRequest = 0;
     uint32_t challengeRequest = 0;
+    std::optional<TlsSession> encrypted;
     try
     {
         setTimeouts(fd, config.timeoutSeconds);
+        encrypted.emplace(fd, tls, true, "", cancel);
         while (true)
         {
             auto maybe = receiveFrame(fd, cancel);
@@ -258,7 +358,7 @@ void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
                 r.end();
                 ensure(validUsername(name), "invalid username");
                 pendingUser = findUser(config.storagePath, name);
-                ensure(pendingUser.has_value(), "unknown username");
+                ensure(pendingUser.has_value(), "invalid username or password");
                 pendingNonce = randomBytes(16);
                 challengeRequest = frame.requestId;
                 std::vector<uint8_t> challenge(pendingUser->salt.begin(),
@@ -288,7 +388,8 @@ void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
                 continue;
             }
             ensure(!authenticatedUser.empty(), "authentication is required");
-            if (frame.type == MessageType::UploadStart)
+            if (frame.type == MessageType::UploadStart ||
+                frame.type == MessageType::UploadDeltaStart)
             {
                 handleUpload(fd, frame.requestId, frame, config.storagePath,
                              authenticatedUser, cancel);
@@ -297,22 +398,8 @@ void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
             {
                 Reader r(frame.payload);
                 r.end();
-                auto entries =
-                    listEntries(config.storagePath, authenticatedUser);
-                ensure(entries.size() <= 4096,
-                       "backup list exceeds protocol limit");
-                std::vector<uint8_t> payload;
-                putU32(payload, static_cast<uint32_t>(entries.size()));
-                for (const auto& e : entries)
-                {
-                    putString(payload, e.id);
-                    putString(payload, e.name);
-                    putU64(payload, e.timestamp);
-                    putU64(payload, e.size);
-                    putString(payload, e.digest);
-                    ensure(payload.size() <= kMaxPayload,
-                           "backup list exceeds frame size limit");
-                }
+                const auto payload = listPayload(
+                    listEntries(config.storagePath, authenticatedUser));
                 sendFrame(fd, MessageType::ListResponse, frame.requestId,
                           payload, cancel);
             }
@@ -338,7 +425,7 @@ void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel)
     }
     catch (const std::exception& e)
     {
-        if (cancel && cancel->load())
+        if ((cancel && cancel->load()) || (tls && !encrypted))
         {
             return;
         }

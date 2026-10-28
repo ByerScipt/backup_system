@@ -47,9 +47,10 @@ void authenticateClient(int fd, uint32_t& requestId,
 } // namespace
 
 BackupClient::BackupClient(std::string host, uint16_t port,
-                           std::string username, std::string password)
+                           std::string username, std::string password,
+                           TlsOptions tls)
     : host_(std::move(host)), port_(port), username_(std::move(username)),
-      password_(std::move(password))
+      password_(std::move(password)), tls_(std::move(tls))
 {
 }
 
@@ -61,6 +62,8 @@ bool BackupClient::registerUser(std::string& error, std::atomic_bool* cancel)
         ensure(validUsername(username_), "invalid username");
         ensure(!password_.empty(), "account password is required");
         Socket socket = connectTo(host_, port_, cancel);
+        TlsSession encrypted(socket.get(), clientTlsContext(tls_), false, host_,
+                             cancel);
         auto salt = randomBytes(16);
         auto verifier = verifierFor(password_, salt);
         std::vector<uint8_t> payload;
@@ -91,6 +94,8 @@ bool BackupClient::login(std::string& error, std::atomic_bool* cancel)
         ensure(validUsername(username_), "invalid username");
         ensure(!password_.empty(), "account password is required");
         Socket socket = connectTo(host_, port_, cancel);
+        TlsSession encrypted(socket.get(), clientTlsContext(tls_), false, host_,
+                             cancel);
         uint32_t request = 0;
         authenticateClient(socket.get(), request, username_, password_, cancel);
         return true;
@@ -108,6 +113,8 @@ bool BackupClient::deleteAccount(std::string& error, std::atomic_bool* cancel)
     try
     {
         Socket socket = connectTo(host_, port_, cancel);
+        TlsSession encrypted(socket.get(), clientTlsContext(tls_), false, host_,
+                             cancel);
         uint32_t request = 0;
         authenticateClient(socket.get(), request, username_, password_, cancel);
         sendFrame(socket.get(), MessageType::DeleteAccountRequest, ++request,
@@ -133,6 +140,8 @@ std::vector<RemoteBackupEntry> BackupClient::list(std::string& error,
     try
     {
         Socket socket = connectTo(host_, port_, cancel);
+        TlsSession encrypted(socket.get(), clientTlsContext(tls_), false, host_,
+                             cancel);
         uint32_t request = 0;
         authenticateClient(socket.get(), request, username_, password_, cancel);
         sendFrame(socket.get(), MessageType::ListRequest, ++request, {},
@@ -168,7 +177,7 @@ std::vector<RemoteBackupEntry> BackupClient::list(std::string& error,
 bool BackupClient::upload(const std::string& archivePath,
                           const std::string& displayName, std::string& backupId,
                           std::string& error, ProgressCallback progress,
-                          std::atomic_bool* cancel)
+                          std::atomic_bool* cancel, bool incremental)
 {
     error.clear();
     backupId.clear();
@@ -178,11 +187,23 @@ bool BackupClient::upload(const std::string& archivePath,
         ensure(displayName.size() <= 256 &&
                    displayName.find('\0') == std::string::npos,
                "invalid backup display name");
+        std::string baseId;
+        if (incremental)
+        {
+            const auto previous = list(error, cancel);
+            ensure(error.empty(), error);
+            if (!previous.empty())
+            {
+                baseId = previous.front().id;
+            }
+        }
         const auto size = static_cast<uint64_t>(fs::file_size(archivePath));
         const auto digest = sha256File(archivePath, 0, UINT64_MAX, cancel);
         // Hash before opening a session: large local files must not consume
         // the server's idle timeout or an authenticated connection slot.
         Socket socket = connectTo(host_, port_, cancel);
+        TlsSession encrypted(socket.get(), clientTlsContext(tls_), false, host_,
+                             cancel);
         uint32_t request = 0;
         authenticateClient(socket.get(), request, username_, password_, cancel);
         checkCancelled(cancel);
@@ -190,14 +211,53 @@ bool BackupClient::upload(const std::string& archivePath,
         putString(start, displayName);
         putU64(start, size);
         start.insert(start.end(), digest.begin(), digest.end());
-        sendFrame(socket.get(), MessageType::UploadStart, ++request, start,
-                  cancel);
+        if (!baseId.empty())
+        {
+            putString(start, baseId);
+        }
+        sendFrame(socket.get(),
+                  baseId.empty() ? MessageType::UploadStart
+                                 : MessageType::UploadDeltaStart,
+                  ++request, start, cancel);
         auto ready = receiveResponse(socket.get(), MessageType::UploadReady,
                                      request, cancel);
         Reader idReader(ready.payload);
         const std::string preparedId = idReader.string();
         idReader.end();
         ensure(validBackupId(preparedId), "invalid uploaded backup identifier");
+        std::vector<std::array<uint8_t, 32>> baseHashes;
+        if (!baseId.empty())
+        {
+            for (;;)
+            {
+                auto frame = receiveFrame(socket.get(), cancel);
+                ensure(frame && frame->requestId == request,
+                       "missing incremental block index");
+                if (frame->type == MessageType::Error)
+                {
+                    throw NetError(errorFromFrame(*frame));
+                }
+                if (frame->type == MessageType::UploadBaseEnd)
+                {
+                    ensure(frame->payload.empty(), "invalid block index end");
+                    break;
+                }
+                ensure(frame->type == MessageType::UploadBaseHashes &&
+                           !frame->payload.empty() &&
+                           frame->payload.size() % 32 == 0 &&
+                           baseHashes.size() + frame->payload.size() / 32 <=
+                               1048576,
+                       "invalid incremental block index");
+                for (size_t offset = 0; offset < frame->payload.size();
+                     offset += 32)
+                {
+                    std::array<uint8_t, 32> hash{};
+                    std::copy_n(frame->payload.begin() + offset, 32,
+                                hash.begin());
+                    baseHashes.push_back(hash);
+                }
+            }
+        }
         std::ifstream in(archivePath, std::ios::binary);
         ensure(in.good(), "cannot open archive for upload");
         std::vector<uint8_t> chunk(kChunkSize);
@@ -213,11 +273,27 @@ bool BackupClient::upload(const std::string& archivePath,
                 continue;
             }
             chunk.resize(got);
-            sendFrame(socket.get(), MessageType::UploadChunk, request, chunk,
-                      cancel);
+            const auto index = sent / kChunkSize;
+            const bool reused =
+                index < baseHashes.size() && sha256(chunk) == baseHashes[index];
+            if (reused)
+            {
+                std::vector<uint8_t> reference;
+                putU64(reference, sent);
+                putU32(reference, static_cast<uint32_t>(got));
+                sendFrame(socket.get(), MessageType::UploadCopy, request,
+                          reference, cancel);
+            }
+            else
+            {
+                sendFrame(socket.get(), MessageType::UploadChunk, request,
+                          chunk, cancel);
+            }
             chunk.resize(kChunkSize);
             sent += got;
-            reportProgress(progress, "network-upload", sent, size);
+            reportProgress(progress,
+                           reused ? "network-reuse" : "network-upload", sent,
+                           size);
         }
         ensure(!in.bad() && sent == size,
                "archive changed or could not be read during upload");
@@ -255,6 +331,8 @@ bool BackupClient::download(const std::string& backupId,
                "download output already exists");
         ensure(errno == ENOENT, "cannot inspect download output path");
         Socket socket = connectTo(host_, port_, cancel);
+        TlsSession encrypted(socket.get(), clientTlsContext(tls_), false, host_,
+                             cancel);
         uint32_t request = 0;
         authenticateClient(socket.get(), request, username_, password_, cancel);
         checkCancelled(cancel);

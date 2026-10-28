@@ -104,15 +104,15 @@ normalizeIncludes(const std::vector<std::string>& includes)
         fs::path path(raw);
         ensure(!path.is_absolute(),
                "selected path must be relative to the source: " + raw);
+        for (const auto& part : path)
+        {
+            ensure(part != "..",
+                   "selected path must stay inside the source: " + raw);
+        }
         fs::path clean = path.lexically_normal();
         if (!clean.has_filename())
         {
             clean = clean.parent_path();
-        }
-        for (const auto& part : clean)
-        {
-            ensure(part != "..",
-                   "selected path must stay inside the source: " + raw);
         }
         ensure(clean != "." && !clean.empty(),
                "selected path must name an entry inside the source: " + raw);
@@ -289,6 +289,7 @@ std::vector<SourceEntryInfo> listSourceEntries(const fs::path& source)
             info.size = it->sourceSize;
         }
         info.mtimeSeconds = it->mtimeSec;
+        info.uid = it->uid;
         listed.push_back(std::move(info));
     }
     return listed;

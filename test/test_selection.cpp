@@ -173,10 +173,10 @@ void testSelection()
                     {".", "empty"}, number++);
     verifySelection(workspace, source, "symlink", {"link.txt"},
                     {".", "link.txt"}, number++);
-    verifySelection(
-        workspace, source, "non-normalized duplicate paths",
-        {"./docs//manual/../manual/guide.txt", "docs/manual/guide.txt"},
-        {".", "docs", "docs/manual", "docs/manual/guide.txt"}, number++);
+    verifySelection(workspace, source, "non-normalized duplicate paths",
+                    {"./docs//manual/guide.txt", "docs/manual/guide.txt"},
+                    {".", "docs", "docs/manual", "docs/manual/guide.txt"},
+                    number++);
 
     expectSelectionFailure(workspace, source, {"missing.txt"}, "missing entry",
                            number++);
@@ -184,6 +184,8 @@ void testSelection()
                            number++);
     expectSelectionFailure(workspace, source, {"../outside"}, "parent escape",
                            number++);
+    expectSelectionFailure(workspace, source, {"docs/manual/../readme.md"},
+                           "embedded parent segment", number++);
     expectSelectionFailure(workspace, source, {""}, "empty path", number++);
     expectSelectionFailure(workspace, source, {"."}, "the root itself",
                            number++);
@@ -209,7 +211,7 @@ void testSelection()
         if (entry.path == "top.txt")
         {
             check(entry.type == "file" && entry.size == 4 &&
-                      entry.mtimeSeconds > 0,
+                      entry.mtimeSeconds > 0 && entry.uid == ::getuid(),
                   "scanSource lost file metadata");
         }
     }

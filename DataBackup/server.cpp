@@ -52,7 +52,8 @@ int main(int argc, char* argv[])
             }
             if ((option != "--config" && option != "--bind" &&
                  option != "--port" && option != "--storage" &&
-                 option != "--max-connections") ||
+                 option != "--max-connections" && option != "--tls-cert" &&
+                 option != "--tls-key") ||
                 i + 1 == argc)
             {
                 throw std::runtime_error("unknown or incomplete option: " +
@@ -96,6 +97,22 @@ int main(int argc, char* argv[])
             {
                 config.maxConnections = numericOption(value, 1024, option);
             }
+            else if (option == "--tls-cert")
+            {
+                if (value.empty())
+                {
+                    throw std::runtime_error("empty value for --tls-cert");
+                }
+                config.tlsCertificate = value;
+            }
+            else if (option == "--tls-key")
+            {
+                if (value.empty())
+                {
+                    throw std::runtime_error("empty value for --tls-key");
+                }
+                config.tlsPrivateKey = value;
+            }
         }
         if (showHelp)
         {
@@ -103,6 +120,8 @@ int main(int argc, char* argv[])
                          "ADDRESS] [--port PORT]\n"
                          "                     [--storage DIR] "
                          "[--max-connections N]\n";
+            std::cout
+                << "                     [--tls-cert PEM --tls-key PEM]\n";
             return 0;
         }
         backup::network::BackupServer server(config);

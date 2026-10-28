@@ -2,7 +2,7 @@
   "_type": "Project",
   "_id": "backup-studio-project",
   "name": "Backup Studio",
-  "documentation": "Version 1.7.1 model: public interface class diagram plus course diagrams (use case, three sequence diagrams and deployment). Executable logic is defined by the C++ source; this model omits private helpers and is not a complete API contract.",
+  "documentation": "Version 1.12.0 model: public interface class diagram plus course diagrams (use case, three sequence diagrams and deployment). Executable logic is defined by the C++ source; this model omits private helpers and is not a complete API contract.",
   "ownedElements": [
     {
       "_type": "UMLModel",
@@ -243,6 +243,22 @@
                       "width": 290,
                       "height": 18,
                       "text": "+ cancel: std::atomic_bool*"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-BackupOptions-includes-view",
+                      "_parent": {
+                        "$ref": "view-BackupOptions-6"
+                      },
+                      "model": {
+                        "$ref": "class-BackupOptions-includes"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 171,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ includes: std::vector<std::string>"
                     }
                   ],
                   "visible": true,
@@ -298,7 +314,7 @@
               "left": 40,
               "top": 30,
               "width": 300,
-              "height": 146,
+              "height": 164,
               "autoResize": false,
               "stereotypeDisplay": "label",
               "showVisibility": true,
@@ -1097,6 +1113,38 @@
                       "height": 18,
                       "underline": true,
                       "text": "+ inspect"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupEngine-scanSource-view",
+                      "_parent": {
+                        "$ref": "view-BackupEngine-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupEngine-scanSource"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 365,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ scanSource"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupEngine-automatic-view",
+                      "_parent": {
+                        "$ref": "view-BackupEngine-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupEngine-automatic"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 395,
+                      "top": 383,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ automatic"
                     }
                   ]
                 },
@@ -1125,7 +1173,7 @@
               "left": 390,
               "top": 260,
               "width": 300,
-              "height": 110,
+              "height": 146,
               "autoResize": false,
               "stereotypeDisplay": "label",
               "showVisibility": true,
@@ -1387,6 +1435,38 @@
                       "height": 18,
                       "underline": false,
                       "text": "+ download"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupClient-login-view",
+                      "_parent": {
+                        "$ref": "view-BackupClient-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupClient-login"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 603,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ login"
+                    },
+                    {
+                      "_type": "UMLOperationView",
+                      "_id": "class-BackupClient-deleteAccount-view",
+                      "_parent": {
+                        "$ref": "view-BackupClient-7"
+                      },
+                      "model": {
+                        "$ref": "class-BackupClient-deleteAccount"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 45,
+                      "top": 621,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ deleteAccount"
                     }
                   ]
                 },
@@ -1415,7 +1495,7 @@
               "left": 40,
               "top": 480,
               "width": 300,
-              "height": 128,
+              "height": 164,
               "autoResize": false,
               "stereotypeDisplay": "label",
               "showVisibility": true,
@@ -1885,6 +1965,54 @@
                       "width": 290,
                       "height": 18,
                       "text": "+ timeoutSeconds: uint32_t"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-ServerConfig-bindAddress-view",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-6"
+                      },
+                      "model": {
+                        "$ref": "class-ServerConfig-bindAddress"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 585,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ bindAddress: std::string"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-ServerConfig-tlsCertificate-view",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-6"
+                      },
+                      "model": {
+                        "$ref": "class-ServerConfig-tlsCertificate"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 603,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ tlsCertificate: std::string"
+                    },
+                    {
+                      "_type": "UMLAttributeView",
+                      "_id": "class-ServerConfig-tlsPrivateKey-view",
+                      "_parent": {
+                        "$ref": "view-ServerConfig-6"
+                      },
+                      "model": {
+                        "$ref": "class-ServerConfig-tlsPrivateKey"
+                      },
+                      "font": "Arial;13;0",
+                      "left": 745,
+                      "top": 621,
+                      "width": 290,
+                      "height": 18,
+                      "text": "+ tlsPrivateKey: std::string"
                     }
                   ],
                   "visible": true,
@@ -1958,7 +2086,7 @@
               "left": 740,
               "top": 480,
               "width": 300,
-              "height": 138,
+              "height": 192,
               "autoResize": false,
               "stereotypeDisplay": "label",
               "showVisibility": true,
@@ -2499,6 +2627,16 @@
               "name": "cancel",
               "visibility": "public",
               "type": "std::atomic_bool*"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-BackupOptions-includes",
+              "_parent": {
+                "$ref": "class-BackupOptions"
+              },
+              "name": "includes",
+              "visibility": "public",
+              "type": "std::vector<std::string>"
             }
           ],
           "operations": []
@@ -2830,6 +2968,98 @@
                     "$ref": "class-BackupEngine-inspect"
                   },
                   "type": "ArchiveInfo",
+                  "direction": "return"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupEngine-scanSource",
+              "_parent": {
+                "$ref": "class-BackupEngine"
+              },
+              "name": "scanSource",
+              "visibility": "public",
+              "isStatic": true,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-scanSource-sourceDirectory",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-scanSource"
+                  },
+                  "name": "sourceDirectory",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-scanSource-return",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-scanSource"
+                  },
+                  "type": "std::vector<SourceEntryInfo>",
+                  "direction": "return"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupEngine-automatic",
+              "_parent": {
+                "$ref": "class-BackupEngine"
+              },
+              "name": "automatic",
+              "visibility": "public",
+              "isStatic": true,
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-automatic-sourceDirectory",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-automatic"
+                  },
+                  "name": "sourceDirectory",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-automatic-outputDirectory",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-automatic"
+                  },
+                  "name": "outputDirectory",
+                  "type": "const std::string&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-automatic-options",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-automatic"
+                  },
+                  "name": "options",
+                  "type": "const BackupOptions&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-automatic-automatic",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-automatic"
+                  },
+                  "name": "automatic",
+                  "type": "const AutomaticOptions&",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupEngine-automatic-return",
+                  "_parent": {
+                    "$ref": "class-BackupEngine-automatic"
+                  },
+                  "type": "BackupResult",
                   "direction": "return"
                 }
               ]
@@ -3176,6 +3406,86 @@
                   "direction": "return"
                 }
               ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupClient-login",
+              "_parent": {
+                "$ref": "class-BackupClient"
+              },
+              "name": "login",
+              "visibility": "public",
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-login-error",
+                  "_parent": {
+                    "$ref": "class-BackupClient-login"
+                  },
+                  "name": "error",
+                  "type": "std::string&",
+                  "direction": "inout"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-login-cancel",
+                  "_parent": {
+                    "$ref": "class-BackupClient-login"
+                  },
+                  "name": "cancel",
+                  "type": "std::atomic_bool*",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-login-return",
+                  "_parent": {
+                    "$ref": "class-BackupClient-login"
+                  },
+                  "type": "bool",
+                  "direction": "return"
+                }
+              ]
+            },
+            {
+              "_type": "UMLOperation",
+              "_id": "class-BackupClient-deleteAccount",
+              "_parent": {
+                "$ref": "class-BackupClient"
+              },
+              "name": "deleteAccount",
+              "visibility": "public",
+              "parameters": [
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-deleteAccount-error",
+                  "_parent": {
+                    "$ref": "class-BackupClient-deleteAccount"
+                  },
+                  "name": "error",
+                  "type": "std::string&",
+                  "direction": "inout"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-deleteAccount-cancel",
+                  "_parent": {
+                    "$ref": "class-BackupClient-deleteAccount"
+                  },
+                  "name": "cancel",
+                  "type": "std::atomic_bool*",
+                  "direction": "in"
+                },
+                {
+                  "_type": "UMLParameter",
+                  "_id": "class-BackupClient-deleteAccount-return",
+                  "_parent": {
+                    "$ref": "class-BackupClient-deleteAccount"
+                  },
+                  "type": "bool",
+                  "direction": "return"
+                }
+              ]
             }
           ],
           "ownedElements": [
@@ -3337,6 +3647,36 @@
               "name": "timeoutSeconds",
               "visibility": "public",
               "type": "uint32_t"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-ServerConfig-bindAddress",
+              "_parent": {
+                "$ref": "class-ServerConfig"
+              },
+              "name": "bindAddress",
+              "visibility": "public",
+              "type": "std::string"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-ServerConfig-tlsCertificate",
+              "_parent": {
+                "$ref": "class-ServerConfig"
+              },
+              "name": "tlsCertificate",
+              "visibility": "public",
+              "type": "std::string"
+            },
+            {
+              "_type": "UMLAttribute",
+              "_id": "class-ServerConfig-tlsPrivateKey",
+              "_parent": {
+                "$ref": "class-ServerConfig"
+              },
+              "name": "tlsPrivateKey",
+              "visibility": "public",
+              "type": "std::string"
             }
           ],
           "operations": [
@@ -4245,6 +4585,460 @@
             },
             {
               "_type": "UMLUseCaseView",
+              "_id": "uc-view-use-automatic-backup",
+              "_parent": {
+                "$ref": "backup-studio-use-cases"
+              },
+              "model": {
+                "$ref": "uc-use-automatic-backup"
+              },
+              "subViews": [
+                {
+                  "_type": "UMLNameCompartmentView",
+                  "_id": "uc-view-use-automatic-backup-namecomp",
+                  "_parent": {
+                    "$ref": "uc-view-use-automatic-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-use-automatic-backup"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-automatic-backup-namecomp-stereotype",
+                      "_parent": {
+                        "$ref": "uc-view-use-automatic-backup-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 735,
+                      "top": 127,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-automatic-backup-namecomp-name",
+                      "_parent": {
+                        "$ref": "uc-view-use-automatic-backup-namecomp"
+                      },
+                      "visible": true,
+                      "font": "Arial;13;1",
+                      "parentStyle": true,
+                      "left": 735,
+                      "top": 127,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "自动备份（定时/实时）",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-automatic-backup-namecomp-namespace",
+                      "_parent": {
+                        "$ref": "uc-view-use-automatic-backup-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 735,
+                      "top": 141,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-automatic-backup-namecomp-property",
+                      "_parent": {
+                        "$ref": "uc-view-use-automatic-backup-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 735,
+                      "top": 141,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 730,
+                  "top": 120,
+                  "width": 320,
+                  "height": 28,
+                  "autoResize": false,
+                  "stereotypeLabel": {
+                    "$ref": "uc-view-use-automatic-backup-namecomp-stereotype"
+                  },
+                  "nameLabel": {
+                    "$ref": "uc-view-use-automatic-backup-namecomp-name"
+                  },
+                  "namespaceLabel": {
+                    "$ref": "uc-view-use-automatic-backup-namecomp-namespace"
+                  },
+                  "propertyLabel": {
+                    "$ref": "uc-view-use-automatic-backup-namecomp-property"
+                  }
+                },
+                {
+                  "_type": "UMLAttributeCompartmentView",
+                  "_id": "uc-view-use-automatic-backup-umlattributecompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-automatic-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-use-automatic-backup"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 735,
+                  "top": 150,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLOperationCompartmentView",
+                  "_id": "uc-view-use-automatic-backup-umloperationcompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-automatic-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-use-automatic-backup"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 735,
+                  "top": 150,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLReceptionCompartmentView",
+                  "_id": "uc-view-use-automatic-backup-umlreceptioncompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-automatic-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-use-automatic-backup"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 735,
+                  "top": 150,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLTemplateParameterCompartmentView",
+                  "_id": "uc-view-use-automatic-backup-umltemplateparametercompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-automatic-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-use-automatic-backup"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 735,
+                  "top": 150,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLExtensionPointCompartmentView",
+                  "_id": "uc-view-use-automatic-backup-umlextensionpointcompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-automatic-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-use-automatic-backup"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 735,
+                  "top": 164,
+                  "width": 10,
+                  "height": 10
+                }
+              ],
+              "font": "Arial;13;0",
+              "containerChangeable": true,
+              "left": 730,
+              "top": 120,
+              "width": 320,
+              "height": 56,
+              "nameCompartment": {
+                "$ref": "uc-view-use-automatic-backup-namecomp"
+              },
+              "wordWrap": true,
+              "suppressAttributes": true,
+              "suppressOperations": true,
+              "attributeCompartment": {
+                "$ref": "uc-view-use-automatic-backup-umlattributecompartmentview"
+              },
+              "operationCompartment": {
+                "$ref": "uc-view-use-automatic-backup-umloperationcompartmentview"
+              },
+              "receptionCompartment": {
+                "$ref": "uc-view-use-automatic-backup-umlreceptioncompartmentview"
+              },
+              "templateParameterCompartment": {
+                "$ref": "uc-view-use-automatic-backup-umltemplateparametercompartmentview"
+              },
+              "extensionPointCompartment": {
+                "$ref": "uc-view-use-automatic-backup-umlextensionpointcompartmentview"
+              }
+            },
+            {
+              "_type": "UMLUseCaseView",
+              "_id": "uc-view-use-select-entries",
+              "_parent": {
+                "$ref": "backup-studio-use-cases"
+              },
+              "model": {
+                "$ref": "uc-use-select-entries"
+              },
+              "subViews": [
+                {
+                  "_type": "UMLNameCompartmentView",
+                  "_id": "uc-view-use-select-entries-namecomp",
+                  "_parent": {
+                    "$ref": "uc-view-use-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-use-select-entries"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-select-entries-namecomp-stereotype",
+                      "_parent": {
+                        "$ref": "uc-view-use-select-entries-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 1105,
+                      "top": 127,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-select-entries-namecomp-name",
+                      "_parent": {
+                        "$ref": "uc-view-use-select-entries-namecomp"
+                      },
+                      "visible": true,
+                      "font": "Arial;13;1",
+                      "parentStyle": true,
+                      "left": 1105,
+                      "top": 127,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "筛选与选择备份条目",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-select-entries-namecomp-namespace",
+                      "_parent": {
+                        "$ref": "uc-view-use-select-entries-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 1105,
+                      "top": 141,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-select-entries-namecomp-property",
+                      "_parent": {
+                        "$ref": "uc-view-use-select-entries-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 1105,
+                      "top": 141,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 1100,
+                  "top": 120,
+                  "width": 320,
+                  "height": 28,
+                  "autoResize": false,
+                  "stereotypeLabel": {
+                    "$ref": "uc-view-use-select-entries-namecomp-stereotype"
+                  },
+                  "nameLabel": {
+                    "$ref": "uc-view-use-select-entries-namecomp-name"
+                  },
+                  "namespaceLabel": {
+                    "$ref": "uc-view-use-select-entries-namecomp-namespace"
+                  },
+                  "propertyLabel": {
+                    "$ref": "uc-view-use-select-entries-namecomp-property"
+                  }
+                },
+                {
+                  "_type": "UMLAttributeCompartmentView",
+                  "_id": "uc-view-use-select-entries-umlattributecompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-use-select-entries"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 1105,
+                  "top": 150,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLOperationCompartmentView",
+                  "_id": "uc-view-use-select-entries-umloperationcompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-use-select-entries"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 1105,
+                  "top": 150,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLReceptionCompartmentView",
+                  "_id": "uc-view-use-select-entries-umlreceptioncompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-use-select-entries"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 1105,
+                  "top": 150,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLTemplateParameterCompartmentView",
+                  "_id": "uc-view-use-select-entries-umltemplateparametercompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-use-select-entries"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 1105,
+                  "top": 150,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLExtensionPointCompartmentView",
+                  "_id": "uc-view-use-select-entries-umlextensionpointcompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-use-select-entries"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 1105,
+                  "top": 164,
+                  "width": 10,
+                  "height": 10
+                }
+              ],
+              "font": "Arial;13;0",
+              "containerChangeable": true,
+              "left": 1100,
+              "top": 120,
+              "width": 320,
+              "height": 56,
+              "nameCompartment": {
+                "$ref": "uc-view-use-select-entries-namecomp"
+              },
+              "wordWrap": true,
+              "suppressAttributes": true,
+              "suppressOperations": true,
+              "attributeCompartment": {
+                "$ref": "uc-view-use-select-entries-umlattributecompartmentview"
+              },
+              "operationCompartment": {
+                "$ref": "uc-view-use-select-entries-umloperationcompartmentview"
+              },
+              "receptionCompartment": {
+                "$ref": "uc-view-use-select-entries-umlreceptioncompartmentview"
+              },
+              "templateParameterCompartment": {
+                "$ref": "uc-view-use-select-entries-umltemplateparametercompartmentview"
+              },
+              "extensionPointCompartment": {
+                "$ref": "uc-view-use-select-entries-umlextensionpointcompartmentview"
+              }
+            },
+            {
+              "_type": "UMLUseCaseView",
               "_id": "uc-view-use-inspect",
               "_parent": {
                 "$ref": "backup-studio-use-cases"
@@ -4272,8 +5066,8 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 735,
-                      "top": 127,
+                      "left": 365,
+                      "top": 227,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -4291,8 +5085,8 @@
                       "visible": true,
                       "font": "Arial;13;1",
                       "parentStyle": true,
-                      "left": 735,
-                      "top": 127,
+                      "left": 365,
+                      "top": 227,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -4310,8 +5104,8 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 735,
-                      "top": 141,
+                      "left": 365,
+                      "top": 241,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -4329,8 +5123,8 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 735,
-                      "top": 141,
+                      "left": 365,
+                      "top": 241,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -4343,8 +5137,8 @@
                   "visible": true,
                   "font": "Arial;13;0",
                   "parentStyle": true,
-                  "left": 730,
-                  "top": 120,
+                  "left": 360,
+                  "top": 220,
                   "width": 320,
                   "height": 28,
                   "autoResize": false,
@@ -4372,8 +5166,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
-                  "top": 150,
+                  "left": 365,
+                  "top": 250,
                   "width": 10,
                   "height": 10
                 },
@@ -4388,8 +5182,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
-                  "top": 150,
+                  "left": 365,
+                  "top": 250,
                   "width": 10,
                   "height": 10
                 },
@@ -4404,8 +5198,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
-                  "top": 150,
+                  "left": 365,
+                  "top": 250,
                   "width": 10,
                   "height": 10
                 },
@@ -4420,8 +5214,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
-                  "top": 150,
+                  "left": 365,
+                  "top": 250,
                   "width": 10,
                   "height": 10
                 },
@@ -4436,16 +5230,16 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
-                  "top": 164,
+                  "left": 365,
+                  "top": 264,
                   "width": 10,
                   "height": 10
                 }
               ],
               "font": "Arial;13;0",
               "containerChangeable": true,
-              "left": 730,
-              "top": 120,
+              "left": 360,
+              "top": 220,
               "width": 320,
               "height": 56,
               "nameCompartment": {
@@ -4468,233 +5262,6 @@
               },
               "extensionPointCompartment": {
                 "$ref": "uc-view-use-inspect-umlextensionpointcompartmentview"
-              }
-            },
-            {
-              "_type": "UMLUseCaseView",
-              "_id": "uc-view-use-login",
-              "_parent": {
-                "$ref": "backup-studio-use-cases"
-              },
-              "model": {
-                "$ref": "uc-use-login"
-              },
-              "subViews": [
-                {
-                  "_type": "UMLNameCompartmentView",
-                  "_id": "uc-view-use-login-namecomp",
-                  "_parent": {
-                    "$ref": "uc-view-use-login"
-                  },
-                  "model": {
-                    "$ref": "uc-use-login"
-                  },
-                  "subViews": [
-                    {
-                      "_type": "LabelView",
-                      "_id": "uc-view-use-login-namecomp-stereotype",
-                      "_parent": {
-                        "$ref": "uc-view-use-login-namecomp"
-                      },
-                      "visible": false,
-                      "font": "Arial;13;0",
-                      "parentStyle": true,
-                      "left": 1105,
-                      "top": 127,
-                      "width": 310,
-                      "height": 14,
-                      "autoResize": false,
-                      "underline": false,
-                      "text": "",
-                      "horizontalAlignment": 2,
-                      "verticalAlignment": 5
-                    },
-                    {
-                      "_type": "LabelView",
-                      "_id": "uc-view-use-login-namecomp-name",
-                      "_parent": {
-                        "$ref": "uc-view-use-login-namecomp"
-                      },
-                      "visible": true,
-                      "font": "Arial;13;1",
-                      "parentStyle": true,
-                      "left": 1105,
-                      "top": 127,
-                      "width": 310,
-                      "height": 14,
-                      "autoResize": false,
-                      "underline": false,
-                      "text": "登录服务器",
-                      "horizontalAlignment": 2,
-                      "verticalAlignment": 5
-                    },
-                    {
-                      "_type": "LabelView",
-                      "_id": "uc-view-use-login-namecomp-namespace",
-                      "_parent": {
-                        "$ref": "uc-view-use-login-namecomp"
-                      },
-                      "visible": false,
-                      "font": "Arial;13;0",
-                      "parentStyle": true,
-                      "left": 1105,
-                      "top": 141,
-                      "width": 310,
-                      "height": 14,
-                      "autoResize": false,
-                      "underline": false,
-                      "text": "",
-                      "horizontalAlignment": 1,
-                      "verticalAlignment": 5
-                    },
-                    {
-                      "_type": "LabelView",
-                      "_id": "uc-view-use-login-namecomp-property",
-                      "_parent": {
-                        "$ref": "uc-view-use-login-namecomp"
-                      },
-                      "visible": false,
-                      "font": "Arial;13;0",
-                      "parentStyle": true,
-                      "left": 1105,
-                      "top": 141,
-                      "width": 310,
-                      "height": 14,
-                      "autoResize": false,
-                      "underline": false,
-                      "text": "",
-                      "horizontalAlignment": 1,
-                      "verticalAlignment": 5
-                    }
-                  ],
-                  "visible": true,
-                  "font": "Arial;13;0",
-                  "parentStyle": true,
-                  "left": 1100,
-                  "top": 120,
-                  "width": 320,
-                  "height": 28,
-                  "autoResize": false,
-                  "stereotypeLabel": {
-                    "$ref": "uc-view-use-login-namecomp-stereotype"
-                  },
-                  "nameLabel": {
-                    "$ref": "uc-view-use-login-namecomp-name"
-                  },
-                  "namespaceLabel": {
-                    "$ref": "uc-view-use-login-namecomp-namespace"
-                  },
-                  "propertyLabel": {
-                    "$ref": "uc-view-use-login-namecomp-property"
-                  }
-                },
-                {
-                  "_type": "UMLAttributeCompartmentView",
-                  "_id": "uc-view-use-login-umlattributecompartmentview",
-                  "_parent": {
-                    "$ref": "uc-view-use-login"
-                  },
-                  "model": {
-                    "$ref": "uc-use-login"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "left": 1105,
-                  "top": 150,
-                  "width": 10,
-                  "height": 10
-                },
-                {
-                  "_type": "UMLOperationCompartmentView",
-                  "_id": "uc-view-use-login-umloperationcompartmentview",
-                  "_parent": {
-                    "$ref": "uc-view-use-login"
-                  },
-                  "model": {
-                    "$ref": "uc-use-login"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "left": 1105,
-                  "top": 150,
-                  "width": 10,
-                  "height": 10
-                },
-                {
-                  "_type": "UMLReceptionCompartmentView",
-                  "_id": "uc-view-use-login-umlreceptioncompartmentview",
-                  "_parent": {
-                    "$ref": "uc-view-use-login"
-                  },
-                  "model": {
-                    "$ref": "uc-use-login"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "left": 1105,
-                  "top": 150,
-                  "width": 10,
-                  "height": 10
-                },
-                {
-                  "_type": "UMLTemplateParameterCompartmentView",
-                  "_id": "uc-view-use-login-umltemplateparametercompartmentview",
-                  "_parent": {
-                    "$ref": "uc-view-use-login"
-                  },
-                  "model": {
-                    "$ref": "uc-use-login"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "left": 1105,
-                  "top": 150,
-                  "width": 10,
-                  "height": 10
-                },
-                {
-                  "_type": "UMLExtensionPointCompartmentView",
-                  "_id": "uc-view-use-login-umlextensionpointcompartmentview",
-                  "_parent": {
-                    "$ref": "uc-view-use-login"
-                  },
-                  "model": {
-                    "$ref": "uc-use-login"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "left": 1105,
-                  "top": 164,
-                  "width": 10,
-                  "height": 10
-                }
-              ],
-              "font": "Arial;13;0",
-              "containerChangeable": true,
-              "left": 1100,
-              "top": 120,
-              "width": 320,
-              "height": 56,
-              "nameCompartment": {
-                "$ref": "uc-view-use-login-namecomp"
-              },
-              "wordWrap": true,
-              "suppressAttributes": true,
-              "suppressOperations": true,
-              "attributeCompartment": {
-                "$ref": "uc-view-use-login-umlattributecompartmentview"
-              },
-              "operationCompartment": {
-                "$ref": "uc-view-use-login-umloperationcompartmentview"
-              },
-              "receptionCompartment": {
-                "$ref": "uc-view-use-login-umlreceptioncompartmentview"
-              },
-              "templateParameterCompartment": {
-                "$ref": "uc-view-use-login-umltemplateparametercompartmentview"
-              },
-              "extensionPointCompartment": {
-                "$ref": "uc-view-use-login-umlextensionpointcompartmentview"
               }
             },
             {
@@ -4726,7 +5293,7 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 365,
+                      "left": 735,
                       "top": 227,
                       "width": 310,
                       "height": 14,
@@ -4745,7 +5312,7 @@
                       "visible": true,
                       "font": "Arial;13;1",
                       "parentStyle": true,
-                      "left": 365,
+                      "left": 735,
                       "top": 227,
                       "width": 310,
                       "height": 14,
@@ -4764,7 +5331,7 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 365,
+                      "left": 735,
                       "top": 241,
                       "width": 310,
                       "height": 14,
@@ -4783,7 +5350,7 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 365,
+                      "left": 735,
                       "top": 241,
                       "width": 310,
                       "height": 14,
@@ -4797,7 +5364,7 @@
                   "visible": true,
                   "font": "Arial;13;0",
                   "parentStyle": true,
-                  "left": 360,
+                  "left": 730,
                   "top": 220,
                   "width": 320,
                   "height": 28,
@@ -4826,7 +5393,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 365,
+                  "left": 735,
                   "top": 250,
                   "width": 10,
                   "height": 10
@@ -4842,7 +5409,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 365,
+                  "left": 735,
                   "top": 250,
                   "width": 10,
                   "height": 10
@@ -4858,7 +5425,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 365,
+                  "left": 735,
                   "top": 250,
                   "width": 10,
                   "height": 10
@@ -4874,7 +5441,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 365,
+                  "left": 735,
                   "top": 250,
                   "width": 10,
                   "height": 10
@@ -4890,7 +5457,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 365,
+                  "left": 735,
                   "top": 264,
                   "width": 10,
                   "height": 10
@@ -4898,7 +5465,7 @@
               ],
               "font": "Arial;13;0",
               "containerChangeable": true,
-              "left": 360,
+              "left": 730,
               "top": 220,
               "width": 320,
               "height": 56,
@@ -4953,7 +5520,7 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 735,
+                      "left": 1105,
                       "top": 227,
                       "width": 310,
                       "height": 14,
@@ -4972,7 +5539,7 @@
                       "visible": true,
                       "font": "Arial;13;1",
                       "parentStyle": true,
-                      "left": 735,
+                      "left": 1105,
                       "top": 227,
                       "width": 310,
                       "height": 14,
@@ -4991,7 +5558,7 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 735,
+                      "left": 1105,
                       "top": 241,
                       "width": 310,
                       "height": 14,
@@ -5010,7 +5577,7 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 735,
+                      "left": 1105,
                       "top": 241,
                       "width": 310,
                       "height": 14,
@@ -5024,7 +5591,7 @@
                   "visible": true,
                   "font": "Arial;13;0",
                   "parentStyle": true,
-                  "left": 730,
+                  "left": 1100,
                   "top": 220,
                   "width": 320,
                   "height": 28,
@@ -5053,7 +5620,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
+                  "left": 1105,
                   "top": 250,
                   "width": 10,
                   "height": 10
@@ -5069,7 +5636,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
+                  "left": 1105,
                   "top": 250,
                   "width": 10,
                   "height": 10
@@ -5085,7 +5652,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
+                  "left": 1105,
                   "top": 250,
                   "width": 10,
                   "height": 10
@@ -5101,7 +5668,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
+                  "left": 1105,
                   "top": 250,
                   "width": 10,
                   "height": 10
@@ -5117,7 +5684,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
+                  "left": 1105,
                   "top": 264,
                   "width": 10,
                   "height": 10
@@ -5125,7 +5692,7 @@
               ],
               "font": "Arial;13;0",
               "containerChangeable": true,
-              "left": 730,
+              "left": 1100,
               "top": 220,
               "width": 320,
               "height": 56,
@@ -5149,6 +5716,460 @@
               },
               "extensionPointCompartment": {
                 "$ref": "uc-view-use-register-umlextensionpointcompartmentview"
+              }
+            },
+            {
+              "_type": "UMLUseCaseView",
+              "_id": "uc-view-use-login",
+              "_parent": {
+                "$ref": "backup-studio-use-cases"
+              },
+              "model": {
+                "$ref": "uc-use-login"
+              },
+              "subViews": [
+                {
+                  "_type": "UMLNameCompartmentView",
+                  "_id": "uc-view-use-login-namecomp",
+                  "_parent": {
+                    "$ref": "uc-view-use-login"
+                  },
+                  "model": {
+                    "$ref": "uc-use-login"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-login-namecomp-stereotype",
+                      "_parent": {
+                        "$ref": "uc-view-use-login-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 365,
+                      "top": 327,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-login-namecomp-name",
+                      "_parent": {
+                        "$ref": "uc-view-use-login-namecomp"
+                      },
+                      "visible": true,
+                      "font": "Arial;13;1",
+                      "parentStyle": true,
+                      "left": 365,
+                      "top": 327,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "登录服务器",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-login-namecomp-namespace",
+                      "_parent": {
+                        "$ref": "uc-view-use-login-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 365,
+                      "top": 341,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-login-namecomp-property",
+                      "_parent": {
+                        "$ref": "uc-view-use-login-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 365,
+                      "top": 341,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 360,
+                  "top": 320,
+                  "width": 320,
+                  "height": 28,
+                  "autoResize": false,
+                  "stereotypeLabel": {
+                    "$ref": "uc-view-use-login-namecomp-stereotype"
+                  },
+                  "nameLabel": {
+                    "$ref": "uc-view-use-login-namecomp-name"
+                  },
+                  "namespaceLabel": {
+                    "$ref": "uc-view-use-login-namecomp-namespace"
+                  },
+                  "propertyLabel": {
+                    "$ref": "uc-view-use-login-namecomp-property"
+                  }
+                },
+                {
+                  "_type": "UMLAttributeCompartmentView",
+                  "_id": "uc-view-use-login-umlattributecompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-login"
+                  },
+                  "model": {
+                    "$ref": "uc-use-login"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 365,
+                  "top": 350,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLOperationCompartmentView",
+                  "_id": "uc-view-use-login-umloperationcompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-login"
+                  },
+                  "model": {
+                    "$ref": "uc-use-login"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 365,
+                  "top": 350,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLReceptionCompartmentView",
+                  "_id": "uc-view-use-login-umlreceptioncompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-login"
+                  },
+                  "model": {
+                    "$ref": "uc-use-login"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 365,
+                  "top": 350,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLTemplateParameterCompartmentView",
+                  "_id": "uc-view-use-login-umltemplateparametercompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-login"
+                  },
+                  "model": {
+                    "$ref": "uc-use-login"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 365,
+                  "top": 350,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLExtensionPointCompartmentView",
+                  "_id": "uc-view-use-login-umlextensionpointcompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-login"
+                  },
+                  "model": {
+                    "$ref": "uc-use-login"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 365,
+                  "top": 364,
+                  "width": 10,
+                  "height": 10
+                }
+              ],
+              "font": "Arial;13;0",
+              "containerChangeable": true,
+              "left": 360,
+              "top": 320,
+              "width": 320,
+              "height": 56,
+              "nameCompartment": {
+                "$ref": "uc-view-use-login-namecomp"
+              },
+              "wordWrap": true,
+              "suppressAttributes": true,
+              "suppressOperations": true,
+              "attributeCompartment": {
+                "$ref": "uc-view-use-login-umlattributecompartmentview"
+              },
+              "operationCompartment": {
+                "$ref": "uc-view-use-login-umloperationcompartmentview"
+              },
+              "receptionCompartment": {
+                "$ref": "uc-view-use-login-umlreceptioncompartmentview"
+              },
+              "templateParameterCompartment": {
+                "$ref": "uc-view-use-login-umltemplateparametercompartmentview"
+              },
+              "extensionPointCompartment": {
+                "$ref": "uc-view-use-login-umlextensionpointcompartmentview"
+              }
+            },
+            {
+              "_type": "UMLUseCaseView",
+              "_id": "uc-view-use-upload",
+              "_parent": {
+                "$ref": "backup-studio-use-cases"
+              },
+              "model": {
+                "$ref": "uc-use-upload"
+              },
+              "subViews": [
+                {
+                  "_type": "UMLNameCompartmentView",
+                  "_id": "uc-view-use-upload-namecomp",
+                  "_parent": {
+                    "$ref": "uc-view-use-upload"
+                  },
+                  "model": {
+                    "$ref": "uc-use-upload"
+                  },
+                  "subViews": [
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-upload-namecomp-stereotype",
+                      "_parent": {
+                        "$ref": "uc-view-use-upload-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 735,
+                      "top": 327,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-upload-namecomp-name",
+                      "_parent": {
+                        "$ref": "uc-view-use-upload-namecomp"
+                      },
+                      "visible": true,
+                      "font": "Arial;13;1",
+                      "parentStyle": true,
+                      "left": 735,
+                      "top": 327,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "上传远程备份",
+                      "horizontalAlignment": 2,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-upload-namecomp-namespace",
+                      "_parent": {
+                        "$ref": "uc-view-use-upload-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 735,
+                      "top": 341,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    },
+                    {
+                      "_type": "LabelView",
+                      "_id": "uc-view-use-upload-namecomp-property",
+                      "_parent": {
+                        "$ref": "uc-view-use-upload-namecomp"
+                      },
+                      "visible": false,
+                      "font": "Arial;13;0",
+                      "parentStyle": true,
+                      "left": 735,
+                      "top": 341,
+                      "width": 310,
+                      "height": 14,
+                      "autoResize": false,
+                      "underline": false,
+                      "text": "",
+                      "horizontalAlignment": 1,
+                      "verticalAlignment": 5
+                    }
+                  ],
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "parentStyle": true,
+                  "left": 730,
+                  "top": 320,
+                  "width": 320,
+                  "height": 28,
+                  "autoResize": false,
+                  "stereotypeLabel": {
+                    "$ref": "uc-view-use-upload-namecomp-stereotype"
+                  },
+                  "nameLabel": {
+                    "$ref": "uc-view-use-upload-namecomp-name"
+                  },
+                  "namespaceLabel": {
+                    "$ref": "uc-view-use-upload-namecomp-namespace"
+                  },
+                  "propertyLabel": {
+                    "$ref": "uc-view-use-upload-namecomp-property"
+                  }
+                },
+                {
+                  "_type": "UMLAttributeCompartmentView",
+                  "_id": "uc-view-use-upload-umlattributecompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-upload"
+                  },
+                  "model": {
+                    "$ref": "uc-use-upload"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 735,
+                  "top": 350,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLOperationCompartmentView",
+                  "_id": "uc-view-use-upload-umloperationcompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-upload"
+                  },
+                  "model": {
+                    "$ref": "uc-use-upload"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 735,
+                  "top": 350,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLReceptionCompartmentView",
+                  "_id": "uc-view-use-upload-umlreceptioncompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-upload"
+                  },
+                  "model": {
+                    "$ref": "uc-use-upload"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 735,
+                  "top": 350,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLTemplateParameterCompartmentView",
+                  "_id": "uc-view-use-upload-umltemplateparametercompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-upload"
+                  },
+                  "model": {
+                    "$ref": "uc-use-upload"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 735,
+                  "top": 350,
+                  "width": 10,
+                  "height": 10
+                },
+                {
+                  "_type": "UMLExtensionPointCompartmentView",
+                  "_id": "uc-view-use-upload-umlextensionpointcompartmentview",
+                  "_parent": {
+                    "$ref": "uc-view-use-upload"
+                  },
+                  "model": {
+                    "$ref": "uc-use-upload"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "left": 735,
+                  "top": 364,
+                  "width": 10,
+                  "height": 10
+                }
+              ],
+              "font": "Arial;13;0",
+              "containerChangeable": true,
+              "left": 730,
+              "top": 320,
+              "width": 320,
+              "height": 56,
+              "nameCompartment": {
+                "$ref": "uc-view-use-upload-namecomp"
+              },
+              "wordWrap": true,
+              "suppressAttributes": true,
+              "suppressOperations": true,
+              "attributeCompartment": {
+                "$ref": "uc-view-use-upload-umlattributecompartmentview"
+              },
+              "operationCompartment": {
+                "$ref": "uc-view-use-upload-umloperationcompartmentview"
+              },
+              "receptionCompartment": {
+                "$ref": "uc-view-use-upload-umlreceptioncompartmentview"
+              },
+              "templateParameterCompartment": {
+                "$ref": "uc-view-use-upload-umltemplateparametercompartmentview"
+              },
+              "extensionPointCompartment": {
+                "$ref": "uc-view-use-upload-umlextensionpointcompartmentview"
               }
             },
             {
@@ -5181,7 +6202,7 @@
                       "font": "Arial;13;0",
                       "parentStyle": true,
                       "left": 1105,
-                      "top": 227,
+                      "top": 327,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5200,7 +6221,7 @@
                       "font": "Arial;13;1",
                       "parentStyle": true,
                       "left": 1105,
-                      "top": 227,
+                      "top": 327,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5219,7 +6240,7 @@
                       "font": "Arial;13;0",
                       "parentStyle": true,
                       "left": 1105,
-                      "top": 241,
+                      "top": 341,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5238,7 +6259,7 @@
                       "font": "Arial;13;0",
                       "parentStyle": true,
                       "left": 1105,
-                      "top": 241,
+                      "top": 341,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5252,7 +6273,7 @@
                   "font": "Arial;13;0",
                   "parentStyle": true,
                   "left": 1100,
-                  "top": 220,
+                  "top": 320,
                   "width": 320,
                   "height": 28,
                   "autoResize": false,
@@ -5281,7 +6302,7 @@
                   "visible": false,
                   "font": "Arial;13;0",
                   "left": 1105,
-                  "top": 250,
+                  "top": 350,
                   "width": 10,
                   "height": 10
                 },
@@ -5297,7 +6318,7 @@
                   "visible": false,
                   "font": "Arial;13;0",
                   "left": 1105,
-                  "top": 250,
+                  "top": 350,
                   "width": 10,
                   "height": 10
                 },
@@ -5313,7 +6334,7 @@
                   "visible": false,
                   "font": "Arial;13;0",
                   "left": 1105,
-                  "top": 250,
+                  "top": 350,
                   "width": 10,
                   "height": 10
                 },
@@ -5329,7 +6350,7 @@
                   "visible": false,
                   "font": "Arial;13;0",
                   "left": 1105,
-                  "top": 250,
+                  "top": 350,
                   "width": 10,
                   "height": 10
                 },
@@ -5345,7 +6366,7 @@
                   "visible": false,
                   "font": "Arial;13;0",
                   "left": 1105,
-                  "top": 264,
+                  "top": 364,
                   "width": 10,
                   "height": 10
                 }
@@ -5353,7 +6374,7 @@
               "font": "Arial;13;0",
               "containerChangeable": true,
               "left": 1100,
-              "top": 220,
+              "top": 320,
               "width": 320,
               "height": 56,
               "nameCompartment": {
@@ -5376,233 +6397,6 @@
               },
               "extensionPointCompartment": {
                 "$ref": "uc-view-use-list-umlextensionpointcompartmentview"
-              }
-            },
-            {
-              "_type": "UMLUseCaseView",
-              "_id": "uc-view-use-upload",
-              "_parent": {
-                "$ref": "backup-studio-use-cases"
-              },
-              "model": {
-                "$ref": "uc-use-upload"
-              },
-              "subViews": [
-                {
-                  "_type": "UMLNameCompartmentView",
-                  "_id": "uc-view-use-upload-namecomp",
-                  "_parent": {
-                    "$ref": "uc-view-use-upload"
-                  },
-                  "model": {
-                    "$ref": "uc-use-upload"
-                  },
-                  "subViews": [
-                    {
-                      "_type": "LabelView",
-                      "_id": "uc-view-use-upload-namecomp-stereotype",
-                      "_parent": {
-                        "$ref": "uc-view-use-upload-namecomp"
-                      },
-                      "visible": false,
-                      "font": "Arial;13;0",
-                      "parentStyle": true,
-                      "left": 365,
-                      "top": 327,
-                      "width": 310,
-                      "height": 14,
-                      "autoResize": false,
-                      "underline": false,
-                      "text": "",
-                      "horizontalAlignment": 2,
-                      "verticalAlignment": 5
-                    },
-                    {
-                      "_type": "LabelView",
-                      "_id": "uc-view-use-upload-namecomp-name",
-                      "_parent": {
-                        "$ref": "uc-view-use-upload-namecomp"
-                      },
-                      "visible": true,
-                      "font": "Arial;13;1",
-                      "parentStyle": true,
-                      "left": 365,
-                      "top": 327,
-                      "width": 310,
-                      "height": 14,
-                      "autoResize": false,
-                      "underline": false,
-                      "text": "上传远程备份",
-                      "horizontalAlignment": 2,
-                      "verticalAlignment": 5
-                    },
-                    {
-                      "_type": "LabelView",
-                      "_id": "uc-view-use-upload-namecomp-namespace",
-                      "_parent": {
-                        "$ref": "uc-view-use-upload-namecomp"
-                      },
-                      "visible": false,
-                      "font": "Arial;13;0",
-                      "parentStyle": true,
-                      "left": 365,
-                      "top": 341,
-                      "width": 310,
-                      "height": 14,
-                      "autoResize": false,
-                      "underline": false,
-                      "text": "",
-                      "horizontalAlignment": 1,
-                      "verticalAlignment": 5
-                    },
-                    {
-                      "_type": "LabelView",
-                      "_id": "uc-view-use-upload-namecomp-property",
-                      "_parent": {
-                        "$ref": "uc-view-use-upload-namecomp"
-                      },
-                      "visible": false,
-                      "font": "Arial;13;0",
-                      "parentStyle": true,
-                      "left": 365,
-                      "top": 341,
-                      "width": 310,
-                      "height": 14,
-                      "autoResize": false,
-                      "underline": false,
-                      "text": "",
-                      "horizontalAlignment": 1,
-                      "verticalAlignment": 5
-                    }
-                  ],
-                  "visible": true,
-                  "font": "Arial;13;0",
-                  "parentStyle": true,
-                  "left": 360,
-                  "top": 320,
-                  "width": 320,
-                  "height": 28,
-                  "autoResize": false,
-                  "stereotypeLabel": {
-                    "$ref": "uc-view-use-upload-namecomp-stereotype"
-                  },
-                  "nameLabel": {
-                    "$ref": "uc-view-use-upload-namecomp-name"
-                  },
-                  "namespaceLabel": {
-                    "$ref": "uc-view-use-upload-namecomp-namespace"
-                  },
-                  "propertyLabel": {
-                    "$ref": "uc-view-use-upload-namecomp-property"
-                  }
-                },
-                {
-                  "_type": "UMLAttributeCompartmentView",
-                  "_id": "uc-view-use-upload-umlattributecompartmentview",
-                  "_parent": {
-                    "$ref": "uc-view-use-upload"
-                  },
-                  "model": {
-                    "$ref": "uc-use-upload"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "left": 365,
-                  "top": 350,
-                  "width": 10,
-                  "height": 10
-                },
-                {
-                  "_type": "UMLOperationCompartmentView",
-                  "_id": "uc-view-use-upload-umloperationcompartmentview",
-                  "_parent": {
-                    "$ref": "uc-view-use-upload"
-                  },
-                  "model": {
-                    "$ref": "uc-use-upload"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "left": 365,
-                  "top": 350,
-                  "width": 10,
-                  "height": 10
-                },
-                {
-                  "_type": "UMLReceptionCompartmentView",
-                  "_id": "uc-view-use-upload-umlreceptioncompartmentview",
-                  "_parent": {
-                    "$ref": "uc-view-use-upload"
-                  },
-                  "model": {
-                    "$ref": "uc-use-upload"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "left": 365,
-                  "top": 350,
-                  "width": 10,
-                  "height": 10
-                },
-                {
-                  "_type": "UMLTemplateParameterCompartmentView",
-                  "_id": "uc-view-use-upload-umltemplateparametercompartmentview",
-                  "_parent": {
-                    "$ref": "uc-view-use-upload"
-                  },
-                  "model": {
-                    "$ref": "uc-use-upload"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "left": 365,
-                  "top": 350,
-                  "width": 10,
-                  "height": 10
-                },
-                {
-                  "_type": "UMLExtensionPointCompartmentView",
-                  "_id": "uc-view-use-upload-umlextensionpointcompartmentview",
-                  "_parent": {
-                    "$ref": "uc-view-use-upload"
-                  },
-                  "model": {
-                    "$ref": "uc-use-upload"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "left": 365,
-                  "top": 364,
-                  "width": 10,
-                  "height": 10
-                }
-              ],
-              "font": "Arial;13;0",
-              "containerChangeable": true,
-              "left": 360,
-              "top": 320,
-              "width": 320,
-              "height": 56,
-              "nameCompartment": {
-                "$ref": "uc-view-use-upload-namecomp"
-              },
-              "wordWrap": true,
-              "suppressAttributes": true,
-              "suppressOperations": true,
-              "attributeCompartment": {
-                "$ref": "uc-view-use-upload-umlattributecompartmentview"
-              },
-              "operationCompartment": {
-                "$ref": "uc-view-use-upload-umloperationcompartmentview"
-              },
-              "receptionCompartment": {
-                "$ref": "uc-view-use-upload-umlreceptioncompartmentview"
-              },
-              "templateParameterCompartment": {
-                "$ref": "uc-view-use-upload-umltemplateparametercompartmentview"
-              },
-              "extensionPointCompartment": {
-                "$ref": "uc-view-use-upload-umlextensionpointcompartmentview"
               }
             },
             {
@@ -5634,8 +6428,8 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 735,
-                      "top": 327,
+                      "left": 365,
+                      "top": 427,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5653,8 +6447,8 @@
                       "visible": true,
                       "font": "Arial;13;1",
                       "parentStyle": true,
-                      "left": 735,
-                      "top": 327,
+                      "left": 365,
+                      "top": 427,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5672,8 +6466,8 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 735,
-                      "top": 341,
+                      "left": 365,
+                      "top": 441,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5691,8 +6485,8 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 735,
-                      "top": 341,
+                      "left": 365,
+                      "top": 441,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5705,8 +6499,8 @@
                   "visible": true,
                   "font": "Arial;13;0",
                   "parentStyle": true,
-                  "left": 730,
-                  "top": 320,
+                  "left": 360,
+                  "top": 420,
                   "width": 320,
                   "height": 28,
                   "autoResize": false,
@@ -5734,8 +6528,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
-                  "top": 350,
+                  "left": 365,
+                  "top": 450,
                   "width": 10,
                   "height": 10
                 },
@@ -5750,8 +6544,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
-                  "top": 350,
+                  "left": 365,
+                  "top": 450,
                   "width": 10,
                   "height": 10
                 },
@@ -5766,8 +6560,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
-                  "top": 350,
+                  "left": 365,
+                  "top": 450,
                   "width": 10,
                   "height": 10
                 },
@@ -5782,8 +6576,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
-                  "top": 350,
+                  "left": 365,
+                  "top": 450,
                   "width": 10,
                   "height": 10
                 },
@@ -5798,16 +6592,16 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 735,
-                  "top": 364,
+                  "left": 365,
+                  "top": 464,
                   "width": 10,
                   "height": 10
                 }
               ],
               "font": "Arial;13;0",
               "containerChangeable": true,
-              "left": 730,
-              "top": 320,
+              "left": 360,
+              "top": 420,
               "width": 320,
               "height": 56,
               "nameCompartment": {
@@ -5861,8 +6655,8 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 1105,
-                      "top": 327,
+                      "left": 735,
+                      "top": 427,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5880,8 +6674,8 @@
                       "visible": true,
                       "font": "Arial;13;1",
                       "parentStyle": true,
-                      "left": 1105,
-                      "top": 327,
+                      "left": 735,
+                      "top": 427,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5899,8 +6693,8 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 1105,
-                      "top": 341,
+                      "left": 735,
+                      "top": 441,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5918,8 +6712,8 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 1105,
-                      "top": 341,
+                      "left": 735,
+                      "top": 441,
                       "width": 310,
                       "height": 14,
                       "autoResize": false,
@@ -5932,8 +6726,8 @@
                   "visible": true,
                   "font": "Arial;13;0",
                   "parentStyle": true,
-                  "left": 1100,
-                  "top": 320,
+                  "left": 730,
+                  "top": 420,
                   "width": 320,
                   "height": 28,
                   "autoResize": false,
@@ -5961,8 +6755,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 1105,
-                  "top": 350,
+                  "left": 735,
+                  "top": 450,
                   "width": 10,
                   "height": 10
                 },
@@ -5977,8 +6771,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 1105,
-                  "top": 350,
+                  "left": 735,
+                  "top": 450,
                   "width": 10,
                   "height": 10
                 },
@@ -5993,8 +6787,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 1105,
-                  "top": 350,
+                  "left": 735,
+                  "top": 450,
                   "width": 10,
                   "height": 10
                 },
@@ -6009,8 +6803,8 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 1105,
-                  "top": 350,
+                  "left": 735,
+                  "top": 450,
                   "width": 10,
                   "height": 10
                 },
@@ -6025,16 +6819,16 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 1105,
-                  "top": 364,
+                  "left": 735,
+                  "top": 464,
                   "width": 10,
                   "height": 10
                 }
               ],
               "font": "Arial;13;0",
               "containerChangeable": true,
-              "left": 1100,
-              "top": 320,
+              "left": 730,
+              "top": 420,
               "width": 320,
               "height": 56,
               "nameCompartment": {
@@ -6088,7 +6882,7 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 365,
+                      "left": 1105,
                       "top": 427,
                       "width": 310,
                       "height": 14,
@@ -6107,7 +6901,7 @@
                       "visible": true,
                       "font": "Arial;13;1",
                       "parentStyle": true,
-                      "left": 365,
+                      "left": 1105,
                       "top": 427,
                       "width": 310,
                       "height": 14,
@@ -6126,7 +6920,7 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 365,
+                      "left": 1105,
                       "top": 441,
                       "width": 310,
                       "height": 14,
@@ -6145,7 +6939,7 @@
                       "visible": false,
                       "font": "Arial;13;0",
                       "parentStyle": true,
-                      "left": 365,
+                      "left": 1105,
                       "top": 441,
                       "width": 310,
                       "height": 14,
@@ -6159,7 +6953,7 @@
                   "visible": true,
                   "font": "Arial;13;0",
                   "parentStyle": true,
-                  "left": 360,
+                  "left": 1100,
                   "top": 420,
                   "width": 320,
                   "height": 28,
@@ -6188,7 +6982,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 365,
+                  "left": 1105,
                   "top": 450,
                   "width": 10,
                   "height": 10
@@ -6204,7 +6998,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 365,
+                  "left": 1105,
                   "top": 450,
                   "width": 10,
                   "height": 10
@@ -6220,7 +7014,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 365,
+                  "left": 1105,
                   "top": 450,
                   "width": 10,
                   "height": 10
@@ -6236,7 +7030,7 @@
                   },
                   "visible": false,
                   "font": "Arial;13;0",
-                  "left": 365,
+                  "left": 1105,
                   "top": 450,
                   "width": 10,
                   "height": 10
@@ -6244,7 +7038,7 @@
               ],
               "font": "Arial;13;0",
               "containerChangeable": true,
-              "left": 360,
+              "left": 1100,
               "top": 420,
               "width": 320,
               "height": 56,
@@ -6360,6 +7154,188 @@
             },
             {
               "_type": "UMLAssociationView",
+              "_id": "uc-view-uc-assoc-user-automatic-backup",
+              "_parent": {
+                "$ref": "backup-studio-use-cases"
+              },
+              "model": {
+                "$ref": "uc-assoc-user-automatic-backup"
+              },
+              "subViews": [
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-assoc-user-automatic-backup-name",
+                  "_parent": {
+                    "$ref": "uc-view-uc-assoc-user-automatic-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-assoc-user-automatic-backup"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-assoc-user-automatic-backup"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 15,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-assoc-user-automatic-backup-stereotype",
+                  "_parent": {
+                    "$ref": "uc-view-uc-assoc-user-automatic-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-assoc-user-automatic-backup"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-assoc-user-automatic-backup"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-assoc-user-automatic-backup-property",
+                  "_parent": {
+                    "$ref": "uc-view-uc-assoc-user-automatic-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-assoc-user-automatic-backup"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-assoc-user-automatic-backup"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                }
+              ],
+              "font": "Arial;13;0",
+              "head": {
+                "$ref": "uc-view-use-automatic-backup"
+              },
+              "tail": {
+                "$ref": "uc-view-actor-user"
+              },
+              "lineStyle": 1,
+              "points": "240:195;730:148",
+              "showVisibility": true,
+              "nameLabel": {
+                "$ref": "uc-view-uc-assoc-user-automatic-backup-name"
+              },
+              "stereotypeLabel": {
+                "$ref": "uc-view-uc-assoc-user-automatic-backup-stereotype"
+              },
+              "propertyLabel": {
+                "$ref": "uc-view-uc-assoc-user-automatic-backup-property"
+              }
+            },
+            {
+              "_type": "UMLAssociationView",
+              "_id": "uc-view-uc-assoc-user-select-entries",
+              "_parent": {
+                "$ref": "backup-studio-use-cases"
+              },
+              "model": {
+                "$ref": "uc-assoc-user-select-entries"
+              },
+              "subViews": [
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-assoc-user-select-entries-name",
+                  "_parent": {
+                    "$ref": "uc-view-uc-assoc-user-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-assoc-user-select-entries"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-assoc-user-select-entries"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 15,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-assoc-user-select-entries-stereotype",
+                  "_parent": {
+                    "$ref": "uc-view-uc-assoc-user-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-assoc-user-select-entries"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-assoc-user-select-entries"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-assoc-user-select-entries-property",
+                  "_parent": {
+                    "$ref": "uc-view-uc-assoc-user-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-assoc-user-select-entries"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-assoc-user-select-entries"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                }
+              ],
+              "font": "Arial;13;0",
+              "head": {
+                "$ref": "uc-view-use-select-entries"
+              },
+              "tail": {
+                "$ref": "uc-view-actor-user"
+              },
+              "lineStyle": 1,
+              "points": "240:195;1100:148",
+              "showVisibility": true,
+              "nameLabel": {
+                "$ref": "uc-view-uc-assoc-user-select-entries-name"
+              },
+              "stereotypeLabel": {
+                "$ref": "uc-view-uc-assoc-user-select-entries-stereotype"
+              },
+              "propertyLabel": {
+                "$ref": "uc-view-uc-assoc-user-select-entries-property"
+              }
+            },
+            {
+              "_type": "UMLAssociationView",
               "_id": "uc-view-uc-assoc-user-inspect",
               "_parent": {
                 "$ref": "backup-studio-use-cases"
@@ -6437,7 +7413,7 @@
                 "$ref": "uc-view-actor-user"
               },
               "lineStyle": 1,
-              "points": "240:195;730:148",
+              "points": "240:195;360:248",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-assoc-user-inspect-name"
@@ -6447,97 +7423,6 @@
               },
               "propertyLabel": {
                 "$ref": "uc-view-uc-assoc-user-inspect-property"
-              }
-            },
-            {
-              "_type": "UMLAssociationView",
-              "_id": "uc-view-uc-assoc-user-login",
-              "_parent": {
-                "$ref": "backup-studio-use-cases"
-              },
-              "model": {
-                "$ref": "uc-assoc-user-login"
-              },
-              "subViews": [
-                {
-                  "_type": "EdgeLabelView",
-                  "_id": "uc-view-uc-assoc-user-login-name",
-                  "_parent": {
-                    "$ref": "uc-view-uc-assoc-user-login"
-                  },
-                  "model": {
-                    "$ref": "uc-assoc-user-login"
-                  },
-                  "visible": true,
-                  "font": "Arial;13;0",
-                  "hostEdge": {
-                    "$ref": "uc-view-uc-assoc-user-login"
-                  },
-                  "edgePosition": 1,
-                  "alpha": 1.5707963267948966,
-                  "distance": 15,
-                  "height": 14,
-                  "text": ""
-                },
-                {
-                  "_type": "EdgeLabelView",
-                  "_id": "uc-view-uc-assoc-user-login-stereotype",
-                  "_parent": {
-                    "$ref": "uc-view-uc-assoc-user-login"
-                  },
-                  "model": {
-                    "$ref": "uc-assoc-user-login"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "hostEdge": {
-                    "$ref": "uc-view-uc-assoc-user-login"
-                  },
-                  "edgePosition": 1,
-                  "alpha": 1.5707963267948966,
-                  "distance": 30,
-                  "height": 14,
-                  "text": ""
-                },
-                {
-                  "_type": "EdgeLabelView",
-                  "_id": "uc-view-uc-assoc-user-login-property",
-                  "_parent": {
-                    "$ref": "uc-view-uc-assoc-user-login"
-                  },
-                  "model": {
-                    "$ref": "uc-assoc-user-login"
-                  },
-                  "visible": false,
-                  "font": "Arial;13;0",
-                  "hostEdge": {
-                    "$ref": "uc-view-uc-assoc-user-login"
-                  },
-                  "edgePosition": 1,
-                  "alpha": 1.5707963267948966,
-                  "distance": 30,
-                  "height": 14,
-                  "text": ""
-                }
-              ],
-              "font": "Arial;13;0",
-              "head": {
-                "$ref": "uc-view-use-login"
-              },
-              "tail": {
-                "$ref": "uc-view-actor-user"
-              },
-              "lineStyle": 1,
-              "points": "240:195;1100:148",
-              "showVisibility": true,
-              "nameLabel": {
-                "$ref": "uc-view-uc-assoc-user-login-name"
-              },
-              "stereotypeLabel": {
-                "$ref": "uc-view-uc-assoc-user-login-stereotype"
-              },
-              "propertyLabel": {
-                "$ref": "uc-view-uc-assoc-user-login-property"
               }
             },
             {
@@ -6619,7 +7504,7 @@
                 "$ref": "uc-view-actor-user"
               },
               "lineStyle": 1,
-              "points": "240:195;360:248",
+              "points": "240:195;730:248",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-assoc-user-local-restore-name"
@@ -6710,7 +7595,7 @@
                 "$ref": "uc-view-actor-user"
               },
               "lineStyle": 1,
-              "points": "240:195;730:248",
+              "points": "240:195;1100:248",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-assoc-user-register-name"
@@ -6724,27 +7609,27 @@
             },
             {
               "_type": "UMLAssociationView",
-              "_id": "uc-view-uc-assoc-user-list",
+              "_id": "uc-view-uc-assoc-user-login",
               "_parent": {
                 "$ref": "backup-studio-use-cases"
               },
               "model": {
-                "$ref": "uc-assoc-user-list"
+                "$ref": "uc-assoc-user-login"
               },
               "subViews": [
                 {
                   "_type": "EdgeLabelView",
-                  "_id": "uc-view-uc-assoc-user-list-name",
+                  "_id": "uc-view-uc-assoc-user-login-name",
                   "_parent": {
-                    "$ref": "uc-view-uc-assoc-user-list"
+                    "$ref": "uc-view-uc-assoc-user-login"
                   },
                   "model": {
-                    "$ref": "uc-assoc-user-list"
+                    "$ref": "uc-assoc-user-login"
                   },
                   "visible": true,
                   "font": "Arial;13;0",
                   "hostEdge": {
-                    "$ref": "uc-view-uc-assoc-user-list"
+                    "$ref": "uc-view-uc-assoc-user-login"
                   },
                   "edgePosition": 1,
                   "alpha": 1.5707963267948966,
@@ -6754,17 +7639,17 @@
                 },
                 {
                   "_type": "EdgeLabelView",
-                  "_id": "uc-view-uc-assoc-user-list-stereotype",
+                  "_id": "uc-view-uc-assoc-user-login-stereotype",
                   "_parent": {
-                    "$ref": "uc-view-uc-assoc-user-list"
+                    "$ref": "uc-view-uc-assoc-user-login"
                   },
                   "model": {
-                    "$ref": "uc-assoc-user-list"
+                    "$ref": "uc-assoc-user-login"
                   },
                   "visible": false,
                   "font": "Arial;13;0",
                   "hostEdge": {
-                    "$ref": "uc-view-uc-assoc-user-list"
+                    "$ref": "uc-view-uc-assoc-user-login"
                   },
                   "edgePosition": 1,
                   "alpha": 1.5707963267948966,
@@ -6774,17 +7659,17 @@
                 },
                 {
                   "_type": "EdgeLabelView",
-                  "_id": "uc-view-uc-assoc-user-list-property",
+                  "_id": "uc-view-uc-assoc-user-login-property",
                   "_parent": {
-                    "$ref": "uc-view-uc-assoc-user-list"
+                    "$ref": "uc-view-uc-assoc-user-login"
                   },
                   "model": {
-                    "$ref": "uc-assoc-user-list"
+                    "$ref": "uc-assoc-user-login"
                   },
                   "visible": false,
                   "font": "Arial;13;0",
                   "hostEdge": {
-                    "$ref": "uc-view-uc-assoc-user-list"
+                    "$ref": "uc-view-uc-assoc-user-login"
                   },
                   "edgePosition": 1,
                   "alpha": 1.5707963267948966,
@@ -6795,22 +7680,22 @@
               ],
               "font": "Arial;13;0",
               "head": {
-                "$ref": "uc-view-use-list"
+                "$ref": "uc-view-use-login"
               },
               "tail": {
                 "$ref": "uc-view-actor-user"
               },
               "lineStyle": 1,
-              "points": "240:195;1100:248",
+              "points": "240:195;360:348",
               "showVisibility": true,
               "nameLabel": {
-                "$ref": "uc-view-uc-assoc-user-list-name"
+                "$ref": "uc-view-uc-assoc-user-login-name"
               },
               "stereotypeLabel": {
-                "$ref": "uc-view-uc-assoc-user-list-stereotype"
+                "$ref": "uc-view-uc-assoc-user-login-stereotype"
               },
               "propertyLabel": {
-                "$ref": "uc-view-uc-assoc-user-list-property"
+                "$ref": "uc-view-uc-assoc-user-login-property"
               }
             },
             {
@@ -6892,7 +7777,7 @@
                 "$ref": "uc-view-actor-user"
               },
               "lineStyle": 1,
-              "points": "240:195;360:348",
+              "points": "240:195;730:348",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-assoc-user-upload-name"
@@ -6902,6 +7787,97 @@
               },
               "propertyLabel": {
                 "$ref": "uc-view-uc-assoc-user-upload-property"
+              }
+            },
+            {
+              "_type": "UMLAssociationView",
+              "_id": "uc-view-uc-assoc-user-list",
+              "_parent": {
+                "$ref": "backup-studio-use-cases"
+              },
+              "model": {
+                "$ref": "uc-assoc-user-list"
+              },
+              "subViews": [
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-assoc-user-list-name",
+                  "_parent": {
+                    "$ref": "uc-view-uc-assoc-user-list"
+                  },
+                  "model": {
+                    "$ref": "uc-assoc-user-list"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-assoc-user-list"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 15,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-assoc-user-list-stereotype",
+                  "_parent": {
+                    "$ref": "uc-view-uc-assoc-user-list"
+                  },
+                  "model": {
+                    "$ref": "uc-assoc-user-list"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-assoc-user-list"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-assoc-user-list-property",
+                  "_parent": {
+                    "$ref": "uc-view-uc-assoc-user-list"
+                  },
+                  "model": {
+                    "$ref": "uc-assoc-user-list"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-assoc-user-list"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                }
+              ],
+              "font": "Arial;13;0",
+              "head": {
+                "$ref": "uc-view-use-list"
+              },
+              "tail": {
+                "$ref": "uc-view-actor-user"
+              },
+              "lineStyle": 1,
+              "points": "240:195;1100:348",
+              "showVisibility": true,
+              "nameLabel": {
+                "$ref": "uc-view-uc-assoc-user-list-name"
+              },
+              "stereotypeLabel": {
+                "$ref": "uc-view-uc-assoc-user-list-stereotype"
+              },
+              "propertyLabel": {
+                "$ref": "uc-view-uc-assoc-user-list-property"
               }
             },
             {
@@ -6983,7 +7959,7 @@
                 "$ref": "uc-view-actor-user"
               },
               "lineStyle": 1,
-              "points": "240:195;730:348",
+              "points": "240:195;360:448",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-assoc-user-remote-restore-name"
@@ -7074,7 +8050,7 @@
                 "$ref": "uc-view-actor-user"
               },
               "lineStyle": 1,
-              "points": "240:195;1100:348",
+              "points": "240:195;730:448",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-assoc-user-delete-account-name"
@@ -7165,7 +8141,7 @@
                 "$ref": "uc-view-actor-admin"
               },
               "lineStyle": 1,
-              "points": "240:555;360:448",
+              "points": "240:555;1100:448",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-assoc-admin-run-server-name"
@@ -7175,6 +8151,188 @@
               },
               "propertyLabel": {
                 "$ref": "uc-view-uc-assoc-admin-run-server-property"
+              }
+            },
+            {
+              "_type": "UMLIncludeView",
+              "_id": "uc-view-uc-include-automatic-backup-local-backup",
+              "_parent": {
+                "$ref": "backup-studio-use-cases"
+              },
+              "model": {
+                "$ref": "uc-include-automatic-backup-local-backup"
+              },
+              "subViews": [
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-include-automatic-backup-local-backup-name",
+                  "_parent": {
+                    "$ref": "uc-view-uc-include-automatic-backup-local-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-include-automatic-backup-local-backup"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-include-automatic-backup-local-backup"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 15,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-include-automatic-backup-local-backup-stereotype",
+                  "_parent": {
+                    "$ref": "uc-view-uc-include-automatic-backup-local-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-include-automatic-backup-local-backup"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-include-automatic-backup-local-backup"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": "«include»"
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-include-automatic-backup-local-backup-property",
+                  "_parent": {
+                    "$ref": "uc-view-uc-include-automatic-backup-local-backup"
+                  },
+                  "model": {
+                    "$ref": "uc-include-automatic-backup-local-backup"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-include-automatic-backup-local-backup"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                }
+              ],
+              "font": "Arial;13;0",
+              "head": {
+                "$ref": "uc-view-use-local-backup"
+              },
+              "tail": {
+                "$ref": "uc-view-use-automatic-backup"
+              },
+              "lineStyle": 1,
+              "points": "730:148;680:148",
+              "showVisibility": true,
+              "nameLabel": {
+                "$ref": "uc-view-uc-include-automatic-backup-local-backup-name"
+              },
+              "stereotypeLabel": {
+                "$ref": "uc-view-uc-include-automatic-backup-local-backup-stereotype"
+              },
+              "propertyLabel": {
+                "$ref": "uc-view-uc-include-automatic-backup-local-backup-property"
+              }
+            },
+            {
+              "_type": "UMLIncludeView",
+              "_id": "uc-view-uc-include-local-backup-select-entries",
+              "_parent": {
+                "$ref": "backup-studio-use-cases"
+              },
+              "model": {
+                "$ref": "uc-include-local-backup-select-entries"
+              },
+              "subViews": [
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-include-local-backup-select-entries-name",
+                  "_parent": {
+                    "$ref": "uc-view-uc-include-local-backup-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-include-local-backup-select-entries"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-include-local-backup-select-entries"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 15,
+                  "height": 14,
+                  "text": ""
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-include-local-backup-select-entries-stereotype",
+                  "_parent": {
+                    "$ref": "uc-view-uc-include-local-backup-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-include-local-backup-select-entries"
+                  },
+                  "visible": true,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-include-local-backup-select-entries"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": "«include»"
+                },
+                {
+                  "_type": "EdgeLabelView",
+                  "_id": "uc-view-uc-include-local-backup-select-entries-property",
+                  "_parent": {
+                    "$ref": "uc-view-uc-include-local-backup-select-entries"
+                  },
+                  "model": {
+                    "$ref": "uc-include-local-backup-select-entries"
+                  },
+                  "visible": false,
+                  "font": "Arial;13;0",
+                  "hostEdge": {
+                    "$ref": "uc-view-uc-include-local-backup-select-entries"
+                  },
+                  "edgePosition": 1,
+                  "alpha": 1.5707963267948966,
+                  "distance": 30,
+                  "height": 14,
+                  "text": ""
+                }
+              ],
+              "font": "Arial;13;0",
+              "head": {
+                "$ref": "uc-view-use-select-entries"
+              },
+              "tail": {
+                "$ref": "uc-view-use-local-backup"
+              },
+              "lineStyle": 1,
+              "points": "680:148;1100:148",
+              "showVisibility": true,
+              "nameLabel": {
+                "$ref": "uc-view-uc-include-local-backup-select-entries-name"
+              },
+              "stereotypeLabel": {
+                "$ref": "uc-view-uc-include-local-backup-select-entries-stereotype"
+              },
+              "propertyLabel": {
+                "$ref": "uc-view-uc-include-local-backup-select-entries-property"
               }
             },
             {
@@ -7256,7 +8414,7 @@
                 "$ref": "uc-view-use-upload"
               },
               "lineStyle": 1,
-              "points": "540:320;540:176",
+              "points": "730:348;680:148",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-include-upload-local-backup-name"
@@ -7347,7 +8505,7 @@
                 "$ref": "uc-view-use-upload"
               },
               "lineStyle": 1,
-              "points": "680:348;1100:148",
+              "points": "730:348;680:348",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-include-upload-login-name"
@@ -7438,7 +8596,7 @@
                 "$ref": "uc-view-use-remote-restore"
               },
               "lineStyle": 1,
-              "points": "1050:348;1100:148",
+              "points": "585:420;585:376",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-include-remote-restore-login-name"
@@ -7529,7 +8687,7 @@
                 "$ref": "uc-view-use-remote-restore"
               },
               "lineStyle": 1,
-              "points": "730:348;680:248",
+              "points": "680:448;730:248",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-include-remote-restore-local-restore-name"
@@ -7620,7 +8778,7 @@
                 "$ref": "uc-view-use-list"
               },
               "lineStyle": 1,
-              "points": "1325:220;1325:176",
+              "points": "1100:348;680:348",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-include-list-login-name"
@@ -7711,7 +8869,7 @@
                 "$ref": "uc-view-use-delete-account"
               },
               "lineStyle": 1,
-              "points": "1370:320;1370:176",
+              "points": "730:448;680:348",
               "showVisibility": true,
               "nameLabel": {
                 "$ref": "uc-view-uc-include-delete-account-login-name"
@@ -7759,19 +8917,27 @@
         },
         {
           "_type": "UMLUseCase",
+          "_id": "uc-use-automatic-backup",
+          "_parent": {
+            "$ref": "backup-studio-course-model"
+          },
+          "name": "自动备份（定时/实时）"
+        },
+        {
+          "_type": "UMLUseCase",
+          "_id": "uc-use-select-entries",
+          "_parent": {
+            "$ref": "backup-studio-course-model"
+          },
+          "name": "筛选与选择备份条目"
+        },
+        {
+          "_type": "UMLUseCase",
           "_id": "uc-use-inspect",
           "_parent": {
             "$ref": "backup-studio-course-model"
           },
           "name": "查看归档信息"
-        },
-        {
-          "_type": "UMLUseCase",
-          "_id": "uc-use-login",
-          "_parent": {
-            "$ref": "backup-studio-course-model"
-          },
-          "name": "登录服务器"
         },
         {
           "_type": "UMLUseCase",
@@ -7791,11 +8957,11 @@
         },
         {
           "_type": "UMLUseCase",
-          "_id": "uc-use-list",
+          "_id": "uc-use-login",
           "_parent": {
             "$ref": "backup-studio-course-model"
           },
-          "name": "查看远程备份列表"
+          "name": "登录服务器"
         },
         {
           "_type": "UMLUseCase",
@@ -7804,6 +8970,14 @@
             "$ref": "backup-studio-course-model"
           },
           "name": "上传远程备份"
+        },
+        {
+          "_type": "UMLUseCase",
+          "_id": "uc-use-list",
+          "_parent": {
+            "$ref": "backup-studio-course-model"
+          },
+          "name": "查看远程备份列表"
         },
         {
           "_type": "UMLUseCase",
@@ -7858,6 +9032,60 @@
         },
         {
           "_type": "UMLAssociation",
+          "_id": "uc-assoc-user-automatic-backup",
+          "_parent": {
+            "$ref": "backup-studio-course-model"
+          },
+          "end1": {
+            "_type": "UMLAssociationEnd",
+            "_id": "uc-assoc-user-automatic-backup-end1",
+            "_parent": {
+              "$ref": "uc-assoc-user-automatic-backup"
+            },
+            "reference": {
+              "$ref": "uc-actor-user"
+            }
+          },
+          "end2": {
+            "_type": "UMLAssociationEnd",
+            "_id": "uc-assoc-user-automatic-backup-end2",
+            "_parent": {
+              "$ref": "uc-assoc-user-automatic-backup"
+            },
+            "reference": {
+              "$ref": "uc-use-automatic-backup"
+            }
+          }
+        },
+        {
+          "_type": "UMLAssociation",
+          "_id": "uc-assoc-user-select-entries",
+          "_parent": {
+            "$ref": "backup-studio-course-model"
+          },
+          "end1": {
+            "_type": "UMLAssociationEnd",
+            "_id": "uc-assoc-user-select-entries-end1",
+            "_parent": {
+              "$ref": "uc-assoc-user-select-entries"
+            },
+            "reference": {
+              "$ref": "uc-actor-user"
+            }
+          },
+          "end2": {
+            "_type": "UMLAssociationEnd",
+            "_id": "uc-assoc-user-select-entries-end2",
+            "_parent": {
+              "$ref": "uc-assoc-user-select-entries"
+            },
+            "reference": {
+              "$ref": "uc-use-select-entries"
+            }
+          }
+        },
+        {
+          "_type": "UMLAssociation",
           "_id": "uc-assoc-user-inspect",
           "_parent": {
             "$ref": "backup-studio-course-model"
@@ -7880,33 +9108,6 @@
             },
             "reference": {
               "$ref": "uc-use-inspect"
-            }
-          }
-        },
-        {
-          "_type": "UMLAssociation",
-          "_id": "uc-assoc-user-login",
-          "_parent": {
-            "$ref": "backup-studio-course-model"
-          },
-          "end1": {
-            "_type": "UMLAssociationEnd",
-            "_id": "uc-assoc-user-login-end1",
-            "_parent": {
-              "$ref": "uc-assoc-user-login"
-            },
-            "reference": {
-              "$ref": "uc-actor-user"
-            }
-          },
-          "end2": {
-            "_type": "UMLAssociationEnd",
-            "_id": "uc-assoc-user-login-end2",
-            "_parent": {
-              "$ref": "uc-assoc-user-login"
-            },
-            "reference": {
-              "$ref": "uc-use-login"
             }
           }
         },
@@ -7966,15 +9167,15 @@
         },
         {
           "_type": "UMLAssociation",
-          "_id": "uc-assoc-user-list",
+          "_id": "uc-assoc-user-login",
           "_parent": {
             "$ref": "backup-studio-course-model"
           },
           "end1": {
             "_type": "UMLAssociationEnd",
-            "_id": "uc-assoc-user-list-end1",
+            "_id": "uc-assoc-user-login-end1",
             "_parent": {
-              "$ref": "uc-assoc-user-list"
+              "$ref": "uc-assoc-user-login"
             },
             "reference": {
               "$ref": "uc-actor-user"
@@ -7982,12 +9183,12 @@
           },
           "end2": {
             "_type": "UMLAssociationEnd",
-            "_id": "uc-assoc-user-list-end2",
+            "_id": "uc-assoc-user-login-end2",
             "_parent": {
-              "$ref": "uc-assoc-user-list"
+              "$ref": "uc-assoc-user-login"
             },
             "reference": {
-              "$ref": "uc-use-list"
+              "$ref": "uc-use-login"
             }
           }
         },
@@ -8015,6 +9216,33 @@
             },
             "reference": {
               "$ref": "uc-use-upload"
+            }
+          }
+        },
+        {
+          "_type": "UMLAssociation",
+          "_id": "uc-assoc-user-list",
+          "_parent": {
+            "$ref": "backup-studio-course-model"
+          },
+          "end1": {
+            "_type": "UMLAssociationEnd",
+            "_id": "uc-assoc-user-list-end1",
+            "_parent": {
+              "$ref": "uc-assoc-user-list"
+            },
+            "reference": {
+              "$ref": "uc-actor-user"
+            }
+          },
+          "end2": {
+            "_type": "UMLAssociationEnd",
+            "_id": "uc-assoc-user-list-end2",
+            "_parent": {
+              "$ref": "uc-assoc-user-list"
+            },
+            "reference": {
+              "$ref": "uc-use-list"
             }
           }
         },
@@ -8097,6 +9325,32 @@
             "reference": {
               "$ref": "uc-use-run-server"
             }
+          }
+        },
+        {
+          "_type": "UMLInclude",
+          "_id": "uc-include-automatic-backup-local-backup",
+          "_parent": {
+            "$ref": "uc-use-automatic-backup"
+          },
+          "source": {
+            "$ref": "uc-use-automatic-backup"
+          },
+          "target": {
+            "$ref": "uc-use-local-backup"
+          }
+        },
+        {
+          "_type": "UMLInclude",
+          "_id": "uc-include-local-backup-select-entries",
+          "_parent": {
+            "$ref": "uc-use-local-backup"
+          },
+          "source": {
+            "$ref": "uc-use-local-backup"
+          },
+          "target": {
+            "$ref": "uc-use-select-entries"
           }
         },
         {
@@ -9734,7 +10988,7 @@
           "_parent": {
             "$ref": "seq-local-backup-class-LocalFilesystem"
           },
-          "name": "scanDirectory()"
+          "name": "scanDirectory(includes)"
         },
         {
           "_type": "UMLOperation",
@@ -10652,7 +11906,7 @@
                       "alpha": 1.5707963267948966,
                       "distance": 15,
                       "height": 14,
-                      "text": "scanDirectory()",
+                      "text": "scanDirectory(includes)",
                       "left": 865,
                       "top": 268,
                       "width": 190
@@ -13550,7 +14804,7 @@
           "_parent": {
             "$ref": "seq-remote-upload-class-BackupClient"
           },
-          "name": "upload(archivePath, displayName)"
+          "name": "upload(archivePath, displayName, incremental)"
         },
         {
           "_type": "UMLOperation",
@@ -13558,7 +14812,7 @@
           "_parent": {
             "$ref": "seq-remote-upload-class-BackupServer"
           },
-          "name": "UploadStart(size, sha256)"
+          "name": "UploadStart / UploadDeltaStart"
         },
         {
           "_type": "UMLOperation",
@@ -13574,7 +14828,7 @@
           "_parent": {
             "$ref": "seq-remote-upload-class-BackupServer"
           },
-          "name": "UploadChunk × N"
+          "name": "UploadChunk / UploadCopy × N"
         },
         {
           "_type": "UMLOperation",
@@ -14763,7 +16017,7 @@
                       "alpha": 1.5707963267948966,
                       "distance": 15,
                       "height": 14,
-                      "text": "upload(archivePath, displayName)",
+                      "text": "upload(archivePath, displayName, incremental)",
                       "left": 265,
                       "top": 406,
                       "width": 190
@@ -14856,7 +16110,7 @@
                       "alpha": 1.5707963267948966,
                       "distance": 15,
                       "height": 14,
-                      "text": "UploadStart(size, sha256)",
+                      "text": "UploadStart / UploadDeltaStart",
                       "left": 565,
                       "top": 452,
                       "width": 190
@@ -15042,7 +16296,7 @@
                       "alpha": 1.5707963267948966,
                       "distance": 15,
                       "height": 14,
-                      "text": "UploadChunk × N",
+                      "text": "UploadChunk / UploadCopy × N",
                       "left": 565,
                       "top": 544,
                       "width": 190

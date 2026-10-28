@@ -204,7 +204,17 @@ void testAccountAlignment()
                     .c_str());
         require(bounds(title) == titleBefore && bounds(mode) == modeBefore &&
                     registration == passwordBefore,
-                "login/register switch moved the title, selector or fields");
+                ("login/register switch moved the title, selector or fields; "
+                 "title dy=" +
+                 QString::number(bounds(title).y() - titleBefore.y()) +
+                 ", selector dy=" +
+                 QString::number(bounds(mode).y() - modeBefore.y()) +
+                 ", password dy=" +
+                 QString::number(registration.y() - passwordBefore.y()) +
+                 ", password dx=" +
+                 QString::number(registration.x() - passwordBefore.x()))
+                    .toStdString()
+                    .c_str());
         require(
             bounds(field(account, "serverHost")).y() ==
                     bounds(account->findChild<QSpinBox*>("serverPort")).y() &&
@@ -327,6 +337,8 @@ void testSelectionAlignment()
     std::unique_ptr<QMainWindow> window(backup::gui::createMainWindow());
     auto* pages = window->findChild<QStackedWidget*>("pageStack");
     const auto navigation = window->findChildren<QPushButton*>("navButton");
+    auto* session = window->findChild<backup::gui::AccountSession*>();
+    session->accept(QStringLiteral("alignment-test"), session->revision());
     window->show();
     QApplication::processEvents();
     const QString evidence = qEnvironmentVariable("BACKUP_GUI_EVIDENCE_DIR");
@@ -342,12 +354,20 @@ void testSelectionAlignment()
         for (int index = 1; index < navigation.size(); ++index)
         {
             require(navigation.at(index)->height() ==
-                            navigation.first()->height() &&
-                        navigation.at(index)->y() -
+                        navigation.first()->height(),
+                    "navigation rows have unequal heights");
+            const int page =
+                navigation.at(index)->property("pageIndex").toInt();
+            // Group headers separate pages 1/2; login is anchored at the
+            // bottom.
+            if (page == 1 || page == 3 || page == 4)
+            {
+                require(navigation.at(index)->y() -
                                 navigation.at(index - 1)->geometry().bottom() -
                                 1 ==
                             gap,
-                    "navigation rows have unequal heights or gaps");
+                        "navigation rows in a group have unequal gaps");
+            }
         }
         for (auto* button : navigation)
         {
@@ -377,7 +397,7 @@ void testSelectionAlignment()
         }
         pages->setCurrentIndex(0);
         QApplication::processEvents();
-        require(navigation.at(1)->isChecked(),
+        require(navigation.at(0)->isChecked(),
                 "page change left the previous navigation highlighted");
         for (auto* combo : pages->widget(0)->findChildren<QComboBox*>())
         {
@@ -689,14 +709,15 @@ void testEntrySelection()
                 auto* age = dialog->findChild<QComboBox*>("entryAgeFilter");
                 auto* showHidden =
                     dialog->findChild<QCheckBox*>("entryShowHidden");
+                auto* owner = dialog->findChild<QComboBox*>("entryOwnerFilter");
                 auto* check =
                     dialog->findChild<QPushButton*>("checkFilteredEntries");
                 auto* uncheck =
                     dialog->findChild<QPushButton*>("uncheckFilteredEntries");
                 require(tree != nullptr && category != nullptr &&
                             size != nullptr && age != nullptr &&
-                            showHidden != nullptr && check != nullptr &&
-                            uncheck != nullptr,
+                            showHidden != nullptr && owner != nullptr &&
+                            check != nullptr && uncheck != nullptr,
                         "selection dialog lacks the new filter widgets");
                 const auto find = [tree](const QString& name)
                 {
@@ -719,6 +740,15 @@ void testEntrySelection()
                         "selection tree lost fixture entries");
                 require(tree->columnCount() == 5,
                         "entry tree has no category column");
+                require(owner->count() == 2,
+                        "owner filter lost the source UID");
+                owner->setCurrentIndex(1);
+                require(!report->isHidden(), "owner filter hid its own file");
+                owner->addItem("missing UID", QVariant::fromValue(UINT32_MAX));
+                owner->setCurrentIndex(2);
+                require(report->isHidden(),
+                        "owner filter kept another owner's file");
+                owner->setCurrentIndex(0);
                 require(photo->text(2) == "图片" && report->text(2) == "文档" &&
                             big->text(2) == "其他" && images->text(2).isEmpty(),
                         "category labels are wrong");
@@ -775,6 +805,44 @@ void testEntrySelection()
             }) &&
             selection == QStringList{"images/photo.jpg"},
         "filtered selection took in entries hidden by the filter");
+
+    const auto hiddenSource = root / "hidden-source";
+    std::filesystem::create_directories(hiddenSource / ".hidden" / "nested");
+    std::ofstream(hiddenSource / ".hidden/nested/secret.txt") << "hidden";
+    std::ofstream(hiddenSource / "visible.txt") << "visible";
+    QStringList hiddenSelection;
+    require(
+        driveEntrySelector(
+            page.get(), QString::fromStdString(hiddenSource.string()),
+            hiddenSelection,
+            [](QDialog* dialog)
+            {
+                auto* tree = dialog->findChild<QTreeWidget*>("entryTree");
+                auto* secret =
+                    tree->findItems("secret.txt",
+                                    Qt::MatchExactly | Qt::MatchRecursive, 0)
+                        .front();
+                dialog->findChild<QPushButton*>("clearEntries")->click();
+                dialog->findChild<QCheckBox*>("entryShowHidden")
+                    ->setChecked(false);
+                dialog->findChild<QPushButton*>("checkFilteredEntries")
+                    ->click();
+                require(secret->checkState(0) == Qt::Unchecked,
+                        "filtered check selected a hidden descendant");
+                secret->setCheckState(0, Qt::Checked);
+                dialog->findChild<QPushButton*>("uncheckFilteredEntries")
+                    ->click();
+                require(secret->checkState(0) == Qt::Checked,
+                        "filtered uncheck cleared a hidden descendant");
+                dialog->findChild<QPushButton*>("clearEntries")->click();
+                dialog->findChild<QPushButton*>("checkFilteredEntries")
+                    ->click();
+                dialog->findChild<QDialogButtonBox*>()
+                    ->button(QDialogButtonBox::Ok)
+                    ->click();
+            }) &&
+            hiddenSelection == QStringList{"visible.txt"},
+        "hidden subtree changed a filtered backup into a whole-tree backup");
 
     QString failure;
     bool driven = false;
@@ -891,7 +959,116 @@ void testEntrySelection()
             "changing the source kept a stale selection");
 }
 
-void testUserWorkflow()
+void testAutomaticGui()
+{
+    QTemporaryDir directory;
+    const std::filesystem::path root(directory.path().toStdString());
+    std::filesystem::create_directory(root / "source");
+    std::ofstream(root / "source/file") << "automatic GUI";
+    for (int mode : {1, 2})
+    {
+        std::unique_ptr<QWidget> page(backup::gui::localBackupPage());
+        page->findChild<QComboBox*>("automaticMode")->setCurrentIndex(mode);
+        field(page.get(), "sourcePath")
+            ->setText(QString::fromStdString((root / "source").string()));
+        const auto output = root / std::to_string(mode);
+        field(page.get(), "outputPath")
+            ->setText(QString::fromStdString(output.string()));
+        page->findChild<QPushButton*>("primaryButton")->click();
+        std::filesystem::path archive;
+        require(waitFor(
+                    [&]()
+                    {
+                        if (std::filesystem::exists(output))
+                        {
+                            for (const auto& entry :
+                                 std::filesystem::directory_iterator(output))
+                            {
+                                if (entry.path().extension() == ".bak")
+                                {
+                                    archive = entry.path();
+                                    return true;
+                                }
+                            }
+                        }
+                        return false;
+                    }),
+                "automatic GUI did not publish its first snapshot");
+        page->findChild<QPushButton*>("dangerButton")->click();
+        require(
+            waitFor([&]() { return !page->property("jobRunning").toBool(); }),
+            "automatic GUI could not stop");
+        require(backup::BackupEngine::restore(
+                    archive.string(),
+                    (root / ("restored-" + std::to_string(mode))).string(), {})
+                    .success,
+                "automatic GUI produced an unreadable snapshot");
+    }
+}
+
+void testStaleRemoteResults(const backup::gui::ServerValues& credentials)
+{
+    // Switch sessions after the response is queued but before the UI applies
+    // it. This also covers completion racing with logout and another login.
+    class SessionSwitch final : public QObject
+    {
+    public:
+        std::function<void()> change;
+        bool switched = false;
+        bool eventFilter(QObject* watched, QEvent* event) override
+        {
+            if (!switched && event->type() == QEvent::MetaCall &&
+                watched->property("jobRunning").toBool())
+            {
+                switched = true;
+                change();
+            }
+            return false;
+        }
+    };
+    for (bool restore : {false, true})
+    {
+        for (bool relogin : {false, true})
+        {
+            backup::gui::AccountSession session(nullptr);
+            session.accept(credentials, session.revision());
+            std::unique_ptr<QWidget> page(
+                restore ? backup::gui::remoteRestorePage(&session)
+                        : backup::gui::remoteListPage(&session));
+            SessionSwitch switcher;
+            switcher.change = [&]()
+            {
+                auto next = credentials;
+                if (relogin)
+                {
+                    session.reset();
+                }
+                else
+                {
+                    next.port = next.port == 65535 ? 1 : next.port + 1;
+                }
+                session.accept(next, session.revision());
+            };
+            page->installEventFilter(&switcher);
+            page->findChild<QPushButton*>(restore ? "refreshRemoteRestore"
+                                                  : "primaryButton")
+                ->click();
+            require(waitFor([&]()
+                            { return !page->property("jobRunning").toBool(); }),
+                    "stale-result request did not finish");
+            require(
+                switcher.switched &&
+                    page->findChild<QProgressBar*>()->value() == 100,
+                "stale-result test did not intercept a successful response");
+            const int count =
+                restore ? page->findChild<QComboBox*>("backupId")->count()
+                        : page->findChild<QTableWidget*>()->rowCount();
+            require(count == 0, "old session repopulated a remote listing");
+        }
+    }
+}
+
+void testUserWorkflow(bool tls = false)
 {
     QTemporaryDir directory;
     require(directory.isValid(), "temporary GUI fixture failed");
@@ -904,10 +1081,28 @@ void testUserWorkflow()
             "port reservation failed");
     const auto port = reservation.serverPort();
     reservation.close();
+    QStringList serverArguments{"--port", QString::number(port), "--storage",
+                                root + "/server"};
+    backup::network::TlsOptions transport;
+    if (tls)
+    {
+        QProcess certificate;
+        certificate.start(BACKUP_OPENSSL_TOOL,
+                          {"req", "-x509", "-newkey", "rsa:2048", "-nodes",
+                           "-days", "1", "-subj", "/CN=localhost", "-addext",
+                           "subjectAltName=DNS:localhost,IP:127.0.0.1",
+                           "-keyout", root + "/key.pem", "-out",
+                           root + "/cert.pem"});
+        require(certificate.waitForFinished(5000) &&
+                    certificate.exitCode() == 0,
+                "cannot generate GUI TLS test certificate");
+        serverArguments << "--tls-cert" << root + "/cert.pem" << "--tls-key"
+                        << root + "/key.pem";
+        transport = {true, (root + "/cert.pem").toStdString()};
+    }
     QProcess server;
-    server.start(
-        QCoreApplication::applicationDirPath() + "/backup-server",
-        {"--port", QString::number(port), "--storage", root + "/server"});
+    server.start(QCoreApplication::applicationDirPath() + "/backup-server",
+                 serverArguments);
     require(server.waitForStarted(), "GUI test server failed to start");
     require(waitFor(
                 [&]()
@@ -1022,8 +1217,8 @@ void testUserWorkflow()
     field(local, "sourcePath")
         ->setText(QString::fromStdString(source.string()));
     field(local, "outputPath")->setText(root + "/local.bak");
-    local->findChildren<QComboBox*>().at(1)->setCurrentIndex(2);
-    local->findChildren<QComboBox*>().at(2)->setCurrentIndex(1);
+    local->findChild<QComboBox*>("compressionAlgorithm")->setCurrentIndex(2);
+    local->findChild<QComboBox*>("encryptionAlgorithm")->setCurrentIndex(1);
     field(local, "archivePassword")->setText("archive-pass");
     run(local);
     auto* log = local->findChild<QTextEdit*>("taskLog");
@@ -1045,6 +1240,9 @@ void testUserWorkflow()
     run(restoreLocal);
 
     auto* account = navigate(5);
+    account->findChild<QCheckBox*>("tlsEnabled")->setChecked(tls);
+    field(account, "tlsCaFile")
+        ->setText(QString::fromStdString(transport.caFile));
     require(account->findChild<QComboBox*>("accountMode")->count() == 2,
             "settings page lost its login modes");
     require(account->findChild<QCheckBox*>("rememberLogin") != nullptr &&
@@ -1219,6 +1417,8 @@ void testUserWorkflow()
     field(account, "serverPassword")->setText("gui-pass");
     run(account);
     // Confirmation defaults to No; declining must leave the account intact.
+    field(account, "serverHost")->clear();
+    field(account, "serverPassword")->clear();
     modalError.clear();
     QTest::mouseClick(account->findChild<QPushButton*>("deleteAccount"),
                       Qt::LeftButton);
@@ -1232,9 +1432,16 @@ void testUserWorkflow()
             "switching accounts retained credentials");
     account->findChild<QComboBox*>("accountMode")->setCurrentIndex(1);
     field(account, "serverUsername")->setText("temporary_gui_user");
+    field(account, "serverHost")->setText("127.0.0.1");
     field(account, "serverPassword")->setText("temporary-pass");
     field(account, "confirmPassword")->setText("temporary-pass");
     run(account);
+    auto draft = backup::network::BackupClient(
+        "127.0.0.1", port, "draft_gui_user", "draft-pass", transport);
+    std::string error;
+    require(draft.registerUser(error), "draft account fixture failed");
+    field(account, "serverUsername")->setText("draft_gui_user");
+    field(account, "serverPassword")->setText("draft-pass");
     dismiss.stop();
     QTimer::singleShot(10, window.get(),
                        []()
@@ -1262,10 +1469,12 @@ void testUserWorkflow()
             .toStdString()
             .c_str());
     auto client = backup::network::BackupClient(
-        "127.0.0.1", port, "temporary_gui_user", "temporary-pass");
-    std::string error;
+        "127.0.0.1", port, "temporary_gui_user", "temporary-pass", transport);
     require(!client.login(error),
             "GUI deletion did not remove the server account");
+    require(draft.login(error), "GUI deletion removed the draft account");
+    testStaleRemoteResults(
+        {"127.0.0.1", port, "gui_user", "gui-pass", transport});
     server.terminate();
     require(server.waitForFinished(2000) && server.exitCode() == 0,
             "workflow server did not stop cleanly");
@@ -1392,6 +1601,11 @@ int main(int argc, char* argv[])
             testUserWorkflow();
             return 0;
         }
+        if (app.arguments().contains("--tls-workflow"))
+        {
+            testUserWorkflow(true);
+            return 0;
+        }
         testAccountAlignment();
         testDialogPlacement();
         backup::gui::AccountSession session(&app);
@@ -1403,7 +1617,9 @@ int main(int argc, char* argv[])
         testSelectionAlignment();
         testPresentation();
         testEntrySelection();
+        testAutomaticGui();
         testUserWorkflow();
+        testUserWorkflow(true);
     }
     catch (const std::exception& error)
     {

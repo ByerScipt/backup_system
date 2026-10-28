@@ -9,7 +9,8 @@ using namespace detail;
 bool isIPv4Address(const std::string& value)
 {
     in_addr parsed{};
-    return ::inet_pton(AF_INET, value.c_str(), &parsed) == 1;
+    return value.find('\0') == std::string::npos &&
+           ::inet_pton(AF_INET, value.c_str(), &parsed) == 1;
 }
 
 ServerConfig ServerConfig::load(const std::string& path)
@@ -70,6 +71,14 @@ ServerConfig ServerConfig::load(const std::string& path)
             ensure(!value.empty(), "storage_path must not be empty");
             config.storagePath = value;
         }
+        else if (key == "tls_certificate")
+        {
+            config.tlsCertificate = value;
+        }
+        else if (key == "tls_private_key")
+        {
+            config.tlsPrivateKey = value;
+        }
         else if (key == "max_connections")
         {
             config.maxConnections = parseNumber(value, 1024);
@@ -127,6 +136,7 @@ bool BackupServer::run()
                    config_.timeoutSeconds > 0 && !config_.storagePath.empty(),
                "invalid server configuration");
         sessions.reserve(config_.maxConnections);
+        const auto tls = serverTlsContext(config_);
         fs::create_directories(config_.storagePath);
         listener = Socket(::socket(AF_INET, SOCK_STREAM, 0));
         const int fd = listener.get();
@@ -179,6 +189,10 @@ bool BackupServer::run()
             }
             if (sessions.size() >= config_.maxConnections)
             {
+                if (tls)
+                {
+                    continue; // No plaintext responses on a TLS listener.
+                }
                 try
                 {
                     setTimeouts(client.get(), 1);
@@ -192,14 +206,14 @@ bool BackupServer::run()
                 continue;
             }
             auto finished = std::make_shared<std::atomic_bool>(false);
-            sessions.push_back({std::thread(
-                                    [this, clientFd = client.get(), finished]()
-                                    {
-                                        handleSession(clientFd, config_,
-                                                      &stopRequested_);
-                                        finished->store(true);
-                                    }),
-                                std::move(finished)});
+            sessions.push_back(
+                {std::thread(
+                     [this, clientFd = client.get(), finished, tls]()
+                     {
+                         handleSession(clientFd, config_, &stopRequested_, tls);
+                         finished->store(true);
+                     }),
+                 std::move(finished)});
             client.release(); // The worker now owns the accepted socket.
         }
         success = true;

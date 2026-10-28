@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(backup_system VERSION 1.11.0 LANGUAGES CXX)
+project(backup_system VERSION 1.12.0 LANGUAGES CXX)
 
 option(BACKUP_BUILD_GUI "Build the optional Qt6 GUI" ON)
 option(BACKUP_BUILD_TESTS "Build automated tests" ON)
@@ -21,6 +21,7 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 
 find_package(Threads REQUIRED)
+find_package(OpenSSL 1.1.1 REQUIRED)
 set(BACKUP_WARNINGS -Wall -Wextra -Wpedantic)
 
 add_library(backup_core STATIC
@@ -35,18 +36,20 @@ add_library(backup_core STATIC
     DataBackup/core/archive.cpp
     DataBackup/core/restore.cpp
     DataBackup/core/engine.cpp
+    DataBackup/core/automatic.cpp
 )
 target_include_directories(backup_core PUBLIC libs)
 target_compile_features(backup_core PUBLIC cxx_std_17)
 
 add_library(backup_network STATIC
     DataBackup/network/io.cpp
+    DataBackup/network/tls.cpp
     DataBackup/network/auth_store.cpp
     DataBackup/network/server.cpp
     DataBackup/network/session.cpp
     DataBackup/network/client.cpp
 )
-target_link_libraries(backup_network PUBLIC backup_core Threads::Threads)
+target_link_libraries(backup_network PUBLIC backup_core Threads::Threads OpenSSL::SSL)
 target_compile_options(backup_network PRIVATE ${BACKUP_WARNINGS})
 
 target_compile_definitions(backup_core PUBLIC BACKUP_SYSTEM_VERSION="${PROJECT_VERSION}")
@@ -96,6 +99,9 @@ if(BACKUP_BUILD_TESTS)
         test/test_combos.cpp
         test/test_compress.cpp
         test/test_selection.cpp
+        test/test_automatic.cpp
+        test/test_incremental.cpp
+        test/test_tls.cpp
         test/test_security.cpp
         test/test_network.cpp
         test/test_crypto_vectors.cpp
@@ -117,7 +123,12 @@ if(BACKUP_BUILD_TESTS)
     endif()
     if(TARGET backup-gui)
         find_package(Qt6 COMPONENTS Test Network REQUIRED)
+        find_program(BACKUP_OPENSSL_TOOL openssl)
+        if(NOT BACKUP_OPENSSL_TOOL)
+            message(FATAL_ERROR "openssl command is required for GUI TLS test certificates")
+        endif()
         add_executable(backup-gui-tests test/test_gui_jobs.cpp)
+        target_compile_definitions(backup-gui-tests PRIVATE BACKUP_OPENSSL_TOOL="${BACKUP_OPENSSL_TOOL}")
         target_link_libraries(backup-gui-tests PRIVATE backup_ui Qt6::Test Qt6::Network)
         add_dependencies(backup-gui-tests backup-server)
         target_compile_options(backup-gui-tests PRIVATE ${BACKUP_WARNINGS})
@@ -193,13 +204,15 @@ set(CPACK_DEBIAN_CLIENT_PACKAGE_NAME "backup-studio-client")
 set(CPACK_DEBIAN_SERVER_PACKAGE_NAME "backup-studio-server")
 set(CPACK_DEBIAN_LOCAL_PACKAGE_NAME "backup-studio-local")
 
-# Qt loads its platform plugin and the CJK font at run time, so dpkg-shlibdeps
-# cannot infer them; without both, the desktop client fails to start or shows
-# placeholder boxes. Component variables override the global ones, so the
-# server deb must state that it wants neither.
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "qt6-qpa-plugins, fonts-noto-cjk")
-set(CPACK_DEBIAN_CLIENT_PACKAGE_DEPENDS "qt6-qpa-plugins, fonts-noto-cjk")
-set(CPACK_DEBIAN_SERVER_PACKAGE_DEPENDS "")
+# Maintainer scripts need adduser; ELF dependency scanning cannot infer it.
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "adduser, ca-certificates")
+set(CPACK_DEBIAN_SERVER_PACKAGE_DEPENDS "adduser")
+set(CPACK_DEBIAN_CLIENT_PACKAGE_DEPENDS "ca-certificates")
+if(TARGET backup-gui)
+    # Platform plugins and CJK fonts are loaded at run time as well.
+    string(APPEND CPACK_DEBIAN_CLIENT_PACKAGE_DEPENDS ", qt6-qpa-plugins, fonts-noto-cjk")
+    string(APPEND CPACK_DEBIAN_PACKAGE_DEPENDS ", qt6-qpa-plugins, fonts-noto-cjk")
+endif()
 
 # Only the server package owns a unit, an account and a conffile, and only it
 # may run those maintainer scripts. The all-in-one deb gets the same scripts

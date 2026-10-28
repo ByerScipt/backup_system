@@ -1,5 +1,6 @@
 #include "ui.hpp"
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
 #include <QDir>
@@ -7,6 +8,7 @@
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QLabel>
 #include <QLineEdit>
 #include <QObject>
 #include <QPushButton>
@@ -32,12 +34,14 @@ void addAlgorithmRows(QFormLayout* form, QComboBox*& pack,
                       QLineEdit*& key)
 {
     pack = new QComboBox;
+    pack->setObjectName("packAlgorithm");
     pack->addItem("顺序归档", "stream");
     pack->addItem("索引归档", "index");
     pack->setToolTip("顺序归档适合流式处理；中央索引适合快速列出条目。");
     form->addRow("打包", pack);
 
     compression = new QComboBox;
+    compression->setObjectName("compressionAlgorithm");
     compression->addItem("无", "none");
     compression->addItem("RLE", "rle");
     compression->addItem("Huffman", "huffman");
@@ -47,6 +51,7 @@ void addAlgorithmRows(QFormLayout* form, QComboBox*& pack,
     form->addRow("压缩", compression);
 
     encryption = new QComboBox;
+    encryption->setObjectName("encryptionAlgorithm");
     encryption->addItem("无", "none");
     encryption->addItem("ChaCha20", "chacha20");
     encryption->addItem("AES-256 CTR", "aes256");
@@ -131,14 +136,42 @@ ServerFields addServerRows(QVBoxLayout* layout, QLineEdit* confirmation)
     right->addRow("账号密码", fields.password);
     if (confirmation)
     {
-        right->addRow("确认密码", confirmation);
-        fields.confirmationLabel = right->labelForField(confirmation);
+        auto* label = new QLabel("确认密码");
+        label->setBuddy(confirmation);
+        fields.confirmationLabel = label;
+        // Qt 6.4 removes a hidden form row even with retainSizeWhenHidden.
+        // Visible hosts keep the row; the children retain its size in login.
+        const auto host = [](QWidget* child)
+        {
+            auto* widget = new QWidget;
+            auto* content = new QVBoxLayout(widget);
+            content->setContentsMargins(0, 0, 0, 0);
+            content->addWidget(child);
+            return widget;
+        };
+        right->addRow(host(label), host(confirmation));
     }
     auto* columns = new QHBoxLayout;
     columns->setSpacing(32);
     columns->addLayout(left, 1);
     columns->addLayout(right, 1);
     layout->addLayout(columns);
+    fields.tls = new QCheckBox("TLS");
+    fields.tls->setObjectName("tlsEnabled");
+    auto* security = new QHBoxLayout;
+    security->addWidget(fields.tls);
+    QPushButton* certificate;
+    security->addLayout(pathRow(fields.caFile, certificate, "tlsCaFile"), 1);
+    fields.caFile->setPlaceholderText("CA 证书（留空使用系统信任）");
+    fields.caFile->setEnabled(false);
+    certificate->setEnabled(false);
+    QObject::connect(fields.tls, &QCheckBox::toggled, fields.caFile,
+                     &QWidget::setEnabled);
+    QObject::connect(fields.tls, &QCheckBox::toggled, certificate,
+                     &QWidget::setEnabled);
+    bindPathPicker(layout->parentWidget(), certificate, fields.caFile,
+                   "选择 CA 证书", selectCertificate);
+    layout->addLayout(security);
     return fields;
 }
 
@@ -153,12 +186,15 @@ ServerValues snapshotServer(const ServerFields& fields)
     return {fields.host->text().trimmed().toStdString(),
             static_cast<uint16_t>(fields.port->value()),
             fields.username->text().trimmed().toStdString(),
-            fields.password->text().toStdString()};
+            fields.password->text().toStdString(),
+            {fields.tls->isChecked(),
+             fields.caFile->text().trimmed().toStdString()}};
 }
 
 network::BackupClient makeClient(const ServerValues& values)
 {
-    return {values.host, values.port, values.username, values.password};
+    return {values.host, values.port, values.username, values.password,
+            values.tls};
 }
 
 namespace
@@ -183,6 +219,8 @@ void writeLoginPresets(const QVector<LoginPreset>& presets)
         settings.setValue(QStringLiteral("port"), presets.at(index).port);
         settings.setValue(QStringLiteral("username"),
                           presets.at(index).username);
+        settings.setValue(QStringLiteral("tls"), presets.at(index).tls);
+        settings.setValue(QStringLiteral("caFile"), presets.at(index).caFile);
     }
     settings.endArray();
     settings.sync();
@@ -202,6 +240,8 @@ QVector<LoginPreset> loadLoginPresets()
         preset.port = static_cast<uint16_t>(
             settings.value(QStringLiteral("port"), 8848).toUInt());
         preset.username = settings.value(QStringLiteral("username")).toString();
+        preset.tls = settings.value(QStringLiteral("tls"), false).toBool();
+        preset.caFile = settings.value(QStringLiteral("caFile")).toString();
         if (!preset.host.isEmpty() && !preset.username.isEmpty())
         {
             presets.push_back(preset);
@@ -219,7 +259,7 @@ void saveLoginPreset(const LoginPreset& preset)
     }
     QVector<LoginPreset> presets = loadLoginPresets();
     LoginPreset entry{preset.host.trimmed(), preset.port,
-                      preset.username.trimmed()};
+                      preset.username.trimmed(), preset.tls, preset.caFile};
     bool replaced = false;
     for (auto& existing : presets)
     {
@@ -321,7 +361,8 @@ void configureFileDialog(QFileDialog& dialog, QWidget* owner,
 namespace
 {
 QString choosePath(QWidget* owner, const QString& title, const QString& initial,
-                   QFileDialog::FileMode mode, bool save = false)
+                   QFileDialog::FileMode mode, bool save = false,
+                   const QString& filter = "备份归档 (*.bak)")
 {
     QFileDialog dialog(owner);
     dialog.setOption(QFileDialog::DontUseNativeDialog, true);
@@ -340,7 +381,7 @@ QString choosePath(QWidget* owner, const QString& title, const QString& initial,
     }
     else
     {
-        dialog.setNameFilter("备份归档 (*.bak)");
+        dialog.setNameFilter(filter);
         if (!initial.isEmpty())
         {
             dialog.selectFile(initial);
@@ -367,6 +408,13 @@ QString selectArchiveOutput(QWidget* owner, const QString& title,
                             const QString& initial)
 {
     return choosePath(owner, title, initial, QFileDialog::AnyFile, true);
+}
+
+QString selectCertificate(QWidget* owner, const QString& title,
+                          const QString& initial)
+{
+    return choosePath(owner, title, initial, QFileDialog::ExistingFile, false,
+                      "证书 (*.pem *.crt);;所有文件 (*)");
 }
 
 void bindPathPicker(QWidget* owner, QPushButton* button, QLineEdit* edit,

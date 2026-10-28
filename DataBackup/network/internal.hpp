@@ -38,6 +38,7 @@
 #include <unistd.h>
 
 namespace fs = std::filesystem;
+struct ssl_ctx_st;
 
 namespace backup::network::detail
 {
@@ -60,6 +61,10 @@ enum class MessageType : uint16_t
     UploadChunk = 12,
     UploadEnd = 13,
     UploadResult = 14,
+    UploadDeltaStart = 15,
+    UploadBaseHashes = 16,
+    UploadBaseEnd = 17,
+    UploadCopy = 18,
     ListRequest = 20,
     ListResponse = 21,
     DownloadRequest = 30,
@@ -82,6 +87,29 @@ void reportProgress(const ProgressCallback& progress, const std::string& stage,
                     uint64_t completed, uint64_t total);
 
 using Socket = backup::detail::UniqueFd;
+using IoClock = std::chrono::steady_clock;
+IoClock::time_point ioDeadline(int fd, int option);
+void waitReady(int fd, short events, IoClock::time_point deadline,
+               std::atomic_bool* cancel);
+using TlsContext = std::shared_ptr<ssl_ctx_st>;
+TlsContext clientTlsContext(const TlsOptions& options);
+TlsContext serverTlsContext(const ServerConfig& config);
+// Scoped to the connection's worker thread; I/O dispatches to TLS only while
+// this object is alive. The socket must outlive it, including error responses.
+class TlsSession
+{
+public:
+    TlsSession(int fd, const TlsContext& context, bool server,
+               const std::string& host, std::atomic_bool* cancel);
+    ~TlsSession();
+
+private:
+    struct State;
+    std::unique_ptr<State> state_;
+};
+bool tlsActive(int fd);
+ssize_t tlsTransfer(int fd, uint8_t* data, size_t size, bool writing,
+                    IoClock::time_point deadline, std::atomic_bool* cancel);
 
 void sendAll(int fd, const uint8_t* data, size_t size,
              std::atomic_bool* cancel = nullptr);
@@ -156,7 +184,7 @@ std::vector<RemoteBackupEntry> listEntries(const fs::path& storage,
 std::optional<UserRecord> findUser(const fs::path& storage,
                                    const std::string& name);
 void setTimeouts(int fd, uint32_t seconds);
-void handleSession(int fd, const ServerConfig& config,
-                   std::atomic_bool* cancel);
+void handleSession(int fd, const ServerConfig& config, std::atomic_bool* cancel,
+                   const TlsContext& tls = {});
 
 } // namespace backup::network::detail

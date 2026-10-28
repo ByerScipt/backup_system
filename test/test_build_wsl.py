@@ -12,6 +12,7 @@ import unittest
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "Utils/build-wsl.sh"
+PACKAGE_SCRIPT = SCRIPT.with_name("package-wsl.sh")
 STUB = r'''#!/usr/bin/python3
 import os, pathlib, sys, tempfile
 name = pathlib.Path(sys.argv[0]).name
@@ -32,14 +33,22 @@ elif name == "cmake":
     build.mkdir(exist_ok=True)
     binaries = pathlib.Path("bin")
     binaries.mkdir(exist_ok=True)
-    for binary in ("backup-cli", "backup-server", "backup-gui"):
+    for binary in ("backup-cli", "backup-server", "backup-gui", "backup-gui-tests"):
         p = binaries / binary
-        p.write_text("#!/usr/bin/python3\nimport os,pathlib\np=os.environ.get('BACKUP_GUI_CAPTURE')\nif p: pathlib.Path(p).write_bytes(b'fixture')\n")
+        if binary == "backup-gui-tests" and os.environ.get("WSL_TEST_GUI_FAIL"):
+            p.write_text("#!/bin/sh\necho 'login/register switch moved the title'\nexit 1\n")
+        else:
+            p.write_text("#!/usr/bin/python3\nimport os,pathlib\np=os.environ.get('BACKUP_GUI_CAPTURE')\nif p: pathlib.Path(p).write_bytes(b'fixture')\n")
         p.chmod(0o755)
 elif name == "nproc":
     print(2)
 elif name == "ctest":
-    pass
+    if os.environ.get("WSL_TEST_GUI_FAIL") and "-E" not in sys.argv:
+        print("backup-gui-tests failed: login/register switch moved the title")
+        sys.exit(8)
+elif name == "cpack":
+    (root / "package-attempted").touch()
+    sys.exit(23)  # End the gate test before producing any packages.
 elif name == "rm":
     raise SystemExit("Unexpected deletion attempted")
 '''
@@ -59,16 +68,29 @@ class BuildWslTest(unittest.TestCase):
         (self.source / "compile_commands.json").symlink_to("build/compile_commands.json")
         self.bin = self.root / "bin"
         self.bin.mkdir()
-        for name in ("cygpath", "wslpath", "wsl.exe", "mktemp", "cmake", "ctest", "nproc", "rm"):
+        for name in ("cygpath", "wslpath", "wsl.exe", "mktemp", "cmake", "ctest", "cpack", "nproc", "rm"):
             p = self.bin / name
             p.write_text(STUB)
             p.chmod(0o755)
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ["PATH"],
                         WSL_TEST_ROOT=str(self.root), GUEST_DIR="", DISTRO="Test Distro", USER_NAME="test-builder")
 
-    def run_script(self, **env):
-        return subprocess.run(["bash", str(SCRIPT)], env=dict(self.env, **env),
+    def run_script(self, script=SCRIPT, **env):
+        return subprocess.run(["bash", str(script)], env=dict(self.env, **env),
                               text=True, capture_output=True, timeout=20)
+
+    def test_release_rejects_gui_failure(self):
+        result = self.run_script(script=PACKAGE_SCRIPT, ALLOW_DIRTY="1",
+                                 ALLOW_UNTAGGED="1", WSL_TEST_GUI_FAIL="1")
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertFalse((self.root / "package-attempted").exists(), result.stdout)
+        self.assertIn("login/register switch moved the title", result.stdout)
+
+    def test_release_passes_gate_before_packaging(self):
+        result = self.run_script(script=PACKAGE_SCRIPT, ALLOW_DIRTY="1",
+                                 ALLOW_UNTAGGED="1")
+        self.assertEqual(result.returncode, 23, result.stdout + result.stderr)
+        self.assertTrue((self.root / "package-attempted").exists())
 
     def test_existing_directory_preserved(self):
         target = self.root / "existing"

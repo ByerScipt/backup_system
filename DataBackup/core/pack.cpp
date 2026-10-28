@@ -3,6 +3,9 @@
 namespace backup::detail
 {
 
+// Fixed metadata fields plus a one-byte path; an index record adds an offset.
+constexpr uint64_t kMinimumEntrySize = 74;
+
 void packStream(const std::vector<Entry>& entries, const fs::path& output,
                 uint64_t inputBytes, const BackupOptions& options)
 {
@@ -73,6 +76,8 @@ std::vector<Entry> readStreamEntries(std::ifstream& in, uint64_t size)
     uint32_t count = readU32(in);
     ensure(count > 0 && count <= kMaxEntries,
            "invalid sequential pack entry count");
+    ensure(size >= 12 && count <= (size - 12) / (4 + kMinimumEntrySize),
+           "entry count exceeds packed bounds");
     std::vector<Entry> entries;
     entries.reserve(count);
     for (uint32_t i = 0; i < count; ++i)
@@ -119,6 +124,9 @@ std::vector<Entry> readIndexEntries(std::ifstream& in, uint64_t size)
     uint32_t count = readU32(in);
     ensure(count == trailerCount && count > 0 && count <= kMaxEntries,
            "invalid central directory count");
+    ensure(centralSize >= 12 &&
+               count <= (centralSize - 12) / (kMinimumEntrySize + 8),
+           "entry count exceeds packed bounds");
     std::vector<Entry> entries;
     entries.reserve(count);
     for (uint32_t i = 0; i < count; ++i)

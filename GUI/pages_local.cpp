@@ -12,6 +12,7 @@
 #include <QMessageBox>
 #include <QObject>
 #include <QPushButton>
+#include <QSpinBox>
 #include <QString>
 #include <QStringList>
 #include <QTextEdit>
@@ -37,7 +38,48 @@ QWidget* localBackupPage()
     QComboBox *pack, *compression, *encryption;
     form->addRow("源目录", pathRow(source, browseSource, "sourcePath"));
     form->addRow("备份内容", selectionRow(selectEntries, selectionSummary));
-    form->addRow("输出归档", pathRow(output, browseOutput, "outputPath"));
+    auto* outputRow = pathRow(output, browseOutput, "outputPath");
+    form->addRow("输出归档", outputRow);
+    auto* outputLabel = form->labelForField(outputRow);
+    auto* trigger = new QComboBox;
+    trigger->setObjectName("automaticMode");
+    trigger->addItems({"手动", "定时", "实时"});
+    form->addRow("执行", trigger);
+    auto* interval = new QSpinBox;
+    interval->setObjectName("automaticInterval");
+    interval->setRange(1, 604800);
+    interval->setValue(60);
+    interval->setSuffix(" 秒");
+    auto* keep = new QSpinBox;
+    keep->setObjectName("automaticKeep");
+    keep->setRange(1, 10000);
+    keep->setValue(5);
+    keep->setSuffix(" 份");
+    auto* automaticRow = new QHBoxLayout;
+    automaticRow->addWidget(interval);
+    automaticRow->addWidget(keep);
+    form->addRow("间隔 / 保留", automaticRow);
+    const auto updateMode = [=]()
+    {
+        const bool enabled = trigger->currentIndex() != 0;
+        interval->setVisible(enabled);
+        keep->setVisible(enabled);
+        form->labelForField(automaticRow)->setVisible(enabled);
+        qobject_cast<QLabel*>(outputLabel)
+            ->setText(enabled ? "保存目录" : "输出归档");
+        interval->setToolTip(trigger->currentIndex() == 2
+                                 ? "文件变化稳定后等待的合并时间"
+                                 : "两次快照之间的等待时间");
+    };
+    QObject::connect(trigger, &QComboBox::currentIndexChanged, page.widget,
+                     [=]()
+                     {
+                         output->clear();
+                         interval->setValue(trigger->currentIndex() == 2 ? 1
+                                                                         : 60);
+                         updateMode();
+                     });
+    updateMode();
     addAlgorithmRows(form, pack, compression, encryption, key);
     configuration.body->addLayout(form);
     page.layout->addWidget(configuration.frame, 1);
@@ -48,8 +90,21 @@ QWidget* localBackupPage()
 
     bindPathPicker(page.widget, browseSource, source, "选择源目录",
                    selectDirectory);
-    bindPathPicker(page.widget, browseOutput, output, "选择输出归档",
-                   selectArchiveOutput);
+    QObject::connect(browseOutput, &QPushButton::clicked, page.widget,
+                     [=]()
+                     {
+                         const auto picked =
+                             trigger->currentIndex() == 0
+                                 ? selectArchiveOutput(page.widget,
+                                                       "选择输出归档",
+                                                       output->text())
+                                 : selectDirectory(page.widget, "选择保存目录",
+                                                   output->text());
+                         if (!picked.isEmpty())
+                         {
+                             output->setText(picked);
+                         }
+                     });
 
     // The selection belongs to one source directory: changing the path drops
     // it so a stale entry list can never be archived silently.
@@ -90,10 +145,11 @@ QWidget* localBackupPage()
             if (src.isEmpty() || out.isEmpty())
             {
                 QMessageBox::warning(page.widget, "输入有误",
-                                     "请选择源目录和输出归档。");
+                                     "请选择源目录和输出位置。");
                 return;
             }
-            if (QFile::exists(out))
+            const bool automatic = trigger->currentIndex() != 0;
+            if (!automatic && QFile::exists(out))
             {
                 QMessageBox::warning(page.widget, "文件冲突",
                                      "输出归档已经存在，请选择新文件名。");
@@ -114,6 +170,10 @@ QWidget* localBackupPage()
             }
 
             const auto includes = toUtf8Strings(*selection);
+            AutomaticOptions automaticOptions;
+            automaticOptions.realtime = trigger->currentIndex() == 2;
+            automaticOptions.interval = std::chrono::seconds(interval->value());
+            automaticOptions.keep = static_cast<size_t>(keep->value());
             startJob(
                 page.widget, controls,
                 [=](std::atomic_bool* cancel, const ProgressCallback& progress)
@@ -121,8 +181,13 @@ QWidget* localBackupPage()
                     auto options =
                         algorithmOptions(algorithms, cancel, progress);
                     options.includes = includes;
-                    auto result = BackupEngine::create(
-                        src.toStdString(), out.toStdString(), options);
+                    auto result =
+                        automatic
+                            ? BackupEngine::automatic(src.toStdString(),
+                                                      out.toStdString(),
+                                                      options, automaticOptions)
+                            : BackupEngine::create(src.toStdString(),
+                                                   out.toStdString(), options);
                     if (!result.success)
                     {
                         throw std::runtime_error(result.message);

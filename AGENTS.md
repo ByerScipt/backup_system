@@ -26,22 +26,26 @@
 
 ## 代码结构速览
 
-- 分层：`DataBackup/core/`（归档、压缩、加密、文件系统）、
-  `DataBackup/network/`（协议、账户、存储、客户端）为实现；
+- 分层：`DataBackup/core/`（归档、自动快照、压缩、加密、文件系统）、
+  `DataBackup/network/`（协议、TLS、增量上传、账户、存储、客户端）为实现；
   `DataBackup/cli/`、`GUI/`、`DataBackup/server.cpp` 只做编排；`test/` 覆盖三层。
-- 归档管线：扫描目录树 → 打包（`stream` 每条目带元数据；`index` 尾部偏移表）→
-  压缩（none/RLE/Huffman）→ 加密（none/ChaCha20/AES-256-CTR）→ 提交单个最终文件。
-  格式为自有 `BKP2`（头 112 字节），版本 1 为旧布局、版本 2 增加普通文件硬链接；
-  packed 数据与 encoded 负载各有 SHA-256 摘要；解码使用临时文件，
-  校验通过后才提取到还原目标目录。
+- 归档管线：扫描目录树（支持 `BackupOptions::includes` 按源目录相对路径过滤条目，
+  `BackupEngine::scanSource()` 提供含数值型 UID 的目录扫描清单）→ 打包（`stream` 每条目带元数据；
+  `index` 尾部偏移表）→ 压缩（none/RLE/Huffman/LZ77）→
+  加密（none/ChaCha20/AES-256-CTR）→ 提交单个最终文件。格式为自有 `BKP2`
+  （头 112 字节），版本 1 为旧布局、版本 2 增加普通文件硬链接、版本 3 增加 LZ77 压缩；
+  packed 数据与 encoded 负载各有 SHA-256 摘要；解码使用临时文件，校验通过后才提取到
+  还原目标目录。`BackupEngine::automatic()` 复用同一归档管线实现周期性定时快照与
+  Linux `inotify` 实时快照，按保留份数淘汰当前源目录的过期自动快照（需进程保持运行）。
 - 还原安全：目标目录 FD 约束全部路径解析；`O_NOFOLLOW`、`AT_SYMLINK_NOFOLLOW`
   逐层打开；拒绝路径逃逸与竞态替换；默认不覆盖既有路径，`--overwrite` 显式开启；
   每条目遍历提交，不做整目录回滚；元数据（属主/权限/时间戳）失败必须上报。
-- 网络：分帧 TCP + 挑战-响应登录；每账户独立存储目录；上传按声明大小与
-  SHA-256 校验后才提交；每连接一个工作线程，受连接上限与超时约束；协议无 TLS，
-  仅用于可信网络，机密性由归档加密单独保证。
-- 依赖边界：核心不引入外部压缩/加密库；只用 C++17、`std::filesystem` 与 POSIX。
-  Qt 6 Widgets 仅 GUI 需要，缺失时 CMake 自动跳过 GUI 并给出提示。
+- 网络：分帧 TCP（可选经 OpenSSL 建立验证证书与主机名/IP 的 TLS 1.2+ 连接）+ 挑战-响应登录；
+  每账户独立存储目录；上传支持普通分块与按 512 KiB 同位置块哈希比对的增量上传（随机加密可能
+  使块无法复用），服务端校验完整大小与 SHA-256 后均保存为完整独立归档；每连接一个工作线程，
+  受连接上限、超时与历史列表容量（4096 条 / 1 MiB）约束。
+- 依赖边界：归档容器、压缩与归档加密均为自研实现，只用 C++17、`std::filesystem` 与 POSIX；
+  网络层 TLS 传输使用 OpenSSL（1.1.1+）；Qt 6 Widgets 仅 GUI 需要，缺失时 CMake 自动跳过 GUI 并给出提示。
 - 可移植性：Linux 为主要目标；平台差异用 `#if defined(__linux__)`、
   `#if defined(__CYGWIN__)`、`#ifdef __APPLE__` 局部守卫并写明原因，
   不得让平台分支改变 POSIX 平台的行为。
@@ -67,7 +71,7 @@
 - 构建副本放在 Linux 文件系统；脚本默认创建独立目录，也可通过 `GUEST_DIR` 指定
   尚不存在的绝对路径。保留已有目录，失败时保留构建副本供诊断。不要用 Windows 挂载盘：DrvFs 无法
   表达 Unix 权限与属主，硬链接/ inode 语义也与 CI 不一致，会让权限类用例失真。
-- 依赖：`build-essential cmake ninja-build pkg-config qt6-base-dev qt6-base-dev-tools
+- 依赖：`build-essential cmake ninja-build pkg-config libssl-dev openssl ca-certificates qt6-base-dev qt6-base-dev-tools
   qt6-wayland libgl1-mesa-dev clang-format-18 fonts-noto-cjk`。构建账户必须是非 root
   （权限用例以普通用户运行），且 UID 宜为 1000 以匹配 WSLg 运行时目录属主。
 - GUI 使用构建脚本末尾输出的 Git Bash 启动命令，账户与构建时一致；

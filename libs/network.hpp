@@ -1,8 +1,9 @@
 #ifndef BACKUP_NETWORK_HPP
 #define BACKUP_NETWORK_HPP
 
-// Account-isolated archive transfers over NBKP/TCP (no TLS). Archive passwords
-// belong to backup_core and are independent of these account credentials.
+// Account-isolated archive transfers over NBKP/TCP, with optional verified TLS.
+// Archive passwords belong to backup_core, independently of account
+// credentials.
 
 #include "core.hpp"
 
@@ -20,14 +21,24 @@ bool isIPv4Address(const std::string& value);
 struct ServerConfig
 {
     // "0.0.0.0" accepts every interface. Bind "127.0.0.1" when the server is
-    // meant for the local machine only; NBKP itself has no TLS.
+    // meant for the local machine only. Set both TLS paths to enable TLS.
     std::string bindAddress = "0.0.0.0";
     uint16_t port = 8848;
     std::string storagePath = "./server_data";
     uint32_t maxConnections = 32;
     uint32_t timeoutSeconds = 30;
+    std::string tlsCertificate;
+    std::string tlsPrivateKey;
 
     static ServerConfig load(const std::string& path);
+};
+
+struct TlsOptions
+{
+    bool enabled = false;
+    // Empty uses the system trust store. Otherwise use this PEM CA file.
+    // Certificate chain and server DNS/IP identity are always verified.
+    std::string caFile;
 };
 
 struct RemoteBackupEntry
@@ -60,7 +71,7 @@ class BackupClient
 {
 public:
     BackupClient(std::string host, uint16_t port, std::string username,
-                 std::string password);
+                 std::string password, TlsOptions tls = {});
 
     // Synchronous calls: false/non-empty error indicates failure. On list(),
     // empty results mean "no backups" only if error is empty. Progress runs on
@@ -75,11 +86,14 @@ public:
     bool deleteAccount(std::string& error, std::atomic_bool* cancel = nullptr);
     // Clears backupId on entry and sets it only after a validated
     // acknowledgement. A lost/cancelled acknowledgement cannot undo a
-    // server-side commit.
+    // server-side commit. Uploads that exceed the history response capacity
+    // (4096 entries or 1 MiB) fail without publishing another backup.
+    // Incremental mode reuses matching blocks from the newest stored archive;
+    // the result is self-contained. Randomized encryption may prevent reuse.
     bool upload(const std::string& archivePath, const std::string& displayName,
                 std::string& backupId, std::string& error,
                 ProgressCallback progress = {},
-                std::atomic_bool* cancel = nullptr);
+                std::atomic_bool* cancel = nullptr, bool incremental = false);
     std::vector<RemoteBackupEntry> list(std::string& error,
                                         std::atomic_bool* cancel = nullptr);
     bool download(const std::string& backupId, const std::string& outputPath,
@@ -91,6 +105,7 @@ private:
     uint16_t port_;
     std::string username_;
     std::string password_;
+    TlsOptions tls_;
 };
 
 } // namespace backup::network

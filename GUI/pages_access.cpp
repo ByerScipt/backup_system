@@ -177,6 +177,7 @@ QWidget* remoteListPage(AccountSession* session)
                 return;
             }
             const ServerValues values = session->credentials();
+            const auto revision = session->revision();
             startJob(
                 page.widget, controls,
                 [=](std::atomic_bool* cancel, const ProgressCallback&)
@@ -193,7 +194,7 @@ QWidget* remoteListPage(AccountSession* session)
                 [=]()
                 {
                     // Ignore a response if the account changed mid-request.
-                    if (session->credentials().username != values.username)
+                    if (session->revision() != revision)
                     {
                         return;
                     }

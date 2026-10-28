@@ -2,15 +2,20 @@
 
 A C++17 backup and restore application for Linux, with a command-line client, a Qt 6 desktop interface, and a TCP backup server. It stores directory trees in a single archive, with configurable packing, compression, and encryption.
 
-The project implements its archive format, compression, and encryption without external compression or cryptography libraries.
+The archive format, compression, and archive encryption are self-written.
+Optional TLS transport uses OpenSSL.
 
 ## Features
 
 - **Archive pipeline:** sequential or indexed packing, with optional RLE, Huffman, or LZ77 compression and ChaCha20 or AES-256-CTR encryption.
 - **Files and metadata:** archive and restore directory trees, permissions, ownership, and timestamps, including symbolic links and special files where supported by the filesystem and user privileges.
 - **Remote backups:** register an account, upload archives, list backups, and download them for restoration. Each account has its own storage directory.
+- **Automatic snapshots:** periodic or Linux filesystem-event triggers, with
+  per-source retention and cancellation. Snapshots are complete archives.
+- **Transfer options:** verified TLS and incremental uploads that reuse matching
+  archive blocks while keeping each stored backup independently restorable.
 - **Desktop interface:** local and remote backup workflows with background jobs, progress reporting, logs, and cancellation. Local restore includes a conflict preview. Remote pages share connection
-  fields in memory; backup history supports name/ID search, numeric size sorting,
+  credentials through the signed-in session; backup history supports name/ID search, numeric size sorting,
   copying full IDs, and opening restore with the selected backup.
 
 The GUI uses Chinese labels; CLI commands and messages are in English.
@@ -33,12 +38,15 @@ Version history is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Build
 
-Requires Linux, a C++17 compiler with filesystem support, CMake 3.16+, and POSIX threads. Qt 6 Widgets is optional; GUI interaction tests also use Qt 6 Test and Network. The CLI, server, and core tests do not require Qt or external compression and cryptography libraries.
+Requires Linux, a C++17 compiler with filesystem support, CMake 3.16+, POSIX
+threads and OpenSSL 1.1.1+ development headers. Qt 6 Widgets is optional; GUI
+interaction tests also use Qt 6 Test, Network and the `openssl` executable.
+The CLI, server and core tests do not require Qt.
 
 On Ubuntu or Debian:
 
 ```bash
-sudo apt install build-essential cmake
+sudo apt install build-essential cmake libssl-dev openssl ca-certificates
 sudo apt install qt6-base-dev fonts-noto-cjk  # Optional: desktop interface and CJK fonts
 ```
 
@@ -92,16 +100,34 @@ Encryption prompts for an archive password; restore requires the same password. 
 
 An archive must be written outside the source tree, to a path that does not already exist. Restore rejects conflicting paths unless `--overwrite` is supplied. In the GUI, local restore also offers a conflict preview before extraction.
 
-`--include` archives only the named entries below `SOURCE`, and the directories above them are stored as well, so a restore reproduces the original layout; a selected directory keeps its whole subtree. Absolute paths, normalized paths escaping the source and entries that do not exist are rejected. The local and remote backup pages in the GUI offer the same selection through a checkable tree with name, type and time filters.
+`--include` archives only the named entries below `SOURCE`, and the directories above them are stored as well, so a restore reproduces the original layout; a selected directory keeps its whole subtree. Absolute paths, parent (`..`) segments and entries that do not exist are rejected. The local and remote backup pages in the GUI offer a checkable tree with name, type, content category, size, time, owner/UID and hidden-entry filters.
 
 The selector initially checks the whole tree. Clearing every checkbox disables
 confirmation for a nonempty directory; Cancel keeps the previous selection.
 Running jobs use a snapshot of their selections, so later form edits apply only
 to the next backup.
 
+For periodic snapshots, choose the corresponding mode in the local backup page
+or use `watch`. Its output directory must be outside the source tree:
+
+```bash
+bin/backup-cli watch exp -o output/snapshots --interval 60 --retain 5
+bin/backup-cli watch exp -o output/realtime --realtime --interval 1 --retain 5
+```
+
+The first snapshot is immediate. Periodic intervals start after each completed
+snapshot; real-time mode waits for the specified quiet period after a change.
+`--count N` stops after N snapshots; otherwise use Ctrl+C or the GUI cancel
+button. The process must remain running; this does not install a scheduler.
+Only automatically named snapshots for the same canonical source path in that
+output directory are expired. Other files are kept. A backup or retention
+failure stops the job and reports the error; completed snapshots remain valid.
+
 ## Remote backup and restore
 
-The server is intended for trusted-network use. Its TCP protocol does not provide TLS; archive encryption is configured separately on the client.
+Plain TCP is the default for trusted networks. Enable TLS on both ends when
+transport confidentiality and server authentication are required. Archive
+encryption is configured separately on the client.
 
 Start the server in one terminal:
 
@@ -109,7 +135,7 @@ Start the server in one terminal:
 bin/backup-server --config databackup.conf
 ```
 
-By default, it listens on `0.0.0.0:8848`, stores data in `./server_data`, allows up to 32 concurrent sessions, and uses a 30-second socket timeout. These settings are configurable in `databackup.conf`; malformed/unknown settings are rejected. Relative storage paths are resolved from the server's working directory. `bind_address` (or `--bind ADDRESS` on the command line) takes an IPv4 literal and restricts the listener; NBKP has no TLS, so a server that only serves its own machine should use `127.0.0.1`.
+By default, it listens on `0.0.0.0:8848`, stores data in `./server_data`, allows up to 32 concurrent sessions, and uses a 30-second socket timeout. These settings are configurable in `databackup.conf`; malformed/unknown settings are rejected. Relative storage paths are resolved from the server's working directory. `bind_address` (or `--bind ADDRESS` on the command line) takes an IPv4 literal and restricts the listener; use `127.0.0.1` for a local-only service.
 
 In another terminal:
 
@@ -128,13 +154,40 @@ bin/backup-cli remote-restore BACKUP_ID -d output/remote-restored \
 
 Replace `BACKUP_ID` with the ID returned by upload or listing. Account passwords authenticate the user; archive passwords decrypt the backup. The CLI prompts for each when required. For scripted use, supply `--account-password-file FILE` and, for encrypted archives, `--key-file FILE`.
 
+Add `--incremental` to `remote-backup` to compare against the account's newest
+archive. Incremental mode requires support on the server; ordinary uploads
+remain available. An empty history uses a full upload. Matching 512 KiB blocks at the
+same offsets are sent as references; other blocks are sent normally. The block
+index is bounded to 32 MiB (the first 512 GiB), with a full-transfer fallback
+beyond it. Compression shifts and randomized archive encryption can reduce or
+eliminate reuse. The server reconstructs and verifies a complete archive, so
+restoration never depends on retaining earlier backups. This mode saves network
+traffic when blocks match; it still builds and hashes a complete local archive.
+
+For TLS, supply a PEM server certificate chain and its unencrypted private key:
+
+```bash
+bin/backup-server --config databackup.conf \
+  --tls-cert server-cert.pem --tls-key server-key.pem
+bin/backup-cli remote-list --server backup.example.com:8848 \
+  --username alice --tls
+```
+
+The certificate must cover the exact DNS name or IP used by the client.
+`--tls` uses system CA trust; `--tls-ca ca.pem` enables TLS with a custom PEM
+trust file. Server configuration also accepts `tls_certificate` and
+`tls_private_key`. In the GUI, enable TLS and optionally choose a CA file on
+the login page. Verification cannot be disabled; TLS and plaintext clients
+must connect to servers using the same mode. Private keys must be readable
+only by the appropriate server account.
+
 ## Packaging
 
 `Utils/package-wsl.sh` builds the release installers inside WSL2. From Git
 Bash, check out the published release tag and choose an output directory:
 
 ```bash
-git switch --detach v1.8.1
+git switch --detach v1.11.0
 DELIVERY_ROOT="$(pwd)/output/delivery" ./Utils/package-wsl.sh
 # WITH_DOCKER=1 also builds the server image
 ```
@@ -155,8 +208,9 @@ records the commit, the toolchain and the checksums.
 | `SHA256SUMS`, `RELEASE-MANIFEST.txt`, `install-notes.md` | Traceability and installation guide |
 
 Packages are built on Ubuntu 24.04 (glibc 2.39) and target Ubuntu 24.04 or
-newer; the client package declares Qt 6, its platform plugin and a CJK font as
-dependencies. The all-in-one package starts the server through systemd on the
+newer; shared-library dependencies (including OpenSSL) are detected during
+packaging. Client packages include CA certificates and, when built with the
+GUI, Qt 6, its platform plugin and a CJK font. The all-in-one package starts the server through systemd on the
 loopback interface, and `packaging/install-notes.md` documents installation,
 upgrades and removal. Windows has no native build: `packaging/windows/install-wsl.ps1`
 prepares an Ubuntu 24.04 distribution, installs the all-in-one package there
@@ -199,17 +253,25 @@ The CTest suite covers:
 - Complete directory-tree round trips for all 24 packing, compression, and encryption combinations.
 - Incorrect passwords, damaged and truncated archives, size bounds, invalid paths, overwrite conflicts, restore previews, and destination path races.
 - Account isolation, upload/download round trips, interrupted uploads, cancelled transfers, request ID validation, session recycling, and persistence across server restarts.
+- Periodic/real-time snapshots, restart retention, nested additions/deletions,
+  encrypted restore, invalid output paths and prompt cancellation.
+- Incremental block reuse, reconstructed checksums, cancellation cleanup and
+  restoration after removing the base; TLS trusted/untrusted, wrong-identity
+  and expired certificates, encrypted error replies and handshake shutdown.
 - Buffered disk-full failures, source-to-FIFO races, final-stage cancellation,
   unreadable/malformed account stores, unresponsive peers and malformed responses.
 - CLI numeric/option validation and prompt server shutdown with idle/partial
   connections when Python 3 is available.
 - GUI local encrypted round trips, real-server registration/upload/list/download,
-  search/sorting/selection, shared credentials, Chinese validation, overwrite
+  search/sorting/selection, session credentials, Chinese validation, overwrite
   confirmation, and multi-job closing/cancellation when Qt 6 is available.
   CTest runs these offscreen; run with `QT_QPA_PLATFORM=xcb` for desktop events.
+  Account workflows run with both plaintext and TLS; regressions also cover
+  draft-independent deletion, stale replies, hidden subtrees, owner filtering
+  and automatic-backup cancellation/restoration.
 
 Fixtures include regular files, empty directories, symbolic links, FIFOs, and
-Unix socket nodes. `make test` also runs the seven isolated WSL launcher tests;
+Unix socket nodes. `make test` also runs nine isolated WSL launcher tests;
 these do not replace Windows/WSLg interactive acceptance.
 
 An optional memory-limit check backs up and restores a 160 MiB sparse file with a 128 MiB virtual-memory limit per process. It uses indexed packing without compression or encryption:

@@ -6,6 +6,7 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -70,6 +71,17 @@ struct RestoreOptions
     std::atomic_bool* cancel = nullptr;
 };
 
+struct AutomaticOptions
+{
+    // Real-time mode watches Linux filesystem events; interval is its debounce
+    // period, or the time between snapshots in periodic mode.
+    bool realtime = false;
+    std::chrono::milliseconds interval{60000};
+    size_t keep = 5;
+    // Zero runs until cancelled. A positive limit also supports batch jobs.
+    size_t maxBackups = 0;
+};
+
 struct BackupResult
 {
     // False includes cancellation or incomplete metadata restoration. Earlier
@@ -114,6 +126,7 @@ struct SourceEntryInfo
                        // block-device or unix-socket
     uint64_t size = 0; // bytes of a regular file; 0 for every other type
     int64_t mtimeSeconds = 0;
+    uint32_t uid = 0; // Numeric owner ID, independent of local account names.
 };
 
 class BackupEngine
@@ -125,6 +138,15 @@ public:
     static BackupResult create(const std::string& sourceDirectory,
                                const std::string& archivePath,
                                const BackupOptions& options);
+
+    // Immediately creates a snapshot, then repeats on a timer or file changes.
+    // outputDirectory must be outside the source. Retention applies only to
+    // this source's automatically named archives, after a successful snapshot.
+    // Blocks on the caller's thread; progress/cancel follow BackupOptions.
+    static BackupResult automatic(const std::string& sourceDirectory,
+                                  const std::string& outputDirectory,
+                                  const BackupOptions& options,
+                                  const AutomaticOptions& automatic);
 
     // Restores under DEST/<source-directory-name>, rejecting conflicts unless
     // overwrite is explicit. Ownership/timestamps require OS permission.

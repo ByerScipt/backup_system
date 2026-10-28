@@ -116,14 +116,16 @@ def edge_view(vid, diagram_id, model, vtype, tail_view, head_view, points,
 UC_DIAGRAM = 'backup-studio-use-cases'
 ACTORS = [("user", "用户（CLI / 桌面端）"), ("admin", "服务器管理员")]
 USE_CASES = [
-    ("local-backup", "本地备份"), ("inspect", "查看归档信息"), ("login", "登录服务器"),
-    ("local-restore", "本地还原"), ("register", "注册账户"), ("list", "查看远程备份列表"),
-    ("upload", "上传远程备份"), ("remote-restore", "远程还原"),
+    ("local-backup", "本地备份"), ("automatic-backup", "自动备份（定时/实时）"),
+    ("select-entries", "筛选与选择备份条目"), ("inspect", "查看归档信息"),
+    ("local-restore", "本地还原"), ("register", "注册账户"), ("login", "登录服务器"),
+    ("upload", "上传远程备份"), ("list", "查看远程备份列表"), ("remote-restore", "远程还原"),
     ("delete-account", "注销账户"), ("run-server", "运行与配置服务器"),
 ]
-INCLUDES = [("upload", "local-backup"), ("upload", "login"), ("remote-restore", "login"),
-            ("remote-restore", "local-restore"), ("list", "login"),
-            ("delete-account", "login")]
+INCLUDES = [("automatic-backup", "local-backup"), ("local-backup", "select-entries"),
+            ("upload", "local-backup"), ("upload", "login"),
+            ("remote-restore", "login"), ("remote-restore", "local-restore"),
+            ("list", "login"), ("delete-account", "login")]
 
 uc_elements, uc_views = [], []
 uc_elements.append({"_type": "UMLUseCaseSubject", "_id": "uc-subject",
@@ -231,11 +233,11 @@ SEQUENCES = [
             {"key": "fs", "label": "本地文件系统", "class": "LocalFilesystem"},
         ],
         "messages": [
-            ("user", "ui", "backup SOURCE -o ARCHIVE", "备份命令（--pack/--compress/--encrypt）"),
+            ("user", "ui", "backup SOURCE -o ARCHIVE", "备份命令（--pack/--compress/--encrypt/--include）"),
             ("ui", "engine", "create(source, archivePath, options)", "调用归档引擎"),
-            ("engine", "fs", "scanDirectory()", "遍历目录树，收集元数据与硬链接"),
+            ("engine", "fs", "scanDirectory(includes)", "遍历目录树，按需过滤条目并收集元数据与硬链接"),
             ("engine", "fs", "packStream() / packIndex()", "写出 packed 暂存件"),
-            ("engine", "fs", "compressStage()", "压缩（none / RLE / Huffman）"),
+            ("engine", "fs", "compressStage()", "压缩（none / RLE / Huffman / LZ77）"),
             ("engine", "fs", "cryptStage()", "加密（随机盐 + ChaCha20 / AES-256-CTR）"),
             ("engine", "fs", "commitFileNoReplace()", "fsync 后原子提交最终归档"),
             ("engine", "ui", "BackupResult", "条目数、输入/输出字节数"),
@@ -281,12 +283,12 @@ SEQUENCES = [
             ("server", "client", "LoginChallenge(salt, nonce)", "返回盐与随机挑战"),
             ("client", "server", "LoginProof", "Proof = SHA256(verifier ∥ nonce)"),
             ("server", "client", "LoginResponse", "校验通过，建立已认证会话"),
-            ("ui", "client", "upload(archivePath, displayName)", "本地归档完成后上传"),
-            ("client", "server", "UploadStart(size, sha256)", "声明大小与摘要"),
-            ("server", "client", "UploadReady(id)", "分配备份 ID"),
-            ("client", "server", "UploadChunk × N", "512 KiB 分帧传输"),
+            ("ui", "client", "upload(archivePath, displayName, incremental)", "本地归档完成后上传（支持增量与 TLS）"),
+            ("client", "server", "UploadStart / UploadDeltaStart", "声明大小、摘要及可选基线 ID"),
+            ("server", "client", "UploadReady(id)", "分配备份 ID（增量模式附带基线块哈希）"),
+            ("client", "server", "UploadChunk / UploadCopy × N", "512 KiB 分帧传输或同偏移块复用引用"),
             ("client", "server", "UploadEnd", "传输完成"),
-            ("server", "store", "commitStoredFile() + writeMeta()", "校验大小/SHA-256 后原子提交"),
+            ("server", "store", "commitStoredFile() + writeMeta()", "校验大小/SHA-256 后原子提交完整独立归档"),
             ("server", "client", "UploadResult(id)", "返回备份 ID"),
             ("client", "ui", "backupId", "上传成功（历史记录可查）"),
         ],
@@ -478,13 +480,112 @@ dep_diagram = {"_type": "UMLDeploymentDiagram", "_id": DEP_DIAGRAM,
                "ownedViews": dep_views}
 
 # --------------------------------------------------------------- assemble
+def ensure_class_member(cls_model, cls_view, kind, member_id, name, text,
+                        attr_type=None, is_static=False, params=()):
+    key = 'attributes' if kind == 'attr' else 'operations'
+    comp_idx = 1 if kind == 'attr' else 2
+    comp = cls_view['subViews'][comp_idx]
+    members = cls_model.setdefault(key, [])
+    if not any(m['_id'] == member_id for m in members):
+        if kind == 'attr':
+            members.append({
+                "_type": "UMLAttribute", "_id": member_id,
+                "_parent": {"$ref": cls_model['_id']}, "name": name,
+                "visibility": "public", "type": attr_type,
+            })
+        else:
+            op = {
+                "_type": "UMLOperation", "_id": member_id,
+                "_parent": {"$ref": cls_model['_id']}, "name": name,
+                "visibility": "public",
+            }
+            if is_static:
+                op["isStatic"] = True
+            op["parameters"] = [
+                {"_type": "UMLParameter", "_id": f"{member_id}-{pname}",
+                 "_parent": {"$ref": member_id},
+                 **({"name": pname} if pdir != "return" else {}),
+                 "type": ptype, "direction": pdir}
+                for pname, ptype, pdir in params
+            ]
+            members.append(op)
+    v_id = member_id + '-view'
+    sub = comp.setdefault('subViews', [])
+    if not any(v['_id'] == v_id for v in sub):
+        vtype = 'UMLAttributeView' if kind == 'attr' else 'UMLOperationView'
+        top = comp.get('top', cls_view['top'] + 33) + 5 + 18 * len(sub)
+        sub.append({
+            "_type": vtype, "_id": v_id,
+            "_parent": {"$ref": comp['_id']},
+            "model": {"$ref": member_id}, "font": "Arial;13;0",
+            "left": cls_view['left'] + 5, "top": top,
+            "width": cls_view['width'] - 10, "height": 18, "text": text,
+        })
+        cls_view['height'] = max(cls_view['height'], cls_view['height'] + 18)
+
+
+pub_model = next((m for m in project.get('ownedElements', [])
+                  if m.get('_id') == 'backup-studio-model'), None)
+if pub_model:
+    cdiag = pub_model['ownedElements'][0]
+    cmodels = {el['_id']: el for el in pub_model['ownedElements']
+               if el.get('_type') == 'UMLClass'}
+    cviews = {v['model']['$ref']: v for v in cdiag['ownedViews']
+              if v.get('_type') == 'UMLClassView'}
+    ensure_class_member(
+        cmodels['class-BackupOptions'], cviews['class-BackupOptions'],
+        'attr', 'class-BackupOptions-includes', 'includes',
+        '+ includes: std::vector<std::string>', 'std::vector<std::string>')
+    ensure_class_member(
+        cmodels['class-BackupEngine'], cviews['class-BackupEngine'],
+        'op', 'class-BackupEngine-automatic', 'automatic', '+ automatic',
+        is_static=True,
+        params=[('sourceDirectory', 'const std::string&', 'in'),
+                ('outputDirectory', 'const std::string&', 'in'),
+                ('options', 'const BackupOptions&', 'in'),
+                ('automatic', 'const AutomaticOptions&', 'in'),
+                ('return', 'BackupResult', 'return')])
+    ensure_class_member(
+        cmodels['class-BackupEngine'], cviews['class-BackupEngine'],
+        'op', 'class-BackupEngine-scanSource', 'scanSource', '+ scanSource',
+        is_static=True,
+        params=[('sourceDirectory', 'const std::string&', 'in'),
+                ('return', 'std::vector<SourceEntryInfo>', 'return')])
+    ensure_class_member(
+        cmodels['class-BackupClient'], cviews['class-BackupClient'],
+        'op', 'class-BackupClient-login', 'login', '+ login',
+        params=[('error', 'std::string&', 'inout'),
+                ('cancel', 'std::atomic_bool*', 'in'),
+                ('return', 'bool', 'return')])
+    ensure_class_member(
+        cmodels['class-BackupClient'], cviews['class-BackupClient'],
+        'op', 'class-BackupClient-deleteAccount', 'deleteAccount', '+ deleteAccount',
+        params=[('error', 'std::string&', 'inout'),
+                ('cancel', 'std::atomic_bool*', 'in'),
+                ('return', 'bool', 'return')])
+    ensure_class_member(
+        cmodels['class-ServerConfig'], cviews['class-ServerConfig'],
+        'attr', 'class-ServerConfig-bindAddress', 'bindAddress',
+        '+ bindAddress: std::string', 'std::string')
+    ensure_class_member(
+        cmodels['class-ServerConfig'], cviews['class-ServerConfig'],
+        'attr', 'class-ServerConfig-tlsCertificate', 'tlsCertificate',
+        '+ tlsCertificate: std::string', 'std::string')
+    ensure_class_member(
+        cmodels['class-ServerConfig'], cviews['class-ServerConfig'],
+        'attr', 'class-ServerConfig-tlsPrivateKey', 'tlsPrivateKey',
+        '+ tlsPrivateKey: std::string', 'std::string')
+
 course_model = {"_type": "UMLModel", "_id": COURSE_MODEL,
                 "_parent": {"$ref": "backup-studio-project"}, "name": "需求与设计模型",
                 "ownedElements": ([uc_diagram] + uc_elements + [dep_diagram] +
                                   dep_elements + seq_elements)}
-project['ownedElements'].append(course_model)
+project['ownedElements'] = [
+    el for el in project.get('ownedElements', [])
+    if el.get('_id') != COURSE_MODEL
+] + [course_model]
 project['documentation'] = (
-    "Version 1.7.1 model: public interface class diagram plus course diagrams "
+    "Version 1.12.0 model: public interface class diagram plus course diagrams "
     "(use case, three sequence diagrams and deployment). Executable logic is "
     "defined by the C++ source; this model omits private helpers and is not a "
     "complete API contract.")

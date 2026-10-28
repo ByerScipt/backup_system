@@ -58,7 +58,8 @@ QWidget* startPage(AccountSession* session)
                                 .arg(item.host)
                                 .arg(item.port),
                             QStringList{item.host, QString::number(item.port),
-                                        item.username});
+                                        item.username, item.tls ? "1" : "0",
+                                        item.caFile});
         }
         preset->setCurrentIndex(-1);
         preset->setEnabled(preset->count() != 0);
@@ -124,13 +125,15 @@ QWidget* startPage(AccountSession* session)
                      {
                          const QStringList data =
                              preset->itemData(index).toStringList();
-                         if (data.size() != 3)
+                         if (data.size() < 3)
                          {
                              return;
                          }
                          server.host->setText(data.at(0));
                          server.port->setValue(data.at(1).toInt());
                          server.username->setText(data.at(2));
+                         server.tls->setChecked(data.value(3) == "1");
+                         server.caFile->setText(data.value(4));
                          server.password->clear();
                      });
     QObject::connect(
@@ -138,7 +141,7 @@ QWidget* startPage(AccountSession* session)
         [=]()
         {
             const QStringList data = preset->currentData().toStringList();
-            if (data.size() != 3)
+            if (data.size() < 3)
             {
                 return;
             }
@@ -231,7 +234,9 @@ QWidget* startPage(AccountSession* session)
                     {
                         saveLoginPreset(
                             {QString::fromStdString(values.host), values.port,
-                             QString::fromStdString(values.username)});
+                             QString::fromStdString(values.username),
+                             values.tls.enabled,
+                             QString::fromStdString(values.tls.caFile)});
                         refreshPresets();
                     }
                 });
@@ -249,10 +254,11 @@ QWidget* startPage(AccountSession* session)
                 return;
             }
             const auto revision = session->revision();
-            const auto values = snapshotServer(server);
+            const auto values = session->credentials();
             if (QMessageBox::question(
                     page.widget, "注销账户",
-                    "永久删除此账户？有云端备份时将拒绝注销。",
+                    QString("永久删除账户“%1”？有云端备份时将拒绝注销。")
+                        .arg(QString::fromStdString(values.username)),
                     QMessageBox::Yes | QMessageBox::No,
                     QMessageBox::No) != QMessageBox::Yes)
             {

@@ -16,7 +16,8 @@ Arguments parseArgs(int argc, char* argv[], int start)
     for (int i = start; i < argc; ++i)
     {
         std::string value = argv[i];
-        if (value == "--overwrite")
+        if (value == "--overwrite" || value == "--realtime" ||
+            value == "--incremental" || value == "--tls")
         {
             if (hasFlag(result, value))
             {
@@ -37,7 +38,9 @@ Arguments parseArgs(int argc, char* argv[], int start)
                  value == "--compress" || value == "--encrypt" ||
                  value == "--key-file" || value == "--server" ||
                  value == "--username" || value == "--account-password-file" ||
-                 value == "--name")
+                 value == "--name" || value == "--interval" ||
+                 value == "--retain" || value == "--count" ||
+                 value == "--tls-ca")
         {
             if (i + 1 >= argc)
             {

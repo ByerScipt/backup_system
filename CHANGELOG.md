@@ -1,5 +1,43 @@
 # Changelog
 
+## 1.12.0
+
+- Add periodic and Linux inotify-triggered local snapshots to the shared core,
+  CLI and GUI, with cancellation, bounded batch runs and per-source retention.
+  Each snapshot reuses the existing packing/compression/encryption pipeline.
+- Add an owner/UID filter to the existing entry selector and place the filters
+  on two rows to keep the controls readable.
+- Add optional incremental uploads: compare bounded 512 KiB block hashes and
+  transmit references for matching blocks. The server validates and publishes
+  a complete independent archive; randomized encryption may prevent reuse.
+- Add verified TLS 1.2+ transport using OpenSSL, server PEM configuration,
+  client system/custom CA trust and DNS/IP identity checks. Expose it in the
+  CLI and login form, and remember nonsecret TLS options in login presets.
+  Archive compression and encryption remain self-written.
+- Extend core, CLI and GUI regressions for automatic snapshots, retention,
+  incremental reconstruction/cancellation and certificate verification.
+
+- Delete only the signed-in account, regardless of edits to the login draft;
+  identify the account in the confirmation and handle empty drafts safely.
+- Skip hidden subtrees when checking or unchecking filtered entries.
+- Reject queued history results after any session change, including same-name
+  accounts on different servers and logout followed by another login.
+- Keep the confirmation row's layout space on Qt 6.4 so switching between login
+  and registration leaves the title, selector and shared fields aligned.
+- Declare the server installer's adduser dependency so minimal Ubuntu installs
+  can create the service account; keep Qt runtime dependencies out of CLI-only
+  client packages.
+- Keep cloud history readable by checking its count and encoded response size
+  before publishing uploads, including simultaneous uploads at the limit.
+- Use the same login error text for unknown users and incorrect passwords;
+  reject parent segments in selected paths before normalization.
+- Reject packed entry counts that cannot fit the available metadata before
+  allocating memory, for both sequential and indexed archives.
+- Reject embedded NUL characters in server bind addresses instead of accepting
+  the prefix before them.
+- Require the complete CTest suite to pass before release packaging; remove the
+  exception that allowed a known GUI failure to bypass the release gate.
+
 ## 1.11.0 — 2026-10-28
 
 - Split the navigation into “本地（无需账户）” (local backup/restore) and

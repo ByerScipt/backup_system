@@ -16,15 +16,23 @@ void validateArguments(const std::string& command, const Arguments& args)
          {"-o", "--pack", "--compress", "--encrypt", "--key-file",
           "--include"}},
         {"restore", {"-d", "--key-file", "--overwrite"}},
+        {"watch",
+         {"-o", "--pack", "--compress", "--encrypt", "--key-file", "--include",
+          "--interval", "--retain", "--count", "--realtime"}},
         {"inspect", {}},
-        {"user", {"--server", "--username", "--account-password-file"}},
+        {"user",
+         {"--server", "--username", "--account-password-file", "--tls",
+          "--tls-ca"}},
         {"remote-backup",
          {"--server", "--username", "--account-password-file", "--name",
-          "--pack", "--compress", "--encrypt", "--key-file", "--include"}},
-        {"remote-list", {"--server", "--username", "--account-password-file"}},
+          "--pack", "--compress", "--encrypt", "--key-file", "--include",
+          "--incremental", "--tls", "--tls-ca"}},
+        {"remote-list",
+         {"--server", "--username", "--account-password-file", "--tls",
+          "--tls-ca"}},
         {"remote-restore",
          {"--server", "--username", "--account-password-file", "-d",
-          "--key-file", "--overwrite"}}};
+          "--key-file", "--overwrite", "--tls", "--tls-ca"}}};
     auto found = allowed.find(command);
     if (found == allowed.end())
     {
@@ -71,19 +79,22 @@ Local:
       [--key-file FILE] [--include PATH]...
   backup-cli restore ARCHIVE -d DEST [--key-file FILE] [--overwrite]
   backup-cli inspect ARCHIVE
+  backup-cli watch SOURCE -o DIRECTORY [--interval SECONDS] [--realtime]
+      [--retain COUNT] [--count SNAPSHOTS] [local algorithm options]
 
 Remote:
   backup-cli user register --server HOST:PORT --username NAME
       [--account-password-file FILE]
   backup-cli remote-backup SOURCE --server HOST:PORT --username NAME
       [--account-password-file FILE] [--name NAME] [--include PATH]...
-      [local algorithm options]
+      [--incremental] [local algorithm options]
   backup-cli remote-list --server HOST:PORT --username NAME
       [--account-password-file FILE]
   backup-cli remote-restore BACKUP_ID -d DEST --server HOST:PORT --username NAME
       [--account-password-file FILE] [--key-file FILE] [--overwrite]
 
 If a required password file is omitted, the password is read interactively without echo.
+Remote commands accept --tls (system trust) or --tls-ca FILE (explicit trust).
 )";
 }
 } // namespace
@@ -123,6 +134,10 @@ int main(int argc, char* argv[])
         if (command == "restore")
         {
             return localRestore(args);
+        }
+        if (command == "watch")
+        {
+            return automaticBackup(args);
         }
         if (command == "inspect")
         {

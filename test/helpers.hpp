@@ -83,13 +83,16 @@ void testSourceFifoRace();
 void testNetworkFailures();
 void testHardLinks();
 void testSelection();
+void testAutomatic();
+void testIncremental(uint16_t port, const fs::path& workspace);
+void testTls();
 std::vector<BuiltArchive>
 testAllCombinations(const fs::path& workspace, const fs::path& source,
                     const std::vector<std::string>& fixturePaths);
 void testTransformBounds(const fs::path& workspace,
                          const std::vector<BuiltArchive>& archives);
-void testIndexBounds(const fs::path& workspace,
-                     const std::vector<BuiltArchive>& archives);
+void testPackBounds(const fs::path& workspace,
+                    const std::vector<BuiltArchive>& archives);
 void testRestoreRaces(const fs::path& workspace, const fs::path& source,
                       const std::vector<BuiltArchive>& archives);
 void testFailureModes(const fs::path& workspace, const fs::path& source,

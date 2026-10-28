@@ -5,6 +5,7 @@
 #include <QDateTime>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHash>
 #include <QHeaderView>
@@ -18,6 +19,8 @@
 
 #include <algorithm>
 #include <functional>
+#include <pwd.h>
+#include <set>
 #include <vector>
 namespace backup::gui
 {
@@ -167,6 +170,7 @@ public:
     QString category; // empty unless a regular file
     uint64_t size = 0;
     qint64 modified = 0;
+    uint32_t uid = 0;
 
 private:
     void assign(const SourceEntryInfo& info)
@@ -175,6 +179,7 @@ private:
         type = QString::fromStdString(info.type);
         size = info.size;
         modified = info.mtimeSeconds;
+        uid = info.uid;
         const int slash = path.lastIndexOf('/');
         name = slash < 0 ? path : path.mid(slash + 1);
         category = entryCategory(name, type);
@@ -338,7 +343,7 @@ bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
     auto* layout = new QVBoxLayout(&dialog);
     layout->setSpacing(10);
 
-    auto* filters = new QHBoxLayout;
+    auto* filters = new QGridLayout;
     filters->setSpacing(8);
     auto* nameFilter = new QLineEdit;
     nameFilter->setObjectName("entryNameFilter");
@@ -375,15 +380,35 @@ bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
     ageFilter->addItem("30 天以前");
     ageFilter->addItem("最近 90 天");
     ageFilter->addItem("最近一年");
-    filters->addWidget(nameFilter, 1);
-    filters->addWidget(typeFilter);
-    filters->addWidget(categoryFilter);
-    filters->addWidget(sizeFilter);
-    filters->addWidget(ageFilter);
+    auto* ownerFilter = new QComboBox;
+    ownerFilter->setObjectName("entryOwnerFilter");
+    ownerFilter->addItem("全部属主");
+    std::set<uint32_t> owners;
+    for (const auto& entry : listing)
+    {
+        owners.insert(entry.uid);
+    }
+    for (const auto uid : owners)
+    {
+        const auto* user = ::getpwuid(static_cast<uid_t>(uid));
+        ownerFilter->addItem(
+            user ? QString("%1 (%2)")
+                       .arg(QString::fromLocal8Bit(user->pw_name))
+                       .arg(uid)
+                 : QString("UID %1").arg(uid),
+            QVariant::fromValue(uid));
+    }
     auto* showHidden = new QCheckBox("显示隐藏条目");
     showHidden->setObjectName("entryShowHidden");
     showHidden->setChecked(true);
-    filters->addWidget(showHidden);
+    filters->addWidget(nameFilter, 0, 0, 1, 2);
+    filters->addWidget(typeFilter, 0, 2);
+    filters->addWidget(categoryFilter, 0, 3);
+    filters->addWidget(sizeFilter, 1, 0);
+    filters->addWidget(ageFilter, 1, 1);
+    filters->addWidget(ownerFilter, 1, 2);
+    filters->addWidget(showHidden, 1, 3);
+    filters->setColumnStretch(0, 1);
     layout->addLayout(filters);
 
     auto* toolbar = new QHBoxLayout;
@@ -494,6 +519,8 @@ bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
         const int sizeBand = sizeFilter->currentIndex();
         const int age = ageFilter->currentIndex();
         const bool hiddenShown = showHidden->isChecked();
+        const bool anyOwner = ownerFilter->currentIndex() == 0;
+        const uint32_t uid = ownerFilter->currentData().toUInt();
         const qint64 now = QDateTime::currentSecsSinceEpoch();
         std::function<bool(QTreeWidgetItem*)> visit =
             [&](QTreeWidgetItem* item) -> bool
@@ -505,7 +532,8 @@ bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
                 item->setHidden(true);
                 return false;
             }
-            bool matches = matchesType(entry->type, type) &&
+            bool matches = (anyOwner || entry->uid == uid) &&
+                           matchesType(entry->type, type) &&
                            matchesCategory(entry->category, category) &&
                            matchesSize(entry->size, entry->type, sizeBand) &&
                            matchesAge(entry->modified, age, now);
@@ -535,12 +563,11 @@ bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
     const auto setFilteredState = [&](Qt::CheckState state)
     {
         updating = true;
-        for (QTreeWidgetItemIterator it(tree); *it != nullptr; ++it)
+        std::function<void(QTreeWidgetItem*)> visit = [&](QTreeWidgetItem* item)
         {
-            auto* item = *it;
             if (item->isHidden())
             {
-                continue;
+                return; // Descendants of a hidden directory are hidden too.
             }
             const bool directory =
                 static_cast<EntryItem*>(item)->type == "directory";
@@ -548,6 +575,14 @@ bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
             {
                 item->setCheckState(0, state);
             }
+            for (int index = 0; index < item->childCount(); ++index)
+            {
+                visit(item->child(index));
+            }
+        };
+        for (int index = 0; index < tree->topLevelItemCount(); ++index)
+        {
+            visit(tree->topLevelItem(index));
         }
         for (QTreeWidgetItemIterator it(tree); *it != nullptr; ++it)
         {
@@ -584,6 +619,8 @@ bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,
     QObject::connect(ageFilter, &QComboBox::currentIndexChanged, &dialog,
                      [&]() { applyFilter(); });
     QObject::connect(showHidden, &QCheckBox::toggled, &dialog,
+                     [&]() { applyFilter(); });
+    QObject::connect(ownerFilter, &QComboBox::currentIndexChanged, &dialog,
                      [&]() { applyFilter(); });
     QObject::connect(checkFiltered, &QPushButton::clicked, &dialog,
                      [&]() { setFilteredState(Qt::Checked); });

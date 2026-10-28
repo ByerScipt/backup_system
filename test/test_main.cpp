@@ -14,6 +14,7 @@ int main(int argc, char* argv[])
         {
             testNetworkFailures();
             testUploadSyncFailure();
+            testTls();
             TempDirectory temp;
             const auto archive = temp.path / "network-fixture.bak";
             writeBytes(archive, {'t', 'e', 's', 't'});
@@ -35,6 +36,7 @@ int main(int argc, char* argv[])
         testCancellation();
         testHardLinks();
         testSelection();
+        testAutomatic();
         if (argc == 2 && std::string(argv[1]) == "--filesystem")
         {
             std::cout << "Filesystem regression tests passed.\n";
@@ -53,6 +55,7 @@ int main(int argc, char* argv[])
                      "recycling\n";
         testNetworkFailures();
         testUploadSyncFailure();
+        testTls();
         testNetwork(temp.path, archives.front().path);
         std::cout << "All backup-system tests passed.\n";
         return 0;

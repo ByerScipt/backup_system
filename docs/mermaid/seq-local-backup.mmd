@@ -4,9 +4,9 @@ sequenceDiagram
     participant P1 as 界面层（CLI / GUI）
     participant P2 as 归档引擎
     participant P3 as 本地文件系统
-    P0->>P1: backup SOURCE -o ARCHIVE：备份命令（--pack/--compress/--encrypt）
+    P0->>P1: backup SOURCE -o ARCHIVE：备份命令（--pack/--compress/--encrypt/--include）
     P1->>P2: create(source, archivePath, options)：调用归档引擎
-    P2->>P3: scanDirectory()：遍历目录树，收集元数据与硬链接
+    P2->>P3: scanDirectory(includes)：遍历目录树，按需过滤条目并收集元数据与硬链接
     P2->>P3: packStream() / packIndex()：写出 packed 暂存件
     P2->>P3: compressStage()：压缩（none / RLE / Huffman / LZ77）
     P2->>P3: cryptStage()：加密（随机盐 + ChaCha20 / AES-256-CTR）

@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 class QComboBox;
+class QCheckBox;
 class QFont;
 class QFormLayout;
 class QFrame;
@@ -56,6 +57,8 @@ struct ServerFields
     QSpinBox* port = nullptr;
     QLineEdit* username = nullptr;
     QLineEdit* password = nullptr;
+    QCheckBox* tls = nullptr;
+    QLineEdit* caFile = nullptr;
     QWidget* confirmationLabel = nullptr;
 };
 struct ServerValues
@@ -64,6 +67,7 @@ struct ServerValues
     uint16_t port = 8848;
     std::string username;
     std::string password;
+    network::TlsOptions tls{};
 };
 
 // Saved login preset. Deliberately holds no password: only the non-secret
@@ -73,13 +77,15 @@ struct LoginPreset
     QString host;
     uint16_t port = 8848;
     QString username;
+    bool tls = false;
+    QString caFile{};
 };
 
 using Job = std::function<QString(std::atomic_bool*, const ProgressCallback&)>;
 
 // Credentials remain in memory in the session, never on disk; the optional
 // login presets store only host, port and account name.
-// A revision prevents stale asynchronous logins from restoring logged-out UI.
+// A revision invalidates asynchronous results whenever the session changes.
 class AccountSession final : public QObject
 {
     Q_OBJECT
@@ -112,6 +118,7 @@ public:
         if (revision == revision_)
         {
             credentials_ = values;
+            ++revision_;
             emit changed();
         }
     }
@@ -120,6 +127,7 @@ public:
         if (revision == revision_)
         {
             credentials_.username = username.toStdString();
+            ++revision_;
             emit changed();
         }
     }
@@ -178,6 +186,8 @@ QString selectArchive(QWidget* owner, const QString& title,
                       const QString& initialPath = {});
 QString selectArchiveOutput(QWidget* owner, const QString& title,
                             const QString& initialPath = {});
+QString selectCertificate(QWidget* owner, const QString& title,
+                          const QString& initialPath = {});
 // Lets the user pick the entries below a source directory. Returns false when
 // the dialog was cancelled; an empty selection means "the whole directory".
 bool selectSourceEntries(QWidget* owner, const QString& sourceDirectory,

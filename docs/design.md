@@ -3,58 +3,38 @@
 | 项目 | 内容 |
 | :--- | :--- |
 | 文档名称 | 系统设计文档（概要设计与详细设计） |
-| 文档版本 | 1.7 |
-| 对应软件版本 | 1.11.0 |
-| 对应代码基线 | 与本文件所在 Git 提交的源码一致 |
+| 文档版本 | 1.8 |
+| 对应软件版本 | 1.12.0 |
+| 对应代码基线 | GitHub `v1.11.0` 及当前工作区 `1.12.0` 源码 |
 | 编制日期 | 2026-10-28 |
-| UML 模型 | `DataBackup.mdj`（StarUML，6 张图） |
-| 状态 | 与 1.11.0 实现同步 |
+| UML 模型 | `DataBackup.mdj`（StarUML，6 张图，937 个元素） |
+| 状态 | 与 1.12.0 实现同步 |
 
 ## 1 引言
 
-### 2026-10-27 条目选择修订
-
-- 新增 `BackupOptions::includes` 与 `BackupEngine::scanSource()`：前者在扫描阶段
-  过滤条目，后者按同一条扫描路径为选择界面提供条目清单（相对路径、类型、大小、
-  mtime），不跟随符号链接。
-- 新增 CLI 可重复选项 `--include`，只对 `backup` 与 `remote-backup` 生效；
-  可重复选项与单值选项一样按命令白名单校验。
-- 新增 Qt 条目选择对话框，本地备份页与远程备份页共用；选择随源目录变化清空。
-- 归档格式、网络协议与还原语义均未改变：`includes` 为空时扫描行为与 1.8.1 一致。
-
-### 2026-10-23 后端修订
-
-- 服务入口先解析选项，再加载配置、应用显式覆盖；重复参数和配置读取故障直接报错。
-- 监听 FD 由 `run()` 内 RAII 对象独占；`stop()` 只发取消标志，100 ms poll 周期检查
-  停机并回收已完成线程，避免跨线程关闭 FD 的复用竞态。超过连接上限的回复有 1 秒
-  超时并接受停机取消；线程表按连接上限预留空间，接受到的 socket 在启动 worker 前由 RAII 管理。
-- 注册只在读改写账号库时持有存储锁，回复网络消息时释放；所有错误回复接收取消标志。
-- 一个 NBKP 帧的头和负载合并发送，减少小消息与 TCP delayed ACK 的交互等待；文件传输
-  复用块缓冲区。上传摘要在建立连接前计算，下载暂存复用 `TempFile`，由 mkstemp 创建并统一清理。
-- 上传归档发布与元数据发布共用异常清理范围，覆盖文件 fsync 和目录 fsync 的四个失败点。
-  元数据读取核对名称长度/NUL、摘要字符、截断及尾随数据；列表在扫描时实施条目数上限。
-- 未启用的压缩/加密阶段复用上一阶段路径，保留阶段完成事件和取消检查；有变换时才分配对应
-  暂存文件。无变换备份复用 packed 摘要，还原仍核对实际解码文件的 packed 摘要。
-
-本轮保持 BKP2、NBKP 编码及外部备份/还原接口兼容，不新增依赖。
-
 ### 1.1 编写目的
 
-说明 Backup Studio 的总体架构、模块划分、关键数据结构与算法、接口和错误处理
-策略，使实现、测试与需求三者可相互追溯。本文档与 `docs/requirements.md`
-的 FR/NFR 编号对应，映射关系见第 4 节开头的需求覆盖表。
+本文档说明 Backup Studio 的总体架构、模块划分、关键数据结构与算法、外部接口及错误处理策略，使需求（`docs/requirements.md`）、实现与测试（`docs/test-report.md`）三者可相互追溯。各设计小节与 FR/NFR 编号的映射关系见第 4 节开头的需求覆盖表。
 
 ### 1.2 术语
 
-与 `docs/requirements.md` 1.3 节一致。`packed` 指打包阶段输出的数据，
-`encoded` 指压缩加密后的负载，`BKP2` 为归档容器格式，`NBKP` 为网络协议。
+与 `docs/requirements.md` 1.3 节保持一致：`packed` 指打包阶段输出的元数据与文件字节流，`encoded` 指经压缩与加密变换后的归档负载，`BKP2` 为自研归档容器格式（当前最高版本 3），`NBKP` 为自研分帧 TCP 网络协议（版本 1，可选运行于 OpenSSL TLS 1.2+ 之上）。
+
+### 1.3 近期演进摘要（1.8.1 – 1.12.0）
+
+- **自动备份、增量上传与验证证书的 TLS（1.12.0）**：
+  - 核心新增 `BackupEngine::automatic()`（`core/automatic.cpp`），支持周期性定时快照与 Linux `inotify` 实时快照，复用完整归档管线并按 `keep` 保留份数淘汰同一源目录的过期自动快照（需进程保持运行）；
+  - 网络层新增按 512 KiB 块哈希比对的增量上传（`NBKP` 消息 15–18），复用云端最新归档相同偏移位置的未变数据块，服务端合成并保存完整独立归档（随机盐归档加密可能使块无法复用）；
+  - 新增基于 OpenSSL 的可选 TLS 1.2+ 传输（`network/tls.cpp`），强制校验服务端证书链与主机名/IP（SAN DNS/IP），而归档容器、压缩与归档加密仍保持纯 C++17 自研；
+  - 条目选择新增属主/UID 筛选（`SourceEntryInfo::uid`），并完成注销仅作用于已登录账户、勾选筛选结果跳过隐藏子树、跨会话异步结果 `revision` 丢弃、云端历史容量上限（4096 条 / 1 MiB）及安装包依赖声明等修复。
+- **登录会话门控与条目筛选扩展（1.9.0 – 1.11.0）**：新增 `BackupOptions::includes`、`BackupEngine::scanSource()`、CLI `--include` 与 GUI 多维筛选勾选树（名称、类型、内容类别、大小、修改时间、属主/UID、隐藏状态）；GUI 导航分为本地与远程两组，远程功能受登录会话门控，支持不落盘口令的登录预设与远程还原历史 ID 下拉刷新。
+- **后端可靠性与 I/O 优化（1.8.1）**：显式命令行参数覆盖配置文件，拒绝含内嵌 NUL 的 `bind_address`；监听套接字由 `run()` 线程 RAII 独占；NBKP 帧头与负载合并发送；未启用压缩/加密时直接复用阶段文件；解包前按最小条目元数据尺寸（74 字节）预检条目数上限。
 
 ## 2 设计目标与原则
 
 1. **分层与依赖边界**：核心归档逻辑不依赖网络与界面；界面只做编排。
-2. **零外部算法依赖**：压缩与加密全部自研，只使用 C++17 与 POSIX。
-3. **安全默认**：还原默认不覆盖；路径解析受目录 FD 约束；网络协议只在
-   可信网络使用，机密性交给归档加密。
+2. **自研核心算法与明确外部依赖**：归档容器、压缩（RLE/Huffman/LZ77）与归档加密（ChaCha20/AES-256-CTR/SHA-256）全部以 C++17 自研实现；网络传输层可选的 TLS 1.2+ 使用 OpenSSL，两者边界清晰。
+3. **安全默认**：还原默认不覆盖；路径解析受目录 FD 约束；TLS 启用时强制校验服务端证书链与主机名/IP。
 4. **原子提交**：归档发布、服务器存储提交都遵循「临时文件 + `fsync` +
    不覆盖重命名」。失败只留下暂存件，不产生半成品。
 5. **失败必须可诊断**：区分「不存在」「空集合」与真实错误；取消、权限、
@@ -100,20 +80,22 @@ flowchart TB
 | :--- | :--- | :--- | :--- |
 | 公共接口 | `libs/core.hpp`、`libs/network.hpp` | 类型、枚举、回调与生命周期约定 | 参数约束、异常与线程语义写在头文件注释 |
 | 引擎 | `core/engine.cpp` | `create`/`restore`/`preview`/`inspect`/`scanSource` 门面 | 失败返回 `BackupResult.message`，不抛给界面 |
-| 扫描与条目 | `core/entry.cpp` | 目录树扫描、条目选择过滤与核对、元数据编解码、路径与条目校验 | 路径安全、去重、硬链接目标先于别名、选中集合必须全部存在 |
-| 打包 | `core/pack.cpp` | `stream`/`index` 两种布局 | 两种布局都做边界与尾部校验 |
+| 自动备份 | `core/automatic.cpp` | `BackupEngine::automatic()` 定时与 Linux `inotify` 实时快照及保留淘汰 | 复用 `create()` 完整管线，仅淘汰同一源目录自动命名的过期归档 |
+| 扫描与条目 | `core/entry.cpp` | 目录树扫描（含 UID）、条目选择过滤与核对、元数据编解码、路径与条目校验 | 规整前拒绝 `..`，路径安全、去重、硬链接目标先于别名、选中集合必须全部存在 |
+| 打包 | `core/pack.cpp` | `stream`/`index` 两种布局 | 预检最小条目元数据尺寸（74 字节）边界与尾部校验 |
 | 压缩 | `core/compress_rle.cpp`、`core/compress_huffman.cpp`、`core/compress_lz77.cpp` | 自研 RLE、Huffman 与 LZ77 | 解压必须按期望大小设上限 |
 | 加密 | `core/crypto.cpp` | KDF、ChaCha20（RFC 8439）、AES-256-CTR | 只做异或流，支持按位置续算 |
 | 摘要 | `core/sha256.cpp` | SHA-256、文件区间摘要 | 支持偏移与长度、可取消 |
 | 归档容器 | `core/archive.cpp` | 头部读写、解码流水线 | 先校验再消费，回调内完成提取 |
 | 还原 | `core/restore.cpp` | FD 约束提取、临时节点、元数据 | 逐条提交，不做整目录回滚 |
-| 网络收发 | `network/io.cpp` | 帧编解码、超时、可取消 I/O | 帧头 16 字节，负载 ≤ 1 MiB |
+| 网络收发 | `network/io.cpp` | 帧编解码、超时、可取消 I/O（自动分派明文或 TLS） | 帧头 16 字节，负载 ≤ 1 MiB |
+| TLS 传输 | `network/tls.cpp` | OpenSSL TLS 1.2+ 上下文与线程局部会话、证书与 SAN 主机名/IP 校验 | 屏蔽 `SIGPIPE`，握手与读写遵循同一超时与取消轮询 |
 | 账户库 | `network/auth_store.cpp` | 用户记录、校验值、存储目录 | 只存盐与校验值，目录 0700 |
-| 服务 | `network/server.cpp` | 监听、连接上限、worker 线程 | 每连接一线程，受上限与超时约束 |
-| 会话 | `network/session.cpp` | 登录、上传、列表、下载、注销 | 已认证会话计数防注销竞态 |
-| 客户端 | `network/client.cpp` | 同步调用、进度与取消 | 30 秒等待超时并轮询取消 |
-| CLI | `cli/arguments.cpp`、`cli/commands.cpp`、`cli/main.cpp` | 选项解析、命令分派 | 每命令白名单校验选项 |
-| GUI | `GUI/*.cpp` | 六页面（导航分本地/远程两组）、登录页的登录与预设、条目选择对话框、任务线程、样式 | 任务可取消，关闭窗口等待清理 |
+| 服务 | `network/server.cpp` | 监听、连接上限、TLS 证书加载、worker 线程 | 每连接一线程，受上限与超时约束 |
+| 会话 | `network/session.cpp` | 登录、普通/增量上传、列表、下载、注销 | 历史容量上限（4096 条 / 1 MiB）双检；已认证会话计数防注销竞态 |
+| 客户端 | `network/client.cpp` | 同步调用、增量块比对、TLS 连接、进度与取消 | 30 秒等待超时并轮询取消 |
+| CLI | `cli/arguments.cpp`、`cli/commands.cpp`、`cli/main.cpp` | 选项解析、命令分派（含 `watch`、`--incremental`、`--tls`） | 每命令白名单校验选项 |
+| GUI | `GUI/*.cpp` | 六页面（导航分本地/远程两组）、登录与预设、自动备份与增量/TLS 控件、条目选择对话框 | 任务可取消，跨会话 `revision` 隔离，关闭窗口等待清理 |
 
 ### 3.3 目录结构
 
@@ -150,6 +132,9 @@ flowchart TB
 | 4.9 GUI 设计 | FR-05、FR-11、FR-13、NFR-07 |
 | 4.10 测试支撑设计 | NFR-08、NFR-09 |
 | 4.11 条目选择 | FR-17、NFR-09、NFR-10 |
+| 4.12 登录会话与登录预设 | FR-11、FR-18、NFR-03、NFR-07 |
+| 4.13 自动备份（定时与实时） | FR-19、NFR-02、NFR-10 |
+| 4.14 增量上传与 TLS 传输 | FR-20、NFR-02、NFR-03、NFR-04 |
 
 ### 4.1 归档管线
 
@@ -214,11 +199,11 @@ flowchart LR
 #### 4.2.3 两种打包布局
 
 - **`stream`（顺序式）**：`STRMPK1\0`（8B）+ 条目数（u32）+ 逐条
-  `ENTR` 标记 + 元数据 + 数据。读取时顺序推进，要求「无尾部多余数据」。
+  `ENTR` 标记 + 元数据 + 数据。读取时先校验条目数不超过 `(packedSize − 12) / (4 + 74)`（单条最小元数据 74 字节），再顺序推进，并要求「无尾部多余数据」。
 - **`index`（索引式）**：`INDXPK1\0`（8B）+ 文件数据区（仅普通文件内容，
   便于跳过）→ 中央目录 `CDIRV1\0\0` + 条目数 + 带偏移的元数据 →
   尾部 `IDXEND1\0` + 中央目录偏移 + 长度 + 条目数 + 保留位。
-  读取时先验证尾部与中央目录边界，再按偏移取数据；偏移不得与中央目录重叠。
+  读取时先验证尾部与中央目录边界及条目数上限 `(centralSize − 12) / (74 + 8)`，再按偏移取数据；偏移不得与中央目录重叠。
 
 ### 4.3 压缩设计
 
@@ -399,31 +384,47 @@ sequenceDiagram
   100 MB），时间档在原有四项后追加 90 天与一年，旧索引语义不变。
 - 类别与大小筛选只匹配普通文件；符号链接与特殊设备条目没有内容大小，
   不进入特定档位，但仍作为可选条目显示。隐藏开关关闭时，点开头条目连同子树隐藏。
-- 「勾选/取消勾选筛选结果」只设置可见条目，且从不对目录强制勾选：勾中目录会
-  归档其整棵子树，将带入刚被筛选隐藏的条目，因此目录状态由子项重新推导
-  （部分选中则不下发目录路径）。该约束保证筛选勾选产出的选择集只含可见文件。
-- 对话框最小尺寸 1020×620：五个筛选控件与六个动作按钮分两行，避免按钮文字被裁切。
+- 新增属主/UID 筛选（`SourceEntryInfo::uid`）：提供「全部属主 / 当前用户 / root (0) / 指定 UID」选项，在已扫描的数值型 `uid` 上直接过滤，不依赖本地账户名映射。
+- 「勾选/取消勾选筛选结果」只设置可见且未落入隐藏子树（向上递归检查祖先 `isHidden()`）的非目录条目，从不对目录强制勾选：勾中目录会归档其整棵子树，将带入被筛选或隐藏目录掩盖的条目，因此目录状态由子项重新推导（部分选中则不下发目录路径）。
+- 对话框最小尺寸 1020×620：六个筛选控件与六个动作按钮分两行排列，避免文字裁切。
 
 ### 4.12 登录会话与登录预设
 
 - 导航按用途分两组：「本地（无需账户）」含本地备份/本地还原；「远程（需要登录）」
   含远程备份/远程还原/备份历史；底部为「登录」。页面索引与结构不变（0–4 为功能页，
   5 为登录页），便于既有回归用例继续定位。
-- `AccountSession` 在内存中持有登录后的服务器、端口、用户名与口令，并提供
-  `signedIn()` 供导航判定；远程导航按钮在未登录时禁用，登出时若正在远程页则
+- `AccountSession` 在内存中持有登录后的服务器、端口、用户名、口令与 TLS 配置，并提供
+  `signedIn()` 与单调递增的 `revision()`；远程导航按钮在未登录时禁用，登出时若正在远程页则
   自动回到登录页。
 - 三个远程页不再自带连接表单，统一从会话取凭据，并在页首显示当前账户；
-  未登录时直接拦截并提示先登录，作为导航门控之外的兵底。
+  未登录时直接拦截并提示先登录，作为导航门控之外的兜底。
 - 登录页的登录表单始终可见，编辑的是「草稿」；只有登录/注册成功后才写入会话，
-  即「修改后登录成功才算生效」。登录成功后可按勾选项保存预设。
-- 预设保存在用户配置目录（`QSettings`），**只含服务器、端口与用户名**，不含口令；
-  重复保存同一组合会覆盖；下拉选择会回填连接字段并清空口令输入；删除仅移除本地记录。
-- 登录或登出会清空备份历史表与远程还原的 ID 列表，避免旧账户的 ID 被误用；
-  手输或粘贴的 ID 不受影响。
-- 导航的两个分组标题本身也是按钮：点「本地（无需账户）」进入本地备份页；
-  点「远程（需要登录）」时未登录进登录页、已登录进远程备份页。
-- 远程还原的备份 ID 为可编辑下拉列表，右侧「刷新历史」在后台线程调用
-  `list()` 填充（可取消，账户中途变化时丢弃结果），并按完整 ID 保留当前选择。
+  即「修改后登录成功才算生效」。确认密码行通过固定尺寸容器宿主保留布局高度，解决 Qt 6.4 下切换模式时的标题位移。
+- 「注销账户」操作直接读取 `session->credentials()` 中已登录的账户，不受登录表单草稿编辑或清空影响，并在二次确认框中指明该账户名称。
+- 预设保存在用户配置目录（`QSettings`），**只含服务器、端口、用户名及非敏感 TLS 选项（是否启用 TLS 与 CA 路径）**，从不保存口令；下拉选择回填连接字段并清空口令输入；删除仅移除本地记录。
+- 备份历史与远程还原的「刷新历史」在发起后台请求时记录当前 `session->revision()`，任何会话变化（含同名账户切换至不同服务器、登出后再登录）均使旧请求结果失效被丢弃。
+
+### 4.13 自动备份（定时与实时）
+
+- `BackupEngine::automatic(source, outputDirectory, options, automatic)` 负责自动快照循环（`DataBackup/core/automatic.cpp`），要求 `outputDirectory` 位于源目录之外且 `keep >= 1`。
+- 进入后立即执行首次完整归档（调用 `create()`，复用原有的扫描、`includes` 过滤、打包、压缩、加密与原子提交流程），文件命名为 `<源目录名>-auto-<20位微秒时间戳>-<16位随机十六进制>.bak`。
+- **定时模式（`realtime = false`）**：每次快照完成后按 `interval` 等待（以 50 ms 步长轮询 `cancel` 标志以便及时响应取消），随后生成下一次快照。
+- **实时模式（`realtime = true`，Linux `inotify`）**：递归为源目录及全部子目录注册 `inotify_add_watch`（监听 `IN_CLOSE_WRITE`、`IN_CREATE`、`IN_DELETE`、`IN_MOVED_FROM`、`IN_MOVED_TO`、`IN_ATTRIB`、`IN_DELETE_SELF`、`IN_MOVE_SELF` 且带 `IN_DONT_FOLLOW`）；检测到变更后进入 `interval` 静默消抖期，待连续 `interval` 时间内无新事件后再刷新监听集并触发一次完整快照。
+- **保留份数淘汰（`retainSnapshots`）**：每次新快照成功发布后，仅扫描 `outputDirectory` 下符合当前源目录自动命名格式的历史归档，按时间戳倒序保留最新 `keep` 份并删除更早的自动快照，绝不触碰手动备份或其他源目录的文件。
+- **运行约束**：自动备份在调用线程内持续运行（CLI `watch` 前台运行或 GUI 后台工作线程），需进程保持运行；达到 `maxBackups`（`--count`）上限或收到取消信号后退出。
+
+### 4.14 增量上传与 TLS 传输
+
+- **按块增量上传（`UploadDeltaStart = 15`、`UploadBaseHashes = 16`、`UploadBaseEnd = 17`、`UploadCopy = 18`）**：
+  - 客户端开启 `incremental` 时先查询账户历史列表；若尚无历史备份则自动回退为普通全量上传。
+  - 若存在最新备份 `baseId`，客户端发送 `UploadDeltaStart(name, size, sha256, baseId)`；服务端返回 `UploadReady(id)`，并流式读取基线归档，按 `512 KiB`（`kChunkSize`）分块计算每块的 32 字节 SHA-256，通过 `UploadBaseHashes`（每帧最多 1,024 个块哈希）与 `UploadBaseEnd` 下发给客户端。
+  - 客户端顺序读取待上传归档的每个 `512 KiB` 块：若第 `i` 块的 SHA-256 与基线归档第 `i` 块相同且长度一致，则仅发送 `UploadCopy(offset, length)`（12 字节负载），服务端校验引用区间合法后直接从基线归档复制对应字节到暂存文件；否则发送常规 `UploadChunk` 数据帧。
+  - 传输结束后服务端同样对合成后的暂存文件校验完整大小与总 SHA-256，原子提交为完整独立的 `<id>.bak`（还原时无需基线链）。若归档启用了随机盐加密（ChaCha20 / AES-256-CTR），密文随随机盐改变，块哈希通常不匹配，会自动发送常规数据块，不节省传输量但保证正确性。
+- **验证证书的 TLS 1.2+ 传输（`DataBackup/network/tls.cpp`）**：
+  - 使用 OpenSSL（`TLS_client_method` / `TLS_server_method`）建立最低版本为 `TLS 1.2` 的加密通道，禁用 TLS 层压缩，并通过线程局部 `SigpipeBlock` 屏蔽 `SIGPIPE`。
+  - 服务端在 `ServerConfig` 同时配置 `tlsCertificate` 与 `tlsPrivateKey`（PEM 格式）时启用 TLS 并校验公私钥匹配；仅配置其一直接拒绝启动。
+  - 客户端开启 `TlsOptions::enabled` 时强制设置 `SSL_VERIFY_PEER`，加载系统默认 CA 库或指定的 `caFile`，并在握手前通过 `X509_VERIFY_PARAM_set1_ip_asc`（针对 IPv4 字面量）或 `X509_VERIFY_PARAM_set1_host` + `SSL_set_tlsext_host_name`（针对域名）绑定目标身份；证书过期、未知 CA 或 SAN 主机名/IP 不匹配均立即终止连接并返回明确错误。
+  - `TlsSession` 以 RAII 绑定到当前连接的工作线程，底层非阻塞握手与读写复用 `waitReady()` 的 30 秒超时与取消标志轮询，`NBKP` 上层帧格式与业务状态机完全不变。
 
 #### 4.12.1 待办：可扩展的设置项（未实现）
 
@@ -454,7 +455,8 @@ sequenceDiagram
 | 双摘要（packed + encoded） | encoded 摘要可快速发现传输/存储损坏；packed 摘要能区分「口令错误」与「负载损坏」 | 解码时多一次完整读取 |
 | 临时文件 + 不覆盖重命名 | 进程崩溃不会留下半成品；`O_EXCL` 语义避免并发覆盖 | 需要额外磁盘空间，中间阶段要清理 |
 | 还原不做整目录回滚 | 大目录回滚成本高且同样可能失败；逐条提交语义清晰 | 失败后目录可能包含部分已还原条目（已在接口注释与 README 说明） |
-| 网络不实现 TLS | 课程范围内协议自研，机密性由归档加密保证 | 账户口令仍经明文信道证明（挑战-响应），必须仅用于可信网络 |
+| 自研归档算法 + OpenSSL 传输 TLS | 归档容器、压缩与归档加密全部以 C++17 自研以满足课程核心算法要求；网络传输层 TLS 1.2+ 采用成熟的 OpenSSL 并强制校验证书与主机名 | 引入 `libssl`/`libcrypto` 依赖，需在文档中如实区分自研模块与第三方库 |
+| 增量上传合成完整独立归档 | 按 512 KiB 同位置块比对复用未变数据，服务端合成完整 `.bak` 归档，避免多代增量链损坏导致全链不可还原 | 随机盐加密会使密文块改变而无法节省传输量；仅同偏移块可复用 |
 | 登录用挑战-响应而非明文口令 | 服务器不存口令；抓包无法直接重放 | 需要保存盐与校验值，且每次传输独立认证 |
 | GUI 与 CLI 共用库 | 业务逻辑单点实现，测试覆盖同一套代码 | 界面必须保持「只编排」的纪律 |
 
@@ -466,28 +468,24 @@ sequenceDiagram
 | BKP2 v2 | 增加普通文件硬链接（`EntryType::Hardlink`） | 旧程序拒绝 v2；新程序可读 v1 并拒绝 v1 中的硬链接条目 |
 | BKP2 v3 | 增加 LZ77 压缩（压缩 id 3） | 写入时取满足内容的最低版本：不用 LZ77 的归档仍为 v2，旧程序可读；新程序可读 v1/v2/v3，但拒绝 v2 头中的压缩 id 3 |
 | 加密 id 1/2 | 旧 XOR/Vigenère 已退役 | 读取时明确拒绝，避免误用弱算法 |
-| NBKP v1 | 帧格式与消息表自 1.6.2 起未变 | 1.7.1 与 1.6.x 互通 |
-
-1.9.0 只增加条目选择：`BackupOptions::includes` 缺省为空时扫描行为与 1.8.1
-相同，BKP2 与 NBKP 编码不变，旧归档与旧客户端不受影响。
+| NBKP v1 | 1.12.0 新增增量上传消息 15–18 并支持可选 TLS 1.2+ | 未开启增量与 TLS 时帧格式与 1.6.2+ 完全互通；增量归档落盘后与普通归档格式一致 |
 
 历史变更详见 `CHANGELOG.md`；行为与格式变化必须同时更新该文件与本文档。
 
 ## 7 UML 模型索引
 
-`DataBackup.mdj` 用 StarUML 维护，包含 6 张图：
+`DataBackup.mdj` 用 StarUML 维护，包含 6 张图（937 个模型/视图元素、2 393 条引用）：
 
 | 图 | 名称 | 内容 |
 | :--- | :--- | :--- |
-| 类图 | Backup and network interfaces | 公共接口：`BackupEngine`、`BackupClient`、`BackupServer`、选项/结果类型 |
-| 用例图 | 用例图 - Backup Studio | 两个参与者（用户、服务器管理员）与 10 个用例、6 条 «include» |
-| 时序图 | 时序图 - 本地备份 | 扫描 → 打包 → 压缩 → 加密 → 原子提交 |
+| 类图 | Backup and network interfaces | 公共接口：`BackupEngine`、`BackupClient`、`BackupServer`、选项/结果类型（含 `automatic`、`includes`、`scanSource`、`bindAddress`、`tlsCertificate`、`login`、`deleteAccount`） |
+| 用例图 | 用例图 - Backup Studio | 两个参与者（用户、服务器管理员）与 12 个用例、8 条 «include» |
+| 时序图 | 时序图 - 本地备份 | 扫描（含 `includes` 过滤） → 打包 → 压缩（含 LZ77） → 加密 → 原子提交 |
 | 时序图 | 时序图 - 本地还原 | 先校验后提取，FD 约束与元数据写回 |
-| 时序图 | 时序图 - 远程上传 | 挑战-响应登录与分块上传 |
-| 部署图 | 部署图 - 客户端与备份服务器 | 客户端主机、服务器主机、组件与 NBKP/TCP 连接 |
+| 时序图 | 时序图 - 远程上传 | 挑战-响应登录、普通分块或增量块引用上传及完整归档提交 |
+| 部署图 | 部署图 - 客户端与备份服务器 | 客户端主机、服务器主机、组件与 NBKP/TCP（可选 TLS）连接 |
 
-保证 Markdown 阅读体验，下面给出与 `docs/mermaid/*.mmd` 同源渲染的关键视图（
-即由 `docs/tools/make-diagrams.py` 与 `.mdj` 同时产出的文本）。
+为保证 Markdown 阅读体验，下面给出与 `docs/mermaid/*.mmd` 同源渲染的关键视图（由 `docs/tools/make-diagrams.py` 与 `.mdj` 同步生成）。
 
 ### 7.1 用例图（等价视图）
 
@@ -497,26 +495,32 @@ flowchart LR
     actor_admin((服务器管理员))
     subgraph SYS[Backup Studio 备份系统]
         uc_local_backup["本地备份"]
+        uc_automatic_backup["自动备份（定时/实时）"]
+        uc_select_entries["筛选与选择备份条目"]
         uc_inspect["查看归档信息"]
-        uc_login["登录服务器"]
         uc_local_restore["本地还原"]
         uc_register["注册账户"]
-        uc_list["查看远程备份列表"]
+        uc_login["登录服务器"]
         uc_upload["上传远程备份"]
+        uc_list["查看远程备份列表"]
         uc_remote_restore["远程还原"]
         uc_delete_account["注销账户"]
         uc_run_server["运行与配置服务器"]
     end
     actor_user --- uc_local_backup
+    actor_user --- uc_automatic_backup
+    actor_user --- uc_select_entries
     actor_user --- uc_inspect
-    actor_user --- uc_login
     actor_user --- uc_local_restore
     actor_user --- uc_register
-    actor_user --- uc_list
+    actor_user --- uc_login
     actor_user --- uc_upload
+    actor_user --- uc_list
     actor_user --- uc_remote_restore
     actor_user --- uc_delete_account
     actor_admin --- uc_run_server
+    uc_automatic_backup -.->|include| uc_local_backup
+    uc_local_backup -.->|include| uc_select_entries
     uc_upload -.->|include| uc_local_backup
     uc_upload -.->|include| uc_login
     uc_remote_restore -.->|include| uc_login
@@ -534,9 +538,9 @@ sequenceDiagram
     participant P1 as 界面层（CLI / GUI）
     participant P2 as 归档引擎
     participant P3 as 本地文件系统
-    P0->>P1: backup SOURCE -o ARCHIVE：备份命令（--pack/--compress/--encrypt）
+    P0->>P1: backup SOURCE -o ARCHIVE：备份命令（--pack/--compress/--encrypt/--include）
     P1->>P2: create(source, archivePath, options)：调用归档引擎
-    P2->>P3: scanDirectory()：遍历目录树，收集元数据与硬链接
+    P2->>P3: scanDirectory(includes)：遍历目录树，按需过滤条目并收集元数据与硬链接
     P2->>P3: packStream() / packIndex()：写出 packed 暂存件
     P2->>P3: compressStage()：压缩（none / RLE / Huffman / LZ77）
     P2->>P3: cryptStage()：加密（随机盐 + ChaCha20 / AES-256-CTR）
@@ -580,12 +584,12 @@ sequenceDiagram
     P2->>P1: LoginChallenge(salt, nonce)：返回盐与随机挑战
     P1->>P2: LoginProof：Proof = SHA256(verifier ∥ nonce)
     P2->>P1: LoginResponse：校验通过，建立已认证会话
-    P0->>P1: upload(archivePath, displayName)：本地归档完成后上传
-    P1->>P2: UploadStart(size, sha256)：声明大小与摘要
-    P2->>P1: UploadReady(id)：分配备份 ID
-    P1->>P2: UploadChunk × N：512 KiB 分帧传输
+    P0->>P1: upload(archivePath, displayName, incremental)：本地归档完成后上传（支持增量与 TLS）
+    P1->>P2: UploadStart / UploadDeltaStart：声明大小、摘要及可选基线 ID
+    P2->>P1: UploadReady(id)：分配备份 ID（增量模式附带基线块哈希）
+    P1->>P2: UploadChunk / UploadCopy × N：512 KiB 分帧传输或同偏移块复用引用
     P1->>P2: UploadEnd：传输完成
-    P2->>P3: commitStoredFile() + writeMeta()：校验大小/SHA-256 后原子提交
+    P2->>P3: commitStoredFile() + writeMeta()：校验大小/SHA-256 后原子提交完整独立归档
     P2->>P1: UploadResult(id)：返回备份 ID
     P1->>P0: backupId：上传成功（历史记录可查）
 ```
@@ -605,12 +609,13 @@ flowchart LR
     dep_client == "NBKP/TCP 8848（«TCP»）" ==> dep_server
 ```
 
-安装包由同一份安装树生成（CMake 组件 `client`/`server`/`local`）：客户端包（Qt 桌面端 + CLI）、服务端包（服务进程 + systemd 单元 + conffile + 专用系统账户）、一体包（全部组件，另加把服务限制在回环的 systemd drop-in）。发布脚本 `Utils/package-wsl.sh` 在 WSL2 中跑完格式检查、构建、CTest 与离屏 GUI 后才调用 CPack，再解包复跑已安装二进制；`bind_address` 使一体包无需修改配置即可只监听本机。Windows 侧以 `packaging/windows/install-wsl.ps1` 准备 WSL 发行版并安装一体包，通过 WSLg 运行桌面端。
+安装包由同一份安装树生成（CMake 组件 `client`/`server`/`local`）：客户端包（Qt 桌面端 + CLI）、服务端包（服务进程 + systemd 单元 + conffile + 专用系统账户，声明 `adduser, openssl` 依赖）、一体包（全部组件，另加把服务限制在回环的 systemd drop-in）。发布脚本 `Utils/package-wsl.sh` 在 WSL2 中跑完格式检查、构建、完整 CTest（3/3）与离屏 GUI 后才调用 CPack，再解包复跑已安装二进制；`bind_address` 使一体包无需修改配置即可只监听本机。Windows 侧以 `packaging/windows/install-wsl.ps1` 准备 WSL 发行版并安装一体包，通过 WSLg 运行桌面端。
 
 ## 8 变更记录
 
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
+| 1.8 | 2026-10-28 | 同步 1.12.0：新增 4.13 自动备份（定时/实时与保留份数淘汰）、4.14 增量上传与 OpenSSL TLS 1.2+ 传输；补充 UID 筛选、隐藏子树保护、注销绑定当前会话、历史容量上限及 StarUML 模型更新 | `core/automatic.cpp`、`network/tls.cpp`、`GUI/*.cpp`、`DataBackup.mdj`、`CHANGELOG.md` 1.12.0 |
 | 1.7 | 2026-10-28 | 同步 1.11.0：新增 4.12 登录会话与预设（导航分组、远程门控、草稿式登录、预设不存口令、远程还原 ID 下拉与刷新历史）；GUI 模块行同步 | `GUI/main_window.cpp`、`GUI/pages_account.cpp`、`GUI/pages_remote.cpp`、`GUI/pages_access.cpp`、`CHANGELOG.md` 1.11.0 |
 | 1.6 | 2026-10-28 | 同步 1.10.0：4.11 补充内容类别映射、大小/时间/隐藏筛选、勾选筛选结果的作用范围与目录状态推导、对话框尺寸；总览小节说明筛选不重读文件系统 | `GUI/select_entries.cpp`、`test/test_gui_jobs.cpp`、`CHANGELOG.md` 1.10.0 |
 | 1.5 | 2026-10-28 | 同步 1.9.1：选择对话框生命周期、全选判定、清空防误操作、选择快照及尾斜杠规整 | `GUI/select_entries.cpp`、`GUI/pages_local.cpp`、`GUI/pages_remote.cpp`、`DataBackup/core/entry.cpp` |

@@ -1,5 +1,6 @@
 #include "helpers.hpp"
 #include "network/internal.hpp"
+#include <future>
 
 namespace
 {
@@ -16,13 +17,14 @@ void testServerConfig(const fs::path& workspace)
     }
     check(directoryRejected, "directory was accepted as a server config");
     const fs::path path = workspace / "server.conf";
-    for (const std::string setting :
-         {"port = 65537", "port = -65535", "port = 8848junk",
-          "max_connections = 4294967297", "timeout_seconds = -1",
-          "storage_path =   ", "prot = 8848", "port 8848",
-          "bind_address = localhost", "bind_address = 127.0.0.1 extra",
-          "bind_address = 999.1.1.1", "bind_address = 127.0.0.1:8848",
-          "bind_address = ::1", "bind_address = "})
+    for (const std::string& setting : std::vector<std::string>{
+             "port = 65537", "port = -65535", "port = 8848junk",
+             "max_connections = 4294967297", "timeout_seconds = -1",
+             "storage_path =   ", "prot = 8848", "port 8848",
+             "bind_address = localhost", "bind_address = 127.0.0.1 extra",
+             "bind_address = 999.1.1.1", "bind_address = 127.0.0.1:8848",
+             "bind_address = ::1", "bind_address = ",
+             std::string("bind_address = 127.0.0.1") + '\0' + "extra"})
     {
         std::ofstream(path) << setting << '\n';
         bool rejected = false;
@@ -123,6 +125,64 @@ void testDeletionDuringLogin(uint16_t port)
     check(response && response->type == protocol::MessageType::ListResponse,
           "refused deletion broke the existing session");
 }
+
+void testHistoryCapacity(uint16_t port, const fs::path& storage,
+                         const fs::path& archive)
+{
+    namespace protocol = network::detail;
+    for (const size_t nameLength : {1u, 256u})
+    {
+        const auto username = "capacity_" + std::to_string(nameLength);
+        network::BackupClient client("127.0.0.1", port, username, "password");
+        std::string error, id;
+        check(client.registerUser(error), "cannot register capacity fixture");
+        network::RemoteBackupEntry entry;
+        entry.name.assign(nameLength, 'n');
+        entry.size = fs::file_size(archive);
+        entry.digest = hexDigest(sha256File(archive.string()));
+        const auto seed = storage / (username + ".meta");
+        protocol::writeMeta(seed, entry);
+        const auto directory = protocol::userDirectory(storage, username);
+        fs::create_directories(directory);
+        const size_t entryBytes = 2 + 32 + 2 + nameLength + 8 + 8 + 2 + 64;
+        const size_t count =
+            std::min<size_t>(4096, (protocol::kMaxPayload - 4) / entryBytes);
+        std::string lastKey;
+        for (size_t index = 0; index < count; ++index)
+        {
+            const auto number = std::to_string(index);
+            const auto key = std::string(32 - number.size(), '0') + number;
+            fs::create_hard_link(seed, directory / (key + ".meta"));
+            fs::create_hard_link(archive, directory / (key + ".bak"));
+            lastKey = key;
+        }
+        check(client.list(error).size() == count && error.empty(),
+              "full history fixture cannot be listed: " + error);
+        check(!client.upload(archive.string(), entry.name, id, error) &&
+                  id.empty() && error.find("list exceeds") != std::string::npos,
+              "upload exceeded history capacity and broke listing");
+        check(client.list(error).size() == count && error.empty(),
+              "rejected upload made existing history unavailable: " + error);
+        check(static_cast<size_t>(
+                  std::distance(fs::directory_iterator(directory),
+                                fs::directory_iterator{})) == count * 2,
+              "capacity rejection left files behind");
+        fs::remove(directory / (lastKey + ".meta"));
+        fs::remove(directory / (lastKey + ".bak"));
+        auto upload = [&]()
+        {
+            std::string uploadedId, failure;
+            return client.upload(archive.string(), entry.name, uploadedId,
+                                 failure);
+        };
+        auto first = std::async(std::launch::async, upload);
+        auto second = std::async(std::launch::async, upload);
+        const int accepted = static_cast<int>(first.get()) + second.get();
+        check(accepted == 1 && client.list(error).size() == count &&
+                  error.empty(),
+              "simultaneous uploads exceeded history response capacity");
+    }
+}
 } // namespace
 
 void testNetwork(const fs::path& workspace, const fs::path& archive)
@@ -156,6 +216,11 @@ void testNetwork(const fs::path& workspace, const fs::path& archive)
         network::BackupClient invalid("127.0.0.1", port, "disposable", "wrong");
         check(!invalid.login(error) && !error.empty(),
               "incorrect password was accepted");
+        const auto loginError = error;
+        network::BackupClient missing("127.0.0.1", port, "missing_account",
+                                      "wrong");
+        check(!missing.login(error) && error == loginError,
+              "login errors differ for missing users and wrong passwords");
         check(!invalid.deleteAccount(error) && !error.empty(),
               "incorrect password deleted an account");
         const auto staging =
@@ -214,6 +279,8 @@ void testNetwork(const fs::path& workspace, const fs::path& archive)
         }
         testLoginRequestId(port);
         testDeletionDuringLogin(port);
+        testHistoryCapacity(port, config.storagePath, archive);
+        testIncremental(port, workspace);
         error.clear();
         check(!alice.registerUser(error),
               "duplicate registration was accepted");

@@ -9,11 +9,11 @@ sequenceDiagram
     P2->>P1: LoginChallenge(salt, nonce)：返回盐与随机挑战
     P1->>P2: LoginProof：Proof = SHA256(verifier ∥ nonce)
     P2->>P1: LoginResponse：校验通过，建立已认证会话
-    P0->>P1: upload(archivePath, displayName)：本地归档完成后上传
-    P1->>P2: UploadStart(size, sha256)：声明大小与摘要
-    P2->>P1: UploadReady(id)：分配备份 ID
-    P1->>P2: UploadChunk × N：512 KiB 分帧传输
+    P0->>P1: upload(archivePath, displayName, incremental)：本地归档完成后上传（支持增量与 TLS）
+    P1->>P2: UploadStart / UploadDeltaStart：声明大小、摘要及可选基线 ID
+    P2->>P1: UploadReady(id)：分配备份 ID（增量模式附带基线块哈希）
+    P1->>P2: UploadChunk / UploadCopy × N：512 KiB 分帧传输或同偏移块复用引用
     P1->>P2: UploadEnd：传输完成
-    P2->>P3: commitStoredFile() + writeMeta()：校验大小/SHA-256 后原子提交
+    P2->>P3: commitStoredFile() + writeMeta()：校验大小/SHA-256 后原子提交完整独立归档
     P2->>P1: UploadResult(id)：返回备份 ID
     P1->>P0: backupId：上传成功（历史记录可查）

@@ -50,6 +50,15 @@ with tempfile.TemporaryDirectory(prefix="backup-cli-test-") as directory:
     source = root / "source"
     source.mkdir()
     (source / "file").write_bytes(b"restore options fixture")
+    automatic = root / "automatic"
+    subprocess.run([cli, "watch", str(source), "-o", str(automatic),
+                    "--interval", "1", "--retain", "1", "--count", "2"],
+                   check=True, capture_output=True, timeout=5)
+    assert len(list(automatic.glob("*.bak"))) == 1
+    for option, value in (("--interval", "0"), ("--interval", "1junk"),
+                          ("--retain", "0"), ("--count", "-1")):
+        rejected([cli, "watch", str(source), "-o", str(automatic),
+                  option, value], option)
     key = root / "key"
     key.write_text("test password")
     # Command-line overrides win independently of where --config occurs.

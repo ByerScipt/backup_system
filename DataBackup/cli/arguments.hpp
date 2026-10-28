@@ -23,6 +23,7 @@ std::pair<std::string, uint16_t> parseServer(const std::string& address);
 std::string secretFrom(const std::map<std::string, std::string>& options,
                        const std::string& key, const std::string& prompt);
 int localBackup(const Arguments& args);
+int automaticBackup(const Arguments& args);
 int localRestore(const Arguments& args);
 int inspectArchive(const Arguments& args);
 int registerUser(const Arguments& args);

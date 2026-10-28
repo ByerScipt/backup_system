@@ -119,26 +119,9 @@ cmake --build build --target format-check 2>&1 | tee "$LOGS/format-check.log"
 echo "== build =="
 cmake --build build --parallel "$(nproc)" 2>&1 | tee "$LOGS/build.log"
 
-echo "== ctest (excluding the reported GUI defect) =="
-ctest --test-dir build --output-on-failure -E backup-gui-tests \
+echo "== ctest =="
+ctest --test-dir build --output-on-failure --no-tests=error \
     2>&1 | tee "$LOGS/ctest.log"
-
-# DEF-01 (docs/test-report.md 4.3.3) is a known, reproducible layout failure at
-# this baseline. Packaging may continue, but only when that exact signature
-# appears: any other GUI failure aborts the release.
-echo "== gui tests (DEF-01 check) =="
-if QT_QPA_PLATFORM=offscreen ./bin/backup-gui-tests >"$LOGS/gui-tests.log" 2>&1; then
-    echo "backup-gui-tests passed: DEF-01 is fixed, update docs/test-report.md"
-else
-    if grep -q "login/register switch moved the title" "$LOGS/gui-tests.log"; then
-        echo "WARNING: backup-gui-tests still fails with the documented DEF-01"
-        echo "WARNING: layout defect; the packages carry that baseline"
-    else
-        echo "backup-gui-tests failed with an unexpected signature:" >&2
-        cat "$LOGS/gui-tests.log" >&2
-        exit 1
-    fi
-fi
 
 echo "== gui smoke (offscreen) =="
 QT_QPA_PLATFORM=offscreen BACKUP_GUI_CAPTURE="$LOGS/gui-smoke.png" \
