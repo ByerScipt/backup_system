@@ -1,4 +1,5 @@
 #include "ui.hpp"
+#include <QCheckBox>
 #include <QComboBox>
 #include <QFormLayout>
 #include <QFrame>
@@ -31,6 +32,38 @@ QWidget* startPage(AccountSession* session)
     mode->addItems({"登录", "注册"});
     mode->setMaximumWidth(240);
     loginLayout->addWidget(mode);
+    auto* presetRow = new QHBoxLayout;
+    presetRow->setSpacing(12);
+    auto* preset = new QComboBox;
+    preset->setObjectName("loginPreset");
+    preset->setPlaceholderText("登录预设");
+    preset->setMinimumWidth(260);
+    auto* deletePreset = new QPushButton("删除预设");
+    deletePreset->setObjectName("deletePreset");
+    deletePreset->setMinimumWidth(100);
+    presetRow->addWidget(preset, 1);
+    presetRow->addWidget(deletePreset);
+    auto* remember = new QCheckBox("记住此登录（仅服务器与用户名）");
+    remember->setObjectName("rememberLogin");
+    loginLayout->addLayout(presetRow);
+    loginLayout->addWidget(remember);
+
+    const auto refreshPresets = [=]()
+    {
+        preset->clear();
+        for (const auto& item : loadLoginPresets())
+        {
+            preset->addItem(QString("%1 @ %2:%3")
+                                .arg(item.username)
+                                .arg(item.host)
+                                .arg(item.port),
+                            QStringList{item.host, QString::number(item.port),
+                                        item.username});
+        }
+        preset->setCurrentIndex(-1);
+        preset->setEnabled(preset->count() != 0);
+    };
+    refreshPresets();
     auto* confirm = new QLineEdit;
     confirm->setObjectName("confirmPassword");
     confirm->setEchoMode(QLineEdit::Password);
@@ -53,8 +86,11 @@ QWidget* startPage(AccountSession* session)
     infoLayout->setSpacing(22);
     auto* username = new QLabel;
     username->setObjectName("accountName");
+    auto* caption = makeHint("当前账户");
+    caption->setObjectName("accountCaption");
     auto* address = makeHint({});
     address->setObjectName("accountServer");
+    infoLayout->addWidget(caption);
     infoLayout->addWidget(username);
     infoLayout->addWidget(address);
     auto* actions = new QHBoxLayout;
@@ -83,18 +119,49 @@ QWidget* startPage(AccountSession* session)
         confirmLabel->setVisible(registration);
         controls.start->setText(registration ? "注册" : "登录");
     };
+    QObject::connect(preset, &QComboBox::currentIndexChanged, page.widget,
+                     [=](int index)
+                     {
+                         const QStringList data =
+                             preset->itemData(index).toStringList();
+                         if (data.size() != 3)
+                         {
+                             return;
+                         }
+                         server.host->setText(data.at(0));
+                         server.port->setValue(data.at(1).toInt());
+                         server.username->setText(data.at(2));
+                         server.password->clear();
+                     });
+    QObject::connect(
+        deletePreset, &QPushButton::clicked, page.widget,
+        [=]()
+        {
+            const QStringList data = preset->currentData().toStringList();
+            if (data.size() != 3)
+            {
+                return;
+            }
+            removeLoginPreset({data.at(0),
+                               static_cast<uint16_t>(data.at(1).toInt()),
+                               data.at(2)});
+            refreshPresets();
+        });
     QObject::connect(mode, &QComboBox::currentIndexChanged, page.widget,
                      updateMode);
     const auto updateAccount = [=]()
     {
-        const bool authenticated = !session->username().isEmpty();
-        loginView->setVisible(!authenticated);
+        const bool authenticated = session->signedIn();
+        // The login form stays visible so the settings page can edit the draft
+        // at any time; it only takes effect after a successful login.
+        loginView->setVisible(true);
         accountView->setVisible(authenticated);
         task.frame->setVisible(!authenticated);
         controls.start->setVisible(!authenticated);
         username->setText(session->username());
-        address->setText(server.host->text() + ":" +
-                         QString::number(server.port->value()));
+        const ServerValues signedIn = session->credentials();
+        address->setText(QString::fromStdString(signedIn.host) + ":" +
+                         QString::number(signedIn.port));
     };
     QObject::connect(session, &AccountSession::changed, page.widget,
                      updateAccount);
@@ -159,8 +226,14 @@ QWidget* startPage(AccountSession* session)
                 [=]()
                 {
                     confirm->clear();
-                    session->accept(QString::fromStdString(values.username),
-                                    revision);
+                    session->accept(values, revision);
+                    if (remember->isChecked())
+                    {
+                        saveLoginPreset(
+                            {QString::fromStdString(values.host), values.port,
+                             QString::fromStdString(values.username)});
+                        refreshPresets();
+                    }
                 });
         });
     QObject::connect(

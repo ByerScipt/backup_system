@@ -931,10 +931,48 @@ void testUserWorkflow()
         require(pages->widget(index)->findChild<QProgressBar*>()->isHidden(),
                 "idle progress should not occupy the page");
     }
+    const auto navButton = [&](int index) -> QPushButton*
+    {
+        for (auto* button : window->findChildren<QPushButton*>("navButton"))
+        {
+            if (button->property("pageIndex").toInt() == index)
+            {
+                return button;
+            }
+        }
+        return nullptr;
+    };
+    for (int index : {2, 3, 4})
+    {
+        require(navButton(index) != nullptr && !navButton(index)->isEnabled(),
+                "remote navigation unlocked before login");
+    }
+    // Group headers navigate: 本地 always, 远程 only after a login.
+    const auto groupButton = [&](const QString& text)
+    {
+        for (auto* button : window->findChildren<QPushButton*>("navGroup"))
+        {
+            if (button->text() == text)
+            {
+                return button;
+            }
+        }
+        return static_cast<QPushButton*>(nullptr);
+    };
+    auto* localHeader = groupButton("本地（无需账户）");
+    auto* remoteHeader = groupButton("远程（需要登录）");
+    require(localHeader != nullptr && remoteHeader != nullptr,
+            "navigation group headers are missing");
+    QTest::mouseClick(localHeader, Qt::LeftButton);
+    require(pages->currentIndex() == 0,
+            "local group header did not open local backup");
+    QTest::mouseClick(remoteHeader, Qt::LeftButton);
+    require(pages->currentIndex() == 5,
+            "signed-out remote header did not open the login page");
     const auto navigate = [&](int index)
     {
         const QStringList names = {"本地备份", "本地还原", "远程备份",
-                                   "远程还原", "备份历史", "开始"};
+                                   "远程还原", "备份历史", "登录"};
         for (auto* button : window->findChildren<QPushButton*>("navButton"))
         {
             if (button->text() == names.at(index))
@@ -1007,11 +1045,18 @@ void testUserWorkflow()
     run(restoreLocal);
 
     auto* account = navigate(5);
+    require(account->findChild<QComboBox*>("accountMode")->count() == 2,
+            "settings page lost its login modes");
+    require(account->findChild<QCheckBox*>("rememberLogin") != nullptr &&
+                account->findChild<QComboBox*>("loginPreset") != nullptr &&
+                account->findChild<QPushButton*>("deletePreset") != nullptr,
+            "settings page has no login presets");
     account->findChild<QComboBox*>("accountMode")->setCurrentIndex(1);
     account->findChild<QSpinBox*>("serverPort")->setValue(port);
     account->findChild<QLineEdit*>("serverUsername")->setText("gui_user");
     account->findChild<QLineEdit*>("serverPassword")->setText("gui-pass");
     field(account, "confirmPassword")->setText("gui-pass");
+    account->findChild<QCheckBox*>("rememberLogin")->setChecked(true);
     run(account);
     require(account->findChild<QLabel*>("accountName")->text() == "gui_user" &&
                 account->findChild<QPushButton*>("logoutAccount")->isVisible(),
@@ -1037,15 +1082,31 @@ void testUserWorkflow()
             "login did not restore account information");
     for (int index : {2, 3, 4})
     {
-        require(
-            pages->widget(index)->findChild<QSpinBox*>("serverPort")->value() ==
-                port,
-            "connection port was not shared");
         require(pages->widget(index)
-                        ->findChild<QLineEdit*>("serverUsername")
-                        ->text() == "gui_user",
-                "account was not shared");
+                    ->findChild<QLabel*>("remoteAccount")
+                    ->text()
+                    .contains("gui_user"),
+                "remote page did not adopt the signed-in account");
     }
+    QTest::mouseClick(remoteHeader, Qt::LeftButton);
+    require(pages->currentIndex() == 2,
+            "signed-in remote header did not open remote backup");
+    const auto savedPresets = account->findChild<QComboBox*>("loginPreset");
+    require(savedPresets->count() >= 1, "login preset was not remembered");
+    const QString presetText = QString("gui_user @ 127.0.0.1:%1").arg(port);
+    require(savedPresets->findText(presetText) >= 0,
+            "saved preset is missing its account");
+    // Selecting a preset refills the draft; deleting removes it from disk.
+    account->findChild<QLineEdit*>("serverUsername")->clear();
+    account->findChild<QSpinBox*>("serverPort")->setValue(1);
+    savedPresets->setCurrentIndex(savedPresets->findText(presetText));
+    require(field(account, "serverUsername")->text() == "gui_user" &&
+                account->findChild<QSpinBox*>("serverPort")->value() == port,
+            "selecting a preset did not fill the login draft");
+    QTest::mouseClick(account->findChild<QPushButton*>("deletePreset"),
+                      Qt::LeftButton);
+    require(savedPresets->findText(presetText) < 0,
+            "deleting a preset kept it in the list");
     auto* upload = navigate(2);
     field(upload, "sourcePath")
         ->setText(QString::fromStdString(source.string()));
@@ -1095,8 +1156,25 @@ void testUserWorkflow()
                       Qt::LeftButton);
     require(pages->currentIndex() == 3, "selected restore navigation failed");
     auto* restoreRemote = pages->widget(3);
-    require(restoreRemote->findChild<QLineEdit*>("backupId")->text() == id,
+    require(restoreRemote->findChild<QComboBox*>("backupId")->currentText() ==
+                id,
             "selected ID was not filled");
+    auto* refresh =
+        restoreRemote->findChild<QPushButton*>("refreshRemoteRestore");
+    auto* restoreIds = restoreRemote->findChild<QComboBox*>("backupId");
+    require(refresh != nullptr && restoreIds != nullptr,
+            "restore page has no history refresh");
+    QTest::mouseClick(refresh, Qt::LeftButton);
+    require(waitFor([&]() { return restoreIds->count() == 2; }),
+            "history refresh did not list the account backups");
+    bool listed = false;
+    for (int index = 0; index < restoreIds->count(); ++index)
+    {
+        listed = listed || restoreIds->itemData(index).toString() == id;
+    }
+    require(listed, "history refresh lost a backup ID");
+    require(restoreIds->currentData().toString() == id,
+            "history refresh dropped the chosen ID");
     field(restoreRemote, "destinationPath")->setText(root + "/remote-restored");
     run(restoreRemote);
     require(!std::filesystem::exists(std::filesystem::path(
@@ -1123,14 +1201,22 @@ void testUserWorkflow()
                     "GUI evidence capture failed");
         }
     }
-    history->findChild<QLineEdit*>("serverUsername")->setText("different_user");
-    require(table->rowCount() == 0, "account change retained old history");
+    // Signing out locks the remote views and clears their cached listing.
+    account = navigate(5);
+    QTest::mouseClick(account->findChild<QPushButton*>("logoutAccount"),
+                      Qt::LeftButton);
+    require(table->rowCount() == 0, "sign-out retained old history");
     require(!history->findChild<QPushButton*>("restoreSelected")->isEnabled(),
             "cleared history retained restore action");
-    account = navigate(5);
     require(account->findChild<QLabel*>("accountName")->text().isEmpty(),
-            "credential change retained authenticated UI");
+            "sign-out retained authenticated UI");
+    for (int index : {2, 3, 4})
+    {
+        require(!navButton(index)->isEnabled(),
+                "remote navigation stayed unlocked after sign-out");
+    }
     field(account, "serverUsername")->setText("gui_user");
+    field(account, "serverPassword")->setText("gui-pass");
     run(account);
     // Confirmation defaults to No; declining must leave the account intact.
     modalError.clear();
@@ -1298,6 +1384,12 @@ int main(int argc, char* argv[])
         if (app.arguments().contains("--entry-selection"))
         {
             testEntrySelection();
+            return 0;
+        }
+        // Runs the end-to-end workflow alone for the same reason.
+        if (app.arguments().contains("--user-workflow"))
+        {
+            testUserWorkflow();
             return 0;
         }
         testAccountAlignment();

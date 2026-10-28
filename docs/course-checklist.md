@@ -1,11 +1,11 @@
-# 课程交付检查单（Backup Studio 1.10.0）
+# 课程交付检查单（Backup Studio 1.11.0）
 
 | 项目 | 内容 |
 | :--- | :--- |
-| 检查单版本 | 1.7 |
+| 检查单版本 | 1.8 |
 | 检查日期 | 2026-10-28 |
 | 对应代码基线 | 与本文件所在 Git 提交的源码一致 |
-| 对应软件版本 | 1.10.0 |
+| 对应软件版本 | 1.11.0 |
 | 说明 | 当前 Linux 复验见 `docs/test-report.md` 的 2026-10-28 节；历史归档证据与当前结果按日期区分。 |
 
 ## 1 交付物清单
@@ -31,7 +31,7 @@
 | 检查项 | 结果 | 说明 |
 | :--- | :--- | :--- |
 | 三份文档结构完整 | 通过 | 均含封面信息表、章节编号、术语、追溯、变更记录 |
-| 版本一致 | 通过 | 三份文档与 `CMakeLists.txt` 均为 1.10.0；历史版本记录保留原日期 |
+| 版本一致 | 通过 | 三份文档与 `CMakeLists.txt` 均为 1.11.0；历史版本记录保留原日期 |
 | 需求编号可追溯 | 通过 | FR-01..17 / NFR-01..10 ↔ 设计 4.x ↔ 用例 TC-* |
 | 术语一致 | 通过 | 归档/packed/encoded/BKP2/NBKP 等术语在 requirements 1.3 定义，全文统一 |
 | 命令与选项与代码一致 | 通过 | 取自 `cli/main.cpp` 与 `cli/arguments.cpp` 的实际白名单；`--include` 可重复，且与单值选项共用同一白名单校验 |
@@ -134,8 +134,8 @@
 
 | 门禁 | 状态 |
 | :--- | :--- |
-| 配置、格式检查、并行构建 | 1.10.0 全部通过，包含 Qt GUI 目标；见测试报告 2026-10-28 条目选择筛选与分类扩展节 |
-| CTest | 1.10.0 在 Ubuntu 24.04/Qt 6.4.2 为 2/3：`backup-gui-tests` 在 `testAccountAlignment` 处失败（DEF-01）；`--entry-selection` 与 `--dialog-placement` 子集均通过。1.9.1 的 3/3 来自 Qt 6.2.4 环境 |
+| 配置、格式检查、并行构建 | 1.11.0 全部通过，包含 Qt GUI 目标 |
+| CTest | 1.11.0 在 Ubuntu 24.04/Qt 6.4.2 为 2/3：`backup-gui-tests` 在 `testAccountAlignment` 处失败（DEF-01）；`--entry-selection`、`--dialog-placement`、`--user-workflow` 三个子集均通过 |
 | GUI | 新增选择框与本地/远程流程纳入 Qt 离屏回归；该环境离屏截图非空；桌面显示不可连接，未作交互式桌面验收 |
 | `.github/`、`.workflow` 不进入提交 | 通过（`.gitignore` 忽略） |
 | `docs/` 随代码维护 | 已跟踪；本轮同步条目选择的设计、需求与测试结果 |
@@ -155,11 +155,13 @@
 | 9 | 在启用 systemd 的主机（或开启 systemd 的 WSL 发行版）验证服务开机自启与重启 | 待定 | 演示前 |
 | 10 | 在目标答辩环境复核桌面交互；Linux 自动回归见测试报告 2026-10-28 节 | 全员 | 演示前 |
 | 11 | 把条目选择补入 `DataBackup.mdj`（用例/时序图）与 `docs/mermaid/` 图源 | Byer | 下次提交 |
+| 12 | 扩展登录页设置项（默认算法、最近目录、默认启动页、界面缩放/深色主题、会话自动锁定、日志导出与连接测试）；候选清单与优先级见 `docs/design.md` 4.12.1，本轮未实现 | 待定 | 演示后 |
 
 ## 9 检查单变更记录
 
 | 版本 | 日期 | 变更 | 依据 |
 | :--- | :--- | :--- | :--- |
+| 1.8 | 2026-10-28 | 同步 1.11.0：登录分区与预设交付；门禁补充 `--user-workflow` 子集，并区分全量套件中 DEF-01 的影响；待办新增设置项扩展项并指向 `docs/design.md` 4.12.1 | `docs/test-report.md`、`GUI/pages_account.cpp`、`CHANGELOG.md` 1.11.0 |
 | 1.7 | 2026-10-28 | 同步 1.10.0：条目选择筛选与分类扩展的文档与回归；容器交付标记为已完成并归档 Docker 实机验收；门禁按 Qt 6.4.2 真实结果重述 | `docs/test-report.md`、`docs/evidence/docker-verify-190.log`、`GUI/select_entries.cpp`、`CHANGELOG.md` 1.10.0 |
 | 1.6 | 2026-10-28 | 同步 1.9.1 与条目选择修复回归；区分 Linux 离屏自动验证和待完成的桌面验收 | `docs/test-report.md`、`test/test_gui_jobs.cpp`、`CHANGELOG.md` 1.9.1 |
 | 1.5 | 2026-10-27 | 同步 1.9.0 条目选择基线：需求编号扩到 FR-17、门禁状态改为后备环境实测、待办增加 WSL 全量复验与 UML 同步 | `dev/entry-selection`、`docs/test-report.md`、`CHANGELOG.md` 1.9.0 |

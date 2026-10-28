@@ -11,6 +11,7 @@
 #include <QObject>
 #include <QPushButton>
 #include <QScreen>
+#include <QSettings>
 #include <QSize>
 #include <QSpinBox>
 #include <QString>
@@ -158,6 +159,97 @@ ServerValues snapshotServer(const ServerFields& fields)
 network::BackupClient makeClient(const ServerValues& values)
 {
     return {values.host, values.port, values.username, values.password};
+}
+
+namespace
+{
+// Presets live in the user's own settings store. Only host, port and account
+// name are written; the password is never persisted.
+QSettings presetSettings()
+{
+    return QSettings(QStringLiteral("BackupStudio"),
+                     QStringLiteral("Backup Studio"));
+}
+
+void writeLoginPresets(const QVector<LoginPreset>& presets)
+{
+    QSettings settings = presetSettings();
+    settings.remove(QStringLiteral("loginPresets"));
+    settings.beginWriteArray(QStringLiteral("loginPresets"));
+    for (int index = 0; index < presets.size(); ++index)
+    {
+        settings.setArrayIndex(index);
+        settings.setValue(QStringLiteral("host"), presets.at(index).host);
+        settings.setValue(QStringLiteral("port"), presets.at(index).port);
+        settings.setValue(QStringLiteral("username"),
+                          presets.at(index).username);
+    }
+    settings.endArray();
+    settings.sync();
+}
+} // namespace
+
+QVector<LoginPreset> loadLoginPresets()
+{
+    QSettings settings = presetSettings();
+    QVector<LoginPreset> presets;
+    const int size = settings.beginReadArray(QStringLiteral("loginPresets"));
+    for (int index = 0; index < size; ++index)
+    {
+        settings.setArrayIndex(index);
+        LoginPreset preset;
+        preset.host = settings.value(QStringLiteral("host")).toString();
+        preset.port = static_cast<uint16_t>(
+            settings.value(QStringLiteral("port"), 8848).toUInt());
+        preset.username = settings.value(QStringLiteral("username")).toString();
+        if (!preset.host.isEmpty() && !preset.username.isEmpty())
+        {
+            presets.push_back(preset);
+        }
+    }
+    settings.endArray();
+    return presets;
+}
+
+void saveLoginPreset(const LoginPreset& preset)
+{
+    if (preset.host.trimmed().isEmpty() || preset.username.trimmed().isEmpty())
+    {
+        return;
+    }
+    QVector<LoginPreset> presets = loadLoginPresets();
+    LoginPreset entry{preset.host.trimmed(), preset.port,
+                      preset.username.trimmed()};
+    bool replaced = false;
+    for (auto& existing : presets)
+    {
+        if (existing.host == entry.host && existing.port == entry.port &&
+            existing.username == entry.username)
+        {
+            existing = entry;
+            replaced = true;
+        }
+    }
+    if (!replaced)
+    {
+        presets.push_back(entry);
+    }
+    writeLoginPresets(presets);
+}
+
+void removeLoginPreset(const LoginPreset& preset)
+{
+    QVector<LoginPreset> presets = loadLoginPresets();
+    for (int index = presets.size() - 1; index >= 0; --index)
+    {
+        if (presets.at(index).host == preset.host &&
+            presets.at(index).port == preset.port &&
+            presets.at(index).username == preset.username)
+        {
+            presets.remove(index);
+        }
+    }
+    writeLoginPresets(presets);
 }
 
 namespace

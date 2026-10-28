@@ -61,14 +61,24 @@ struct ServerFields
 struct ServerValues
 {
     std::string host;
-    uint16_t port;
+    uint16_t port = 8848;
     std::string username;
     std::string password;
 };
 
+// Saved login preset. Deliberately holds no password: only the non-secret
+// connection parameters a user may want to reuse are persisted.
+struct LoginPreset
+{
+    QString host;
+    uint16_t port = 8848;
+    QString username;
+};
+
 using Job = std::function<QString(std::atomic_bool*, const ProgressCallback&)>;
 
-// Credentials remain in memory in the shared form fields, never on disk.
+// Credentials remain in memory in the session, never on disk; the optional
+// login presets store only host, port and account name.
 // A revision prevents stale asynchronous logins from restoring logged-out UI.
 class AccountSession final : public QObject
 {
@@ -77,7 +87,15 @@ public:
     explicit AccountSession(QObject* parent) : QObject(parent) {}
     QString username() const
     {
-        return username_;
+        return QString::fromStdString(credentials_.username);
+    }
+    ServerValues credentials() const
+    {
+        return credentials_;
+    }
+    bool signedIn() const
+    {
+        return !credentials_.username.empty();
     }
     uint64_t revision() const
     {
@@ -86,14 +104,22 @@ public:
     void reset()
     {
         ++revision_;
-        username_.clear();
+        credentials_ = {};
         emit changed();
+    }
+    void accept(const ServerValues& values, uint64_t revision)
+    {
+        if (revision == revision_)
+        {
+            credentials_ = values;
+            emit changed();
+        }
     }
     void accept(const QString& username, uint64_t revision)
     {
         if (revision == revision_)
         {
-            username_ = username;
+            credentials_.username = username.toStdString();
             emit changed();
         }
     }
@@ -102,7 +128,7 @@ signals:
     void signedOut();
 
 private:
-    QString username_;
+    ServerValues credentials_;
     uint64_t revision_ = 0;
 };
 
@@ -140,6 +166,11 @@ BackupOptions algorithmOptions(const AlgorithmValues& values,
 ServerFields addServerRows(QVBoxLayout* layout,
                            QLineEdit* confirmation = nullptr);
 ServerValues snapshotServer(const ServerFields& fields);
+// Login presets live in the user's settings directory and never hold a
+// password; saving twice with the same host/port/account replaces the entry.
+QVector<LoginPreset> loadLoginPresets();
+void saveLoginPreset(const LoginPreset& preset);
+void removeLoginPreset(const LoginPreset& preset);
 network::BackupClient makeClient(const ServerValues& values);
 QString selectDirectory(QWidget* owner, const QString& title,
                         const QString& initialPath = {});
@@ -157,9 +188,11 @@ void bindPathPicker(QWidget* owner, QPushButton* button, QLineEdit* edit,
                                       const QString&));
 QWidget* localBackupPage();
 QWidget* localRestorePage();
-QWidget* remoteBackupPage();
-QWidget* remoteRestorePage();
-QWidget* remoteListPage();
+// Remote pages take the signed-in credentials from the session; they never
+// ask for a server or account themselves.
+QWidget* remoteBackupPage(AccountSession* session);
+QWidget* remoteRestorePage(AccountSession* session);
+QWidget* remoteListPage(AccountSession* session);
 QWidget* startPage(AccountSession* session);
 
 } // namespace backup::gui
