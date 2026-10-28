@@ -1,6 +1,7 @@
 #include "ui.hpp"
 #include <QAbstractButton>
 #include <QButtonGroup>
+#include <QComboBox>
 #include <QEvent>
 #include <QFile>
 #include <QFont>
@@ -22,6 +23,7 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <array>
 
 namespace backup::gui
 {
@@ -115,14 +117,14 @@ QMainWindow* createMainWindow()
     auto* pages = new QStackedWidget;
     pages->setObjectName("pageStack");
     auto* session = new AccountSession(window);
-    for (auto* page :
-         {localBackupPage(), localRestorePage(), remoteBackupPage(),
-          remoteRestorePage(), remoteListPage(), startPage(session)})
+    for (auto* page : {localBackupPage(), localRestorePage(),
+                       remoteBackupPage(session), remoteRestorePage(session),
+                       remoteListPage(session), startPage(session)})
     {
         pages->addWidget(page);
     }
     const QStringList titles = {"本地备份", "本地还原", "远程备份",
-                                "远程还原", "备份历史", "开始"};
+                                "远程还原", "备份历史", "登录"};
     auto* navigation = new QButtonGroup(window);
     navigation->setExclusive(true);
     const auto addNavigation = [&](int index)
@@ -133,12 +135,47 @@ QMainWindow* createMainWindow()
         button->setCheckable(true);
         navigation->addButton(button, index);
         railLayout->addWidget(button);
+        return button;
     };
-    for (int index : {5, 0, 1, 2, 3, 4})
+    // Group headers are buttons too: 本地 jumps to the local backup page and
+    // 远程 asks for a login first when the session is signed out.
+    const auto addGroupButton =
+        [&](const QString& text, const std::function<int()>& target)
     {
-        addNavigation(index);
-    }
+        auto* button = new QPushButton(text);
+        button->setObjectName("navGroup");
+        button->setCursor(Qt::PointingHandCursor);
+        QObject::connect(button, &QPushButton::clicked, window,
+                         [=]() { navigation->button(target())->click(); });
+        railLayout->addWidget(button);
+    };
+    addGroupButton("本地（无需账户）", []() { return 0; });
+    addNavigation(0);
+    addNavigation(1);
+    railLayout->addSpacing(12);
+    addGroupButton("远程（需要登录）",
+                   [=]() { return session->signedIn() ? 2 : 5; });
+    const std::array<QPushButton*, 3> remoteButtons{
+        addNavigation(2), addNavigation(3), addNavigation(4)};
     railLayout->addStretch();
+    addNavigation(5);
+    // Remote features unlock only while the session holds a login.
+    const auto applyLoginState = [=]()
+    {
+        const bool signedIn = session->signedIn();
+        for (auto* button : remoteButtons)
+        {
+            button->setEnabled(signedIn);
+        }
+        if (!signedIn && pages->currentIndex() >= 2 &&
+            pages->currentIndex() <= 4)
+        {
+            navigation->button(5)->click();
+        }
+    };
+    QObject::connect(session, &AccountSession::changed, window,
+                     applyLoginState);
+    applyLoginState();
 
     auto* content = new QWidget;
     auto* contentLayout = new QVBoxLayout(content);
@@ -164,8 +201,8 @@ QMainWindow* createMainWindow()
             if (auto* item = table->item(table->currentRow(), 0))
             {
                 pages->widget(3)
-                    ->findChild<QLineEdit*>("backupId")
-                    ->setText(item->data(Qt::UserRole).toString());
+                    ->findChild<QComboBox*>("backupId")
+                    ->setEditText(item->data(Qt::UserRole).toString());
                 navigation->button(3)->click();
             }
         });
@@ -190,44 +227,10 @@ QMainWindow* createMainWindow()
                 }
             }
         });
-    // Keep connection fields in sync in memory only; never persist passwords.
-    for (const char* name : {"serverHost", "serverUsername", "serverPassword"})
-    {
-        const auto fields = pages->findChildren<QLineEdit*>(name);
-        for (auto* field : fields)
-        {
-            QObject::connect(field, &QLineEdit::textChanged, window,
-                             [=](const QString& text)
-                             {
-                                 for (auto* peer : fields)
-                                 {
-                                     if (peer->text() != text)
-                                     {
-                                         peer->setText(text);
-                                     }
-                                 }
-                                 invalidateHistory();
-                                 session->reset();
-                             });
-        }
-    }
-    const auto ports = pages->findChildren<QSpinBox*>("serverPort");
-    for (auto* port : ports)
-    {
-        QObject::connect(port, &QSpinBox::valueChanged, window,
-                         [=](int value)
-                         {
-                             for (auto* peer : ports)
-                             {
-                                 if (peer->value() != value)
-                                 {
-                                     peer->setValue(value);
-                                 }
-                             }
-                             invalidateHistory();
-                             session->reset();
-                         });
-    }
+    // Credentials live only in the session; the settings page edits a draft
+    // that takes effect after a successful login.
+    QObject::connect(session, &AccountSession::changed, window,
+                     invalidateHistory);
     rootLayout->addWidget(rail);
     rootLayout->addWidget(content, 1);
     window->setCentralWidget(root);

@@ -6,10 +6,13 @@
 #include <QVBoxLayout>
 
 #include <QCheckBox>
+#include <QComboBox>
+#include <QDateTime>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QObject>
 #include <QPushButton>
+#include <QSpinBox>
 #include <QString>
 #include <QTemporaryDir>
 #include <QWidget>
@@ -21,12 +24,28 @@
 namespace backup::gui
 {
 
-QWidget* remoteBackupPage()
+QWidget* remoteBackupPage(AccountSession* session)
 {
     Page page = makePage();
 
-    Card connection = makeCard();
-    const ServerFields server = addServerRows(connection.body);
+    Card accountCard = makeCard();
+    auto* accountHint = makeHint(QString());
+    accountHint->setObjectName("remoteAccount");
+    accountCard.body->addWidget(accountHint);
+    const auto updateAccount = [=]()
+    {
+        const ServerValues values = session->credentials();
+        accountHint->setText(
+            session->signedIn()
+                ? QString("当前账户：%1 @ %2:%3")
+                      .arg(QString::fromStdString(values.username))
+                      .arg(QString::fromStdString(values.host))
+                      .arg(values.port)
+                : QString("未登录：请先在「登录」页登录。"));
+    };
+    QObject::connect(session, &AccountSession::changed, page.widget,
+                     updateAccount);
+    updateAccount();
 
     Card archiveCard = makeCard();
     auto* archiveForm = makeForm();
@@ -47,7 +66,7 @@ QWidget* remoteBackupPage()
     addAlgorithmRows(archiveForm, pack, compression, encryption, key);
     archiveCard.body->addLayout(archiveForm);
 
-    page.layout->addWidget(connection.frame, 1);
+    page.layout->addWidget(accountCard.frame, 1);
     page.layout->addWidget(archiveCard.frame, 3);
 
     Card task = makeCard();
@@ -96,12 +115,10 @@ QWidget* remoteBackupPage()
             }
 
             AlgorithmValues algorithms;
-            ServerValues serverValues;
             try
             {
                 algorithms =
                     snapshotAlgorithms(pack, compression, encryption, key);
-                serverValues = snapshotServer(server);
             }
             catch (const std::exception& error)
             {
@@ -109,6 +126,13 @@ QWidget* remoteBackupPage()
                                      QString::fromUtf8(error.what()));
                 return;
             }
+            if (!session->signedIn())
+            {
+                QMessageBox::warning(page.widget, "未登录",
+                                     "远程备份前请先在「登录」页登录。");
+                return;
+            }
+            const ServerValues serverValues = session->credentials();
 
             const auto includes = toUtf8Strings(*selection);
             startJob(
@@ -148,20 +172,45 @@ QWidget* remoteBackupPage()
     return page.widget;
 }
 
-QWidget* remoteRestorePage()
+QWidget* remoteRestorePage(AccountSession* session)
 {
     Page page = makePage();
 
-    Card connection = makeCard();
-    const ServerFields server = addServerRows(connection.body);
+    Card accountCard = makeCard();
+    auto* accountHint = makeHint(QString());
+    accountHint->setObjectName("remoteAccount");
+    accountCard.body->addWidget(accountHint);
+    const auto updateAccount = [=]()
+    {
+        const ServerValues values = session->credentials();
+        accountHint->setText(
+            session->signedIn()
+                ? QString("当前账户：%1 @ %2:%3")
+                      .arg(QString::fromStdString(values.username))
+                      .arg(QString::fromStdString(values.host))
+                      .arg(values.port)
+                : QString("未登录：请先在「登录」页登录。"));
+    };
+    QObject::connect(session, &AccountSession::changed, page.widget,
+                     updateAccount);
+    updateAccount();
 
     Card restoreCard = makeCard();
     auto* restoreForm = makeForm();
-    auto* id = new QLineEdit;
+    auto* id = new QComboBox;
     id->setObjectName("backupId");
-    id->setClearButtonEnabled(true);
-    id->setPlaceholderText("从历史选择");
-    restoreForm->addRow("备份 ID", id);
+    id->setEditable(true);
+    id->setInsertPolicy(QComboBox::NoInsert);
+    id->lineEdit()->setPlaceholderText("从历史选择或粘贴 ID");
+    auto* refresh = new QPushButton("刷新历史");
+    refresh->setObjectName("refreshRemoteRestore");
+    refresh->setMinimumWidth(100);
+    auto* idRow = new QHBoxLayout;
+    idRow->setContentsMargins(0, 0, 0, 0);
+    idRow->setSpacing(12);
+    idRow->addWidget(id, 1);
+    idRow->addWidget(refresh);
+    restoreForm->addRow("备份 ID", idRow);
     QLineEdit* destination;
     QPushButton* browse;
     restoreForm->addRow("目标目录",
@@ -176,7 +225,7 @@ QWidget* remoteRestorePage()
     restoreForm->addRow("覆盖策略", overwrite);
     restoreCard.body->addLayout(restoreForm);
 
-    page.layout->addWidget(connection.frame, 1);
+    page.layout->addWidget(accountCard.frame, 1);
     page.layout->addWidget(restoreCard.frame, 2);
 
     Card task = makeCard();
@@ -185,11 +234,100 @@ QWidget* remoteRestorePage()
 
     bindPathPicker(page.widget, browse, destination, "选择还原目标目录",
                    selectDirectory);
+
+    // The list belongs to the entered account: an item keeps its full ID as
+    // data, so edited or pasted text stays usable as a raw ID.
+    const auto resolveId = [id]()
+    {
+        const int index = id->currentIndex();
+        const QString text = id->currentText().trimmed();
+        if (index >= 0 && id->itemText(index) == id->currentText())
+        {
+            return id->itemData(index).toString();
+        }
+        return text;
+    };
+    const auto dropStaleList = [=]()
+    {
+        const int index = id->currentIndex();
+        const bool fromList =
+            index >= 0 && id->itemText(index) == id->currentText();
+        const QString keep = fromList ? QString() : id->currentText();
+        id->clear();
+        if (!keep.isEmpty())
+        {
+            id->setEditText(keep);
+        }
+    };
+    // Dropping the list on account change keeps another account's IDs from
+    // being restored by accident; typed IDs stay usable.
+    QObject::connect(session, &AccountSession::changed, page.widget,
+                     dropStaleList);
+
+    auto listed = std::make_shared<std::vector<network::RemoteBackupEntry>>();
+    QObject::connect(
+        refresh, &QPushButton::clicked, page.widget,
+        [=]()
+        {
+            if (!session->signedIn())
+            {
+                QMessageBox::warning(page.widget, "未登录",
+                                     "刷新历史前请先在「登录」页登录。");
+                return;
+            }
+            const ServerValues values = session->credentials();
+            const QString previous = resolveId();
+            startJob(
+                page.widget, controls,
+                [=](std::atomic_bool* cancel, const ProgressCallback&)
+                {
+                    auto client = makeClient(values);
+                    std::string error;
+                    *listed = client.list(error, cancel);
+                    if (!error.empty())
+                    {
+                        throw std::runtime_error(error);
+                    }
+                    return QString("已加载 %1 个备份").arg(listed->size());
+                },
+                [=]()
+                {
+                    // Ignore a response if the account changed mid-request.
+                    if (session->credentials().username != values.username)
+                    {
+                        return;
+                    }
+                    id->clear();
+                    for (const auto& entry : *listed)
+                    {
+                        const QString full = QString::fromStdString(entry.id);
+                        const QString shown =
+                            entry.name.empty()
+                                ? full
+                                : QString("%1 · %2")
+                                      .arg(QString::fromStdString(entry.name))
+                                      .arg(QDateTime::fromSecsSinceEpoch(
+                                               static_cast<qint64>(
+                                                   entry.timestamp))
+                                               .toString("yyyy-MM-dd HH:mm"));
+                        id->addItem(shown, full);
+                    }
+                    const int match = id->findData(previous);
+                    if (match >= 0)
+                    {
+                        id->setCurrentIndex(match);
+                    }
+                    else if (!previous.isEmpty())
+                    {
+                        id->setEditText(previous);
+                    }
+                });
+        });
     QObject::connect(
         controls.start, &QPushButton::clicked, page.widget,
         [=]()
         {
-            const QString backupId = id->text().trimmed();
+            const QString backupId = resolveId();
             const QString dest = destination->text().trimmed();
             const QString password = key->text();
             const bool allowOverwrite = overwrite->isChecked();
@@ -200,17 +338,13 @@ QWidget* remoteRestorePage()
                 return;
             }
 
-            ServerValues serverValues;
-            try
+            if (!session->signedIn())
             {
-                serverValues = snapshotServer(server);
-            }
-            catch (const std::exception& error)
-            {
-                QMessageBox::warning(page.widget, "输入有误",
-                                     QString::fromUtf8(error.what()));
+                QMessageBox::warning(page.widget, "未登录",
+                                     "远程还原前请先在「登录」页登录。");
                 return;
             }
+            const ServerValues serverValues = session->credentials();
             if (allowOverwrite &&
                 QMessageBox::question(
                     page.widget, "确认覆盖",

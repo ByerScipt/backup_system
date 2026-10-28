@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.11.0 — 2026-10-28
+
+- Split the navigation into “本地（无需账户）” (local backup/restore) and
+  “远程（需要登录）” (remote backup/restore/history), with a 设置 entry at the
+  bottom; pages, indices and the archive format stay unchanged.
+- Gate the remote group behind a login: `AccountSession` now holds host, port,
+  account and password in memory, the remote navigation is disabled while
+  signed out, and signing out locks it again and returns to the settings page.
+- Move all connection input into the settings page. The three remote pages read
+  the signed-in credentials from the session, show the current account and
+  reject the action when signed out instead of asking for a server again.
+- Rename the bottom navigation entry to 登录 and make both group headers
+  clickable: 本地 opens local backup, and 远程 opens the login page when signed
+  out or remote backup when signed in.
+- Treat the settings form as a draft: editing it does not change the session;
+  only a successful login or registration applies the new credentials.
+- Add optional login presets: a checkbox remembers the host, port and account
+  name (never the password) in `QSettings`, a dropdown refills the form, and a
+  delete action removes the local entry.
+- Turn the remote-restore backup ID into an editable dropdown filled by a new
+  “刷新历史” button that lists the signed-in account's backups on a worker
+  thread; the chosen full ID survives a refresh, typed IDs still work, and the
+  list is dropped when the account changes.
+- Extend the GUI regression with the login gate, the group-header navigation,
+  the account hint on remote pages, preset save/select/delete and the
+  restore-history dropdown, and add a `--user-workflow` entry so the
+  end-to-end flow can run alone while DEF-01 blocks the shared sequence.
+- Record the candidate settings for a later iteration (default algorithms,
+  recent directories, startup page, scaling/dark theme, session auto-lock, log
+  export, connection test) as a documented TODO in `docs/design.md` 4.12.1.
+
 ## 1.10.0 — 2026-10-28
 
 - Extend the Qt entry selector with content categories: the tree gains a

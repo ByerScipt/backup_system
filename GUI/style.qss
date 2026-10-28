@@ -11,6 +11,16 @@ QFrame#navigationRail {
 }
 QLabel#brand { font-weight: 600; }
 QLabel#hint { color: #57728b; }
+QPushButton#navGroup {
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 0 16px;
+    min-height: 30px;
+    color: #57728b;
+    font-weight: 600;
+}
+QPushButton#navGroup:hover { color: #1b5b96; }
 QPushButton#navButton {
     text-align: left;
     background: transparent;

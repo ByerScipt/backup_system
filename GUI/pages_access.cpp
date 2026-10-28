@@ -50,11 +50,27 @@ public:
 };
 } // namespace
 
-QWidget* remoteListPage()
+QWidget* remoteListPage(AccountSession* session)
 {
     Page page = makePage();
     Card connection = makeCard();
-    const ServerFields server = addServerRows(connection.body);
+    auto* accountHint = makeHint(QString());
+    accountHint->setObjectName("remoteAccount");
+    connection.body->addWidget(accountHint);
+    const auto updateAccount = [=]()
+    {
+        const ServerValues values = session->credentials();
+        accountHint->setText(
+            session->signedIn()
+                ? QString("当前账户：%1 @ %2:%3")
+                      .arg(QString::fromStdString(values.username))
+                      .arg(QString::fromStdString(values.host))
+                      .arg(values.port)
+                : QString("未登录：请先在「登录」页登录。"));
+    };
+    QObject::connect(session, &AccountSession::changed, page.widget,
+                     updateAccount);
+    updateAccount();
 
     Card listCard = makeCard();
     auto* search = new QLineEdit;
@@ -154,17 +170,13 @@ QWidget* remoteListPage()
         controls.start, &QPushButton::clicked, page.widget,
         [=]()
         {
-            ServerValues values;
-            try
+            if (!session->signedIn())
             {
-                values = snapshotServer(server);
-            }
-            catch (const std::exception& error)
-            {
-                QMessageBox::warning(page.widget, "输入有误",
-                                     QString::fromUtf8(error.what()));
+                QMessageBox::warning(page.widget, "未登录",
+                                     "刷新备份历史前请先在「登录」页登录。");
                 return;
             }
+            const ServerValues values = session->credentials();
             startJob(
                 page.widget, controls,
                 [=](std::atomic_bool* cancel, const ProgressCallback&)
@@ -180,15 +192,8 @@ QWidget* remoteListPage()
                 },
                 [=]()
                 {
-                    // Ignore a response if the user changed connection/account
-                    // mid-request.
-                    if (server.host->text().trimmed().toStdString() !=
-                            values.host ||
-                        server.port->value() != values.port ||
-                        server.username->text().trimmed().toStdString() !=
-                            values.username ||
-                        server.password->text().toStdString() !=
-                            values.password)
+                    // Ignore a response if the account changed mid-request.
+                    if (session->credentials().username != values.username)
                     {
                         return;
                     }
