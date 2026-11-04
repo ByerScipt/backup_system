@@ -217,10 +217,82 @@ void createSocketNodeAt(int parentFd, const std::string& name)
            "cannot bind restored Unix socket node");
 }
 
+void preflightRestore(const fs::path& destination,
+                      const std::vector<Entry>& entries,
+                      const RestoreOptions& options)
+{
+    struct SpaceBudget
+    {
+        uint64_t available = 0, occupied = 0, required = 0;
+    };
+    std::map<fs::path, dev_t> parents;
+    std::map<dev_t, SpaceBudget> volumes;
+    for (const auto& entry : entries)
+    {
+        checkCancelled(options.cancel);
+        const auto target = destination / entry.path;
+        struct stat state
+        {
+        };
+        const bool exists = ::lstat(target.c_str(), &state) == 0;
+        ensure(exists || errno == ENOENT,
+               "cannot inspect restore target: " + target.string());
+        if (exists)
+        {
+            ensure(options.overwrite,
+                   "restore target already exists: " + target.string());
+            ensure((entry.type == EntryType::Directory) ==
+                       static_cast<bool>(S_ISDIR(state.st_mode)),
+                   "restore target type conflicts with archive: " +
+                       target.string());
+        }
+        const auto parent = restoreWorkDirectory(target.parent_path());
+        auto known = parents.find(parent);
+        if (known == parents.end())
+        {
+            struct stat directory
+            {
+            };
+            ensure(::access(parent.c_str(), W_OK | X_OK) == 0 &&
+                       ::stat(parent.c_str(), &directory) == 0,
+                   "restore directory is not writable: " + parent.string());
+            known = parents.emplace(parent, directory.st_dev).first;
+            if (!volumes.count(directory.st_dev))
+            {
+                volumes[directory.st_dev].available =
+                    fs::space(parent).available;
+            }
+        }
+        if (entry.type == EntryType::Regular)
+        {
+            auto& budget = volumes.at(known->second);
+            ensure(entry.size <= UINT64_MAX - budget.occupied,
+                   "restore size exceeds supported range");
+            budget.occupied += entry.size;
+            budget.required = std::max(budget.required, budget.occupied);
+            // Replaced files release space only when the final hardlink goes.
+            const auto reclaimed =
+                exists && S_ISREG(state.st_mode) && state.st_nlink == 1 &&
+                        state.st_dev == known->second
+                    ? static_cast<uint64_t>(state.st_blocks) * 512
+                    : 0;
+            budget.occupied -= std::min(budget.occupied, reclaimed);
+        }
+    }
+    for (const auto& volume : volumes)
+    {
+        ensure(volume.second.required <= volume.second.available,
+               "insufficient space for restored files");
+    }
+    report(options.progress, "restore-preflight", entries.size(),
+           entries.size());
+}
+
 void extractEntries(const fs::path& packed, const fs::path& destination,
                     std::vector<Entry> entries, const RestoreOptions& options,
-                    uint64_t& outputBytes)
+                    uint64_t& outputBytes, uint64_t& entryCount)
 {
+    preflightRestore(destination, entries, options);
     std::error_code ec;
     if (fs::exists(destination, ec))
     {
@@ -381,11 +453,15 @@ void extractEntries(const fs::path& packed, const fs::path& destination,
                    "cannot synchronize restored file");
             ensure(::close(regularFd.release()) == 0,
                    "cannot close restored file");
-            outputBytes += entry.size;
         }
         checkCancelled(options.cancel);
         commitNodeAt(parent.get(), temporary, target, options.overwrite);
         cleanup.keep();
+        ++entryCount;
+        if (entry.type == EntryType::Regular)
+        {
+            outputBytes += entry.size;
+        }
         report(options.progress, "restore-entry", outputBytes, 0, entry.path);
     }
 
@@ -400,5 +476,6 @@ void extractEntries(const fs::path& packed, const fs::path& destination,
         applyMetadataAt(parent.get(), name, *entry,
                         canonicalDestination / entry->path);
     }
+    entryCount = entries.size();
 }
 } // namespace backup::detail

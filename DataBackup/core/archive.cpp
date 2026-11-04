@@ -14,7 +14,7 @@ void writeArchiveHeader(std::ostream& out, const ArchiveInfo& info,
                         const std::array<uint8_t, 16>& salt)
 {
     writeExact(out, kArchiveMagic.data(), kArchiveMagic.size());
-    writeU16(out, archiveVersionFor(info.compression));
+    writeU16(out, info.version);
     writeU16(out, kArchiveHeaderSize);
     uint32_t flags = 1u;
     if (info.compression != CompressionAlgorithm::None)
@@ -45,7 +45,8 @@ ParsedHeader readArchiveHeader(std::istream& in)
     ensure(magic == kArchiveMagic, "invalid archive magic; expected BKP2");
     parsed.info.version = readU16(in);
     ensure(parsed.info.version == 1 || parsed.info.version == kArchiveVersion ||
-               parsed.info.version == kArchiveVersionLz77,
+               parsed.info.version == kArchiveVersionLz77 ||
+               parsed.info.version == kArchiveVersionAuthenticated,
            "unsupported archive version");
     ensure(readU16(in) == kArchiveHeaderSize,
            "unsupported archive header size");
@@ -64,6 +65,9 @@ ParsedHeader readArchiveHeader(std::istream& in)
     parsed.info.pack = static_cast<PackAlgorithm>(pack);
     parsed.info.compression = static_cast<CompressionAlgorithm>(compression);
     parsed.info.encryption = static_cast<EncryptionAlgorithm>(encryption);
+    ensure(parsed.info.version != kArchiveVersionAuthenticated ||
+               parsed.info.encryption != EncryptionAlgorithm::None,
+           "authenticated archives require encryption");
     ensure((flags & 1u) && ((flags & 2u) != 0) == (compression != 0) &&
                ((flags & 4u) != 0) == (encryption != 0) && (flags & ~7u) == 0,
            "archive flags do not match algorithm identifiers");
@@ -83,46 +87,95 @@ ParsedHeader readArchiveHeader(const fs::path& path)
     ensure(in.good(), "cannot open archive: " + path.string());
     ParsedHeader parsed = readArchiveHeader(in);
     uint64_t size = fileSizeChecked(path);
-    ensure(size >= kArchiveHeaderSize &&
-               parsed.info.encodedSize == size - kArchiveHeaderSize,
+    const auto overhead =
+        kArchiveHeaderSize +
+        (parsed.info.version == kArchiveVersionAuthenticated ? kArchiveTagSize
+                                                             : 0);
+    ensure(size >= static_cast<uint64_t>(overhead) &&
+               parsed.info.encodedSize == size - overhead,
            "archive payload size does not match header");
     return parsed;
 }
 
+std::array<uint8_t, 32> archiveAuthentication(
+    const fs::path& archive, uint64_t size, const std::string& password,
+    const std::array<uint8_t, 16>& salt, std::atomic_bool* cancel)
+{
+    // Domain separation keeps the authentication key distinct from the
+    // existing encryption key. The MAC covers the complete header and cipher.
+    const auto encryptionKey = deriveKey(password, salt);
+    const std::string label = "BKP2-v4-authentication";
+    const auto key = hmacSha256({encryptionKey.begin(), encryptionKey.end()},
+                                {label.begin(), label.end()});
+    return hmacFile(archive, key, size, cancel);
+}
+
 void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
-                        const DecodedArchiveConsumer& consumer)
+                        const DecodedArchiveConsumer& consumer,
+                        const fs::path& workDirectory)
 {
     checkCancelled(options.cancel);
     ParsedHeader header = readArchiveHeader(archive);
-    if (header.info.encryption != EncryptionAlgorithm::None)
+    const bool encrypted = header.info.encryption != EncryptionAlgorithm::None;
+    const bool authenticated =
+        header.info.version == kArchiveVersionAuthenticated;
+    if (encrypted)
     {
         ensure(!options.password.empty(),
                "archive is encrypted; a password is required");
+        ensure(authenticated || options.allowLegacyEncryption,
+               "legacy encrypted archive has no authentication; explicit "
+               "opt-in required");
     }
-    auto encodedDigest = shaFileRange(archive, kArchiveHeaderSize,
-                                      header.info.encodedSize, options.cancel);
-    ensure(encodedDigest == header.info.encodedDigest,
-           "archive payload checksum mismatch");
-
-    TempFile encoded;
+    // Keep a private snapshot so validation and extraction use the same bytes,
+    // even if another process replaces or modifies the original archive.
+    auto stage = std::make_unique<TempFile>(workDirectory);
     {
         std::ifstream in(archive, std::ios::binary);
-        std::ofstream out(encoded.path(), std::ios::binary | std::ios::trunc);
+        std::ofstream out(stage->path(), std::ios::binary | std::ios::trunc);
         ensure(in.good() && out.good(), "cannot prepare restore payload");
+        if (encrypted)
+        {
+            writeArchiveHeader(out, header.info, header.salt);
+        }
         in.seekg(kArchiveHeaderSize);
-        copyBytes(in, out, header.info.encodedSize, options.progress,
-                  "read-archive", options.cancel);
+        copyBytes(in, out,
+                  header.info.encodedSize +
+                      (authenticated ? kArchiveTagSize : 0),
+                  options.progress, "read-archive", options.cancel);
         closeOutput(out);
     }
-    fs::path packedPath = encoded.path();
-    std::optional<TempFile> compressed, packed;
-    if (header.info.encryption != EncryptionAlgorithm::None)
+    fs::path packedPath = stage->path();
+    const uint64_t offset = encrypted ? kArchiveHeaderSize : 0;
+    if (authenticated)
     {
-        compressed.emplace();
-        cryptStage(packedPath, compressed->path(), header.info.encryption,
+        const auto size = kArchiveHeaderSize + header.info.encodedSize;
+        const auto actual = archiveAuthentication(
+            packedPath, size, options.password, header.salt, options.cancel);
+        std::ifstream in(packedPath, std::ios::binary);
+        in.seekg(static_cast<std::streamoff>(size));
+        std::array<uint8_t, 32> expected{};
+        readExact(in, expected.data(), expected.size());
+        uint8_t different = 0;
+        for (size_t index = 0; index < actual.size(); ++index)
+        {
+            different |= actual[index] ^ expected[index];
+        }
+        ensure(different == 0, "archive authentication failed (wrong password "
+                               "or tampered archive)");
+        report(options.progress, "authenticate", size, size, "HMAC-SHA-256");
+    }
+    ensure(shaFileRange(packedPath, offset, header.info.encodedSize,
+                        options.cancel) == header.info.encodedDigest,
+           "archive payload checksum mismatch");
+    if (encrypted)
+    {
+        auto decoded = std::make_unique<TempFile>(workDirectory);
+        cryptStage(packedPath, decoded->path(), header.info.encryption,
                    options.password, header.salt, options.progress,
-                   options.cancel, "decrypt");
-        packedPath = compressed->path();
+                   options.cancel, "decrypt", offset, header.info.encodedSize);
+        stage = std::move(decoded);
+        packedPath = stage->path();
     }
     else
     {
@@ -132,10 +185,11 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
     checkCancelled(options.cancel);
     if (header.info.compression != CompressionAlgorithm::None)
     {
-        packed.emplace();
-        decompressStage(packedPath, packed->path(), header.info.compression,
+        auto decoded = std::make_unique<TempFile>(workDirectory);
+        decompressStage(packedPath, decoded->path(), header.info.compression,
                         header.info.packedSize, options);
-        packedPath = packed->path();
+        stage = std::move(decoded);
+        packedPath = stage->path();
     }
     else
     {
@@ -145,7 +199,11 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
     checkCancelled(options.cancel);
     ensure(fileSizeChecked(packedPath) == header.info.packedSize,
            "decoded packed size mismatch (wrong password or damaged archive)");
-    ensure(shaFileRange(packedPath, 0, UINT64_MAX, options.cancel) ==
+    const bool unchanged =
+        !encrypted && header.info.compression == CompressionAlgorithm::None;
+    ensure((unchanged
+                ? header.info.encodedDigest
+                : shaFileRange(packedPath, 0, UINT64_MAX, options.cancel)) ==
                header.info.packedDigest,
            "decoded checksum mismatch (wrong password or damaged archive)");
 
@@ -159,6 +217,18 @@ void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
     }
     checkCancelled(options.cancel);
     consumer(header, packedPath, entries);
+}
+
+fs::path restoreWorkDirectory(const fs::path& destination)
+{
+    auto candidate = fs::absolute(destination);
+    while (!fs::exists(candidate))
+    {
+        candidate = candidate.parent_path();
+    }
+    ensure(fs::is_directory(candidate) && !fs::is_symlink(candidate),
+           "restore destination must be a real directory");
+    return candidate;
 }
 
 std::string entryTypeName(EntryType type)

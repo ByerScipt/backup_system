@@ -69,6 +69,7 @@ RestoreOptions restoreOptions(const Arguments& args, const std::string& archive)
     const auto info = BackupEngine::inspect(archive);
     RestoreOptions options;
     options.overwrite = hasFlag(args, "--overwrite");
+    options.allowLegacyEncryption = hasFlag(args, "--allow-legacy-encryption");
     options.progress = progressReport;
     if (info.encryption != EncryptionAlgorithm::None)
     {
@@ -199,6 +200,25 @@ int automaticBackup(const Arguments& args)
     return 0;
 }
 
+int verifyArchive(const Arguments& args)
+{
+    if (args.positional.size() != 1)
+    {
+        throw std::runtime_error("verify requires one ARCHIVE");
+    }
+    const auto& archive = args.positional.front();
+    const auto result =
+        BackupEngine::verify(archive, restoreOptions(args, archive));
+    std::cerr << '\n';
+    if (!result.success)
+    {
+        throw std::runtime_error(result.message);
+    }
+    std::cout << "Verification passed: " << result.entryCount << " entries, "
+              << result.inputBytes << " archive bytes\n";
+    return 0;
+}
+
 int inspectArchive(const Arguments& args)
 {
     if (args.positional.size() != 1)
@@ -253,8 +273,8 @@ int remoteBackup(const Arguments& args)
     }
     std::string temp = temporaryArchive();
     RemoveOnExit cleanup{temp};
-    auto local =
-        BackupEngine::create(args.positional[0], temp, backupOptions(args));
+    const auto options = backupOptions(args);
+    auto local = BackupEngine::create(args.positional[0], temp, options);
     std::cerr << '\n';
     if (!local.success)
     {
@@ -263,9 +283,18 @@ int remoteBackup(const Arguments& args)
     auto client = remoteClient(args);
     std::string id, error;
     auto name = args.options.find("--name");
-    if (!client.upload(temp, name == args.options.end() ? "" : name->second, id,
-                       error, progressReport, nullptr,
-                       hasFlag(args, "--incremental")))
+    const auto displayName =
+        name == args.options.end() || name->second.empty()
+            ? fs::canonical(args.positional[0]).filename().string()
+            : name->second;
+    const bool incremental = hasFlag(args, "--incremental") &&
+                             options.encryption == EncryptionAlgorithm::None;
+    if (hasFlag(args, "--incremental") && !incremental)
+    {
+        std::cerr << "Randomized encryption uses a full upload.\n";
+    }
+    if (!client.upload(temp, displayName, id, error, progressReport, nullptr,
+                       incremental))
     {
         throw std::runtime_error(error);
     }

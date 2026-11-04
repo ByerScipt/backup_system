@@ -43,11 +43,13 @@ inline constexpr size_t kBufferSize = 1024 * 1024;
 inline constexpr uint64_t kMaxEntries = 1000000;
 inline constexpr uint32_t kMaxString = 1024 * 1024;
 // Version 1 predates hardlinks, version 2 adds them, version 3 adds LZ77
-// compression. Archives are written with the lowest version that covers their
-// content so older readers keep accepting them.
+// compression, version 4 authenticates encrypted archives. Plaintext archives
+// retain the lowest version covering their content.
 inline constexpr uint16_t kArchiveVersion = 2;
 inline constexpr uint16_t kArchiveVersionLz77 = 3;
+inline constexpr uint16_t kArchiveVersionAuthenticated = 4;
 inline constexpr uint16_t kArchiveHeaderSize = 112;
+inline constexpr uint16_t kArchiveTagSize = 32;
 inline constexpr std::array<char, 4> kArchiveMagic{{'B', 'K', 'P', '2'}};
 inline constexpr std::array<char, 8> kStreamMagic{
     {'S', 'T', 'R', 'M', 'P', 'K', '1', '\0'}};
@@ -183,6 +185,11 @@ void decompressStage(const fs::path& input, const fs::path& output,
 // ---- crypto ----
 std::array<uint8_t, 32> deriveKey(const std::string& password,
                                   const std::array<uint8_t, 16>& salt);
+std::array<uint8_t, 32> hmacSha256(const std::vector<uint8_t>& key,
+                                   const std::vector<uint8_t>& data);
+std::array<uint8_t, 32> hmacFile(const fs::path& path,
+                                 const std::array<uint8_t, 32>& key,
+                                 uint64_t size, std::atomic_bool* cancel);
 void chacha20Xor(const std::array<uint8_t, 32>& key,
                  const std::array<uint8_t, 12>& nonce, uint64_t position,
                  uint8_t* data, size_t size);
@@ -193,7 +200,8 @@ void cryptStage(const fs::path& input, const fs::path& output,
                 EncryptionAlgorithm algorithm, const std::string& password,
                 const std::array<uint8_t, 16>& salt,
                 const ProgressCallback& progress, std::atomic_bool* cancel,
-                const std::string& stage);
+                const std::string& stage, uint64_t offset = 0,
+                uint64_t length = UINT64_MAX);
 std::array<uint8_t, 16> randomSalt();
 
 // ---- archive ----
@@ -203,19 +211,26 @@ struct ParsedHeader
     std::array<uint8_t, 16> salt{};
 };
 uint16_t archiveVersionFor(CompressionAlgorithm compression);
+std::array<uint8_t, 32> archiveAuthentication(
+    const fs::path& archive, uint64_t size, const std::string& password,
+    const std::array<uint8_t, 16>& salt, std::atomic_bool* cancel);
 void writeArchiveHeader(std::ostream& out, const ArchiveInfo& info,
                         const std::array<uint8_t, 16>& salt);
 ParsedHeader readArchiveHeader(std::istream& in);
 ParsedHeader readArchiveHeader(const fs::path& path);
 using DecodedArchiveConsumer = std::function<void(
     const ParsedHeader&, const fs::path&, const std::vector<Entry>&)>;
-void withDecodedArchive(const fs::path& archive, const RestoreOptions& options,
-                        const DecodedArchiveConsumer& consumer);
+void withDecodedArchive(
+    const fs::path& archive, const RestoreOptions& options,
+    const DecodedArchiveConsumer& consumer,
+    const fs::path& workDirectory = fs::temp_directory_path());
+// Find an existing writable-filesystem candidate without creating destinations.
+fs::path restoreWorkDirectory(const fs::path& destination);
 std::string entryTypeName(EntryType type);
 
 // ---- restore (fd based) ----
 void extractEntries(const fs::path& packed, const fs::path& destination,
                     std::vector<Entry> entries, const RestoreOptions& options,
-                    uint64_t& outputBytes);
+                    uint64_t& outputBytes, uint64_t& entryCount);
 
 } // namespace backup::detail

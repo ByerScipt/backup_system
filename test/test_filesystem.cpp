@@ -131,7 +131,9 @@ void testHardLinks()
                           .success,
                       "hardlink backup failed");
                 check(BackupEngine::inspect(archive.string()).version ==
-                          (compression == CompressionAlgorithm::Lz77 ? 3 : 2),
+                          (encryption != EncryptionAlgorithm::None     ? 4
+                           : compression == CompressionAlgorithm::Lz77 ? 3
+                                                                       : 2),
                       "hardlinks were not written with the expected version");
                 const auto destination = temp.path / name;
                 RestoreOptions restore;

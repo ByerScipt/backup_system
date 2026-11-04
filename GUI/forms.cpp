@@ -29,6 +29,15 @@
 namespace backup::gui
 {
 
+QCheckBox* addLegacyEncryptionOption(QFormLayout* form)
+{
+    auto* legacy = new QCheckBox("允许旧版加密归档");
+    legacy->setObjectName("allowLegacyEncryption");
+    legacy->setToolTip("仅对来源可信的旧备份开启。旧格式缺少认证校验。");
+    form->addRow("兼容读取", legacy);
+    return legacy;
+}
+
 void addAlgorithmRows(QFormLayout* form, QComboBox*& pack,
                       QComboBox*& compression, QComboBox*& encryption,
                       QLineEdit*& key)

@@ -188,13 +188,16 @@ bool BackupClient::upload(const std::string& archivePath,
                    displayName.find('\0') == std::string::npos,
                "invalid backup display name");
         std::string baseId;
-        if (incremental)
+        if (incremental && !displayName.empty())
         {
             const auto previous = list(error, cancel);
             ensure(error.empty(), error);
-            if (!previous.empty())
+            const auto base = std::find_if(
+                previous.begin(), previous.end(),
+                [&](const auto& entry) { return entry.name == displayName; });
+            if (base != previous.end())
             {
-                baseId = previous.front().id;
+                baseId = base->id;
             }
         }
         const auto size = static_cast<uint64_t>(fs::file_size(archivePath));

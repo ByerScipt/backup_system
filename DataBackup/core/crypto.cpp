@@ -301,7 +301,7 @@ void cryptStage(const fs::path& input, const fs::path& output,
                 EncryptionAlgorithm algorithm, const std::string& password,
                 const std::array<uint8_t, 16>& salt,
                 const ProgressCallback& progress, std::atomic_bool* cancel,
-                const std::string& stage)
+                const std::string& stage, uint64_t offset, uint64_t length)
 {
     ensure(algorithm == EncryptionAlgorithm::None || !password.empty(),
            "an encryption password is required");
@@ -312,7 +312,12 @@ void cryptStage(const fs::path& input, const fs::path& output,
     std::ifstream in(input, std::ios::binary);
     std::ofstream out(output, std::ios::binary | std::ios::trunc);
     ensure(in.good() && out.good(), "cannot open encryption pipeline stage");
-    uint64_t total = fileSizeChecked(input), position = 0;
+    const uint64_t size = fileSizeChecked(input);
+    ensure(offset <= size && (length == UINT64_MAX || length <= size - offset),
+           "encryption range exceeds input");
+    uint64_t total = length == UINT64_MAX ? size - offset : length;
+    uint64_t position = 0;
+    in.seekg(static_cast<std::streamoff>(offset));
     if (algorithm == EncryptionAlgorithm::None)
     {
         copyBytes(in, out, total, progress, stage, cancel);
@@ -328,12 +333,15 @@ void cryptStage(const fs::path& input, const fs::path& output,
         ensure(total < (1ULL << 38), "archive exceeds the ChaCha20 size limit");
         std::copy(salt.begin(), salt.begin() + 12, nonce.begin());
     }
-    while (in)
+    while (position < total)
     {
         checkCancelled(cancel);
+        const auto wanted = static_cast<size_t>(
+            std::min<uint64_t>(buffer.size(), total - position));
         in.read(reinterpret_cast<char*>(buffer.data()),
-                static_cast<std::streamsize>(buffer.size()));
+                static_cast<std::streamsize>(wanted));
         size_t got = static_cast<size_t>(in.gcount());
+        ensure(got == wanted, "cannot read complete encryption input");
         if (got)
         {
             if (algorithm == EncryptionAlgorithm::ChaCha20)

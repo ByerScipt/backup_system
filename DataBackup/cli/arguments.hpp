@@ -26,6 +26,7 @@ int localBackup(const Arguments& args);
 int automaticBackup(const Arguments& args);
 int localRestore(const Arguments& args);
 int inspectArchive(const Arguments& args);
+int verifyArchive(const Arguments& args);
 int registerUser(const Arguments& args);
 int remoteBackup(const Arguments& args);
 int remoteList(const Arguments& args);

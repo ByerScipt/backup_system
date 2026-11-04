@@ -17,7 +17,8 @@ Arguments parseArgs(int argc, char* argv[], int start)
     {
         std::string value = argv[i];
         if (value == "--overwrite" || value == "--realtime" ||
-            value == "--incremental" || value == "--tls")
+            value == "--incremental" || value == "--tls" ||
+            value == "--allow-legacy-encryption")
         {
             if (hasFlag(result, value))
             {

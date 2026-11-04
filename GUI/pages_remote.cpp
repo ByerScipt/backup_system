@@ -8,6 +8,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDateTime>
+#include <QDir>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QObject>
@@ -59,14 +60,23 @@ QWidget* remoteBackupPage(AccountSession* session)
     auto* name = new QLineEdit;
     name->setClearButtonEnabled(true);
     name->setObjectName("backupName");
-    name->setPlaceholderText("可选");
+    name->setPlaceholderText("默认使用目录名");
     archiveForm->addRow("备份名称", name);
     QComboBox *pack, *compression, *encryption;
     QLineEdit* key;
     addAlgorithmRows(archiveForm, pack, compression, encryption, key);
     auto* incremental = new QCheckBox("复用云端未变数据");
     incremental->setObjectName("incrementalUpload");
-    incremental->setToolTip("按块增量传输；加密归档可能没有可复用的数据块。");
+    incremental->setToolTip("复用同名备份的数据块；随机加密时使用完整上传。");
+    QObject::connect(encryption, &QComboBox::currentIndexChanged, incremental,
+                     [=](int index)
+                     {
+                         incremental->setEnabled(index == 0);
+                         if (index != 0)
+                         {
+                             incremental->setChecked(false);
+                         }
+                     });
     archiveForm->addRow("增量", incremental);
     archiveCard.body->addLayout(archiveForm);
 
@@ -111,7 +121,10 @@ QWidget* remoteBackupPage(AccountSession* session)
         [=]()
         {
             const QString src = source->text().trimmed();
-            const QString backupName = name->text().trimmed();
+            const QString backupName =
+                name->text().trimmed().isEmpty()
+                    ? QDir(source->text().trimmed()).dirName()
+                    : name->text().trimmed();
             if (src.isEmpty())
             {
                 QMessageBox::warning(page.widget, "输入有误", "请选择源目录。");
@@ -228,6 +241,7 @@ QWidget* remoteRestorePage(AccountSession* session)
     restoreForm->addRow("归档密码", key);
     auto* overwrite = new QCheckBox("允许覆盖同名文件");
     restoreForm->addRow("覆盖策略", overwrite);
+    auto* legacy = addLegacyEncryptionOption(restoreForm);
     restoreCard.body->addLayout(restoreForm);
 
     page.layout->addWidget(accountCard.frame, 1);
@@ -337,6 +351,7 @@ QWidget* remoteRestorePage(AccountSession* session)
             const QString dest = destination->text().trimmed();
             const QString password = key->text();
             const bool allowOverwrite = overwrite->isChecked();
+            const bool allowLegacy = legacy->isChecked();
             if (backupId.isEmpty() || dest.isEmpty())
             {
                 QMessageBox::warning(page.widget, "输入有误",
@@ -383,6 +398,7 @@ QWidget* remoteRestorePage(AccountSession* session)
                     RestoreOptions options;
                     options.password = password.toStdString();
                     options.overwrite = allowOverwrite;
+                    options.allowLegacyEncryption = allowLegacy;
                     options.cancel = cancel;
                     options.progress = progress;
                     auto restored = BackupEngine::restore(

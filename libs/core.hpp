@@ -69,12 +69,15 @@ struct RestoreOptions
     bool overwrite = false;
     ProgressCallback progress;
     std::atomic_bool* cancel = nullptr;
+    // Versions 1-3 lack keyed authentication. Require explicit trust to read
+    // encrypted legacy files; this also prevents silently stripping a v4 MAC.
+    bool allowLegacyEncryption = false;
 };
 
 struct AutomaticOptions
 {
-    // Real-time mode watches Linux filesystem events; interval is its debounce
-    // period, or the time between snapshots in periodic mode.
+    // Real-time mode coalesces Linux events for at most interval from the first
+    // change. Periodic mode waits interval after each completed snapshot.
     bool realtime = false;
     std::chrono::milliseconds interval{60000};
     size_t keep = 5;
@@ -143,16 +146,26 @@ public:
     // outputDirectory must be outside the source. Retention applies only to
     // this source's automatically named archives, after a successful snapshot.
     // Blocks on the caller's thread; progress/cancel follow BackupOptions.
+    // A failed create is retried up to three times (100 ms to 5 s between
+    // attempts). Configuration, watch and retention errors stop the job.
     static BackupResult automatic(const std::string& sourceDirectory,
                                   const std::string& outputDirectory,
                                   const BackupOptions& options,
                                   const AutomaticOptions& automatic);
 
     // Restores under DEST/<source-directory-name>, rejecting conflicts unless
-    // overwrite is explicit. Ownership/timestamps require OS permission.
+    // overwrite is explicit. Checks existing target types, access and space
+    // before extraction. Failures after publication report committed entries;
+    // completed files remain. Ownership/timestamps require OS permission.
     static BackupResult restore(const std::string& archivePath,
                                 const std::string& destinationDirectory,
                                 const RestoreOptions& options);
+
+    // Fully checks an archive without extracting or changing a destination.
+    // Uses password/progress/cancel/legacy settings; overwrite is ignored.
+    // Reports verified entryCount and inputBytes, with outputBytes == 0.
+    static BackupResult verify(const std::string& archivePath,
+                               const RestoreOptions& options = {});
 
     // Decodes and validates without extraction; throws std::exception on error.
     // Conflicts are a snapshot, not a reservation of destination paths.
@@ -161,10 +174,12 @@ public:
                                   const std::string& destinationDirectory,
                                   const std::string& password = {},
                                   ProgressCallback progress = {},
-                                  std::atomic_bool* cancel = nullptr);
+                                  std::atomic_bool* cancel = nullptr,
+                                  bool allowLegacyEncryption = false);
 
     // Checks header and encoded checksum only, without a password. Throws on
-    // failure; it does not establish that decoded entry metadata is valid.
+    // failure; it does not authenticate the archive or validate decoded
+    // entries.
     static ArchiveInfo inspect(const std::string& archivePath);
 
     // Lists every entry below sourceDirectory, without the directory itself.

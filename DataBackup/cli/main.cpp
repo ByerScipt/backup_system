@@ -15,11 +15,13 @@ void validateArguments(const std::string& command, const Arguments& args)
         {"backup",
          {"-o", "--pack", "--compress", "--encrypt", "--key-file",
           "--include"}},
-        {"restore", {"-d", "--key-file", "--overwrite"}},
+        {"restore",
+         {"-d", "--key-file", "--overwrite", "--allow-legacy-encryption"}},
         {"watch",
          {"-o", "--pack", "--compress", "--encrypt", "--key-file", "--include",
           "--interval", "--retain", "--count", "--realtime"}},
         {"inspect", {}},
+        {"verify", {"--key-file", "--allow-legacy-encryption"}},
         {"user",
          {"--server", "--username", "--account-password-file", "--tls",
           "--tls-ca"}},
@@ -32,7 +34,8 @@ void validateArguments(const std::string& command, const Arguments& args)
           "--tls-ca"}},
         {"remote-restore",
          {"--server", "--username", "--account-password-file", "-d",
-          "--key-file", "--overwrite", "--tls", "--tls-ca"}}};
+          "--key-file", "--overwrite", "--tls", "--tls-ca",
+          "--allow-legacy-encryption"}}};
     auto found = allowed.find(command);
     if (found == allowed.end())
     {
@@ -79,6 +82,7 @@ Local:
       [--key-file FILE] [--include PATH]...
   backup-cli restore ARCHIVE -d DEST [--key-file FILE] [--overwrite]
   backup-cli inspect ARCHIVE
+  backup-cli verify ARCHIVE [--key-file FILE] [--allow-legacy-encryption]
   backup-cli watch SOURCE -o DIRECTORY [--interval SECONDS] [--realtime]
       [--retain COUNT] [--count SNAPSHOTS] [local algorithm options]
 
@@ -95,6 +99,8 @@ Remote:
 
 If a required password file is omitted, the password is read interactively without echo.
 Remote commands accept --tls (system trust) or --tls-ca FILE (explicit trust).
+Restore and verify accept --allow-legacy-encryption only for trusted old backups
+that predate authenticated encryption. New encrypted archives require no flag.
 )";
 }
 } // namespace
@@ -134,6 +140,10 @@ int main(int argc, char* argv[])
         if (command == "restore")
         {
             return localRestore(args);
+        }
+        if (command == "verify")
+        {
+            return verifyArchive(args);
         }
         if (command == "watch")
         {

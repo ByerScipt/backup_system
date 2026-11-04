@@ -146,6 +146,75 @@ private:
     }
 };
 
+class HmacSha256
+{
+public:
+    explicit HmacSha256(const std::vector<uint8_t>& key)
+    {
+        std::array<uint8_t, 64> block{};
+        if (key.size() > block.size())
+        {
+            const auto digest = sha256(key);
+            std::copy(digest.begin(), digest.end(), block.begin());
+        }
+        else
+        {
+            std::copy(key.begin(), key.end(), block.begin());
+        }
+        auto inner = block;
+        for (size_t index = 0; index < block.size(); ++index)
+        {
+            inner[index] ^= 0x36;
+            block[index] ^= 0x5c;
+        }
+        inner_.update(inner.data(), inner.size());
+        outer_.update(block.data(), block.size());
+    }
+
+    void update(const uint8_t* data, size_t size)
+    {
+        inner_.update(data, size);
+    }
+
+    std::array<uint8_t, 32> finish()
+    {
+        const auto digest = inner_.finish();
+        outer_.update(digest.data(), digest.size());
+        return outer_.finish();
+    }
+
+private:
+    Sha256 inner_, outer_;
+};
+
+std::array<uint8_t, 32> hmacSha256(const std::vector<uint8_t>& key,
+                                   const std::vector<uint8_t>& data)
+{
+    HmacSha256 hmac(key);
+    hmac.update(data.data(), data.size());
+    return hmac.finish();
+}
+
+std::array<uint8_t, 32> hmacFile(const fs::path& path,
+                                 const std::array<uint8_t, 32>& key,
+                                 uint64_t size, std::atomic_bool* cancel)
+{
+    std::ifstream in(path, std::ios::binary);
+    ensure(in.good(), "cannot open archive for authentication");
+    HmacSha256 hmac({key.begin(), key.end()});
+    std::vector<uint8_t> buffer(kBufferSize);
+    while (size)
+    {
+        checkCancelled(cancel);
+        const auto count =
+            static_cast<size_t>(std::min<uint64_t>(size, buffer.size()));
+        readExact(in, buffer.data(), count);
+        hmac.update(buffer.data(), count);
+        size -= count;
+    }
+    return hmac.finish();
+}
+
 std::array<uint8_t, 32> shaFileRange(const fs::path& path, uint64_t offset,
                                      uint64_t length, std::atomic_bool* cancel)
 {

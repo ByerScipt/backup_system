@@ -84,9 +84,9 @@ public:
             detail::checkCancelled(cancel);
             const int watch = ::inotify_add_watch(
                 fd_.get(), path.c_str(),
-                IN_CLOSE_WRITE | IN_CREATE | IN_DELETE | IN_MOVED_FROM |
-                    IN_MOVED_TO | IN_ATTRIB | IN_DELETE_SELF | IN_MOVE_SELF |
-                    IN_ONLYDIR | IN_DONT_FOLLOW);
+                IN_MODIFY | IN_CLOSE_WRITE | IN_CREATE | IN_DELETE |
+                    IN_MOVED_FROM | IN_MOVED_TO | IN_ATTRIB | IN_DELETE_SELF |
+                    IN_MOVE_SELF | IN_ONLYDIR | IN_DONT_FOLLOW);
             detail::ensure(watch >= 0,
                            "cannot watch source directory: " + path.string());
             watches_.push_back(watch);
@@ -101,12 +101,13 @@ public:
         }
     }
 
-    bool changed()
+    bool changed(std::atomic_bool* cancel)
     {
         alignas(inotify_event) char buffer[16384];
         bool changed = false;
-        for (;;)
+        for (size_t batch = 0; batch < 64; ++batch)
         {
+            detail::checkCancelled(cancel);
             const auto count = ::read(fd_.get(), buffer, sizeof(buffer));
             if (count < 0 && errno == EINTR)
             {
@@ -125,6 +126,7 @@ public:
                 offset += sizeof(inotify_event) + event->len;
             }
         }
+        return changed;
     }
 
 private:
@@ -170,15 +172,19 @@ BackupResult BackupEngine::automatic(const std::string& sourceDirectory,
 #endif
         auto next = Clock::now();
         size_t completed = 0;
+        size_t failures = 0;
         bool pending = false;
         for (;;)
         {
             detail::checkCancelled(options.cancel);
 #ifdef __linux__
-            if (watch && watch->changed())
+            if (watch && watch->changed(options.cancel) && !pending)
             {
                 pending = true;
-                next = Clock::now() + automatic.interval;
+                if (completed && !failures)
+                {
+                    next = Clock::now() + automatic.interval;
+                }
             }
 #endif
             if ((completed == 0 || !automatic.realtime || pending) &&
@@ -193,7 +199,23 @@ BackupResult BackupEngine::automatic(const std::string& sourceDirectory,
                 const auto archive = output / snapshotName(prefix);
                 const auto created =
                     create(source.string(), archive.string(), options);
-                detail::ensure(created.success, created.message);
+                if (!created.success)
+                {
+                    detail::checkCancelled(options.cancel);
+                    detail::ensure(
+                        ++failures <= 3,
+                        "automatic backup stopped after 3 retries: " +
+                            created.message);
+                    detail::report(options.progress, "automatic-retry",
+                                   failures, 3, created.message);
+                    pending = true;
+                    next = Clock::now() +
+                           std::clamp(automatic.interval,
+                                      std::chrono::milliseconds(100),
+                                      std::chrono::milliseconds(5000));
+                    continue;
+                }
+                failures = 0;
                 retainSnapshots(output, prefix, archive, automatic.keep);
                 ++completed;
                 result.entryCount += created.entryCount;

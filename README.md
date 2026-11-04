@@ -7,13 +7,15 @@ Optional TLS transport uses OpenSSL.
 
 ## Features
 
-- **Archive pipeline:** sequential or indexed packing, with optional RLE, Huffman, or LZ77 compression and ChaCha20 or AES-256-CTR encryption.
+- **Archive pipeline:** sequential or indexed packing, with optional RLE, Huffman, or LZ77 compression and ChaCha20 or AES-256-CTR encryption authenticated by HMAC-SHA-256.
 - **Files and metadata:** archive and restore directory trees, permissions, ownership, and timestamps, including symbolic links and special files where supported by the filesystem and user privileges.
 - **Remote backups:** register an account, upload archives, list backups, and download them for restoration. Each account has its own storage directory.
 - **Automatic snapshots:** periodic or Linux filesystem-event triggers, with
   per-source retention and cancellation. Snapshots are complete archives.
 - **Transfer options:** verified TLS and incremental uploads that reuse matching
   archive blocks while keeping each stored backup independently restorable.
+- **Backup verification:** independently validate an archive, including encrypted
+  data and entry structure, without extracting it or choosing a restore target.
 - **Desktop interface:** local and remote backup workflows with background jobs, progress reporting, logs, and cancellation. Local restore includes a conflict preview. Remote pages share connection
   credentials through the signed-in session; backup history supports name/ID search, numeric size sorting,
   copying full IDs, and opening restore with the selected backup.
@@ -26,9 +28,11 @@ DNS resolution still follows the system resolver's timeout. Cancellation does
 not roll back already restored entries or server-side actions already committed.
 
 Ordinary-file hard links within the source tree are preserved. New
-archives use BKP2 format version 2, or version 3 for LZ77; the reader accepts
-versions 1, 2 and 3 using supported algorithms. Older readers reject versions
-they do not support.
+plaintext archives use BKP2 version 2, or version 3 for LZ77. Newly encrypted
+archives use version 4 with an authentication tag covering the header and
+ciphertext. The reader accepts versions 1–4 using supported algorithms; old
+readers reject version 4. Legacy encrypted archives require explicit opt-in
+because they lack keyed authentication.
 Metadata restoration errors fail the operation. Entries already restored may
 remain after a failure.
 The restored timestamps are atime and mtime; ctime is recorded but cannot be
@@ -86,10 +90,26 @@ bin/backup-cli backup exp -o output/exp.bak \
   --pack index --compress huffman --encrypt chacha20
 
 bin/backup-cli inspect output/exp.bak
+bin/backup-cli verify output/exp.bak
 bin/backup-cli restore output/exp.bak -d output/restored
 ```
 
 Encryption prompts for an archive password; restore requires the same password. For scripted use, pass `--key-file FILE` to read the password from a text file. The source directory name is retained, so this example restores `output/restored/exp/notes.txt`.
+
+New encrypted archives are authenticated before decryption. For a trusted
+encrypted backup made by version 1.12.0 or earlier, use
+`restore ... --allow-legacy-encryption`, or enable the compatibility checkbox
+in the GUI. Keep it off for ordinary restores. `inspect` checks the encoded
+checksum without a password; authentication happens during verify, restore or preview.
+
+`verify` performs the full read-side checks: format/version, authentication for
+new encrypted files, decoding, packed-data SHA-256 and entry/path validation.
+It prompts for an encrypted archive's password, or accepts `--key-file FILE`.
+It reports verified entry counts and creates no restored files. In the GUI,
+open local restore, select the archive and enter its password if needed, then
+click **验证备份**; no destination is required. Edited inputs clear the result.
+Verification uses temporary stages and does not replace the checks on a later
+restore, because the archive may have changed in between.
 
 | Option | Values | Default |
 | :--- | :--- | :--- |
@@ -116,12 +136,15 @@ bin/backup-cli watch exp -o output/realtime --realtime --interval 1 --retain 5
 ```
 
 The first snapshot is immediate. Periodic intervals start after each completed
-snapshot; real-time mode waits for the specified quiet period after a change.
+snapshot; real-time mode coalesces events for at most the specified interval
+after the first pending change, including writes from processes that keep
+their files open. Continuous events do not reset that deadline.
 `--count N` stops after N snapshots; otherwise use Ctrl+C or the GUI cancel
 button. The process must remain running; this does not install a scheduler.
 Only automatically named snapshots for the same canonical source path in that
-output directory are expired. Other files are kept. A backup or retention
-failure stops the job and reports the error; completed snapshots remain valid.
+output directory are expired. Other files are kept. A failed create is retried
+up to three times with a 100 ms–5 s delay, then stops with an error. Configuration,
+watch and retention failures stop immediately. Completed snapshots remain valid.
 
 ## Remote backup and restore
 
@@ -154,13 +177,16 @@ bin/backup-cli remote-restore BACKUP_ID -d output/remote-restored \
 
 Replace `BACKUP_ID` with the ID returned by upload or listing. Account passwords authenticate the user; archive passwords decrypt the backup. The CLI prompts for each when required. For scripted use, supply `--account-password-file FILE` and, for encrypted archives, `--key-file FILE`.
 
-Add `--incremental` to `remote-backup` to compare against the account's newest
-archive. Incremental mode requires support on the server; ordinary uploads
-remain available. An empty history uses a full upload. Matching 512 KiB blocks at the
+Add `--incremental` to `remote-backup` to compare against the newest archive
+with the same backup name. CLI/GUI names default to the source directory name;
+use distinct names for different backup series, including directories with
+identical basenames. Incremental mode requires support on the server. A missing
+matching series uses a full upload. Matching 512 KiB blocks at the
 same offsets are sent as references; other blocks are sent normally. The block
 index is bounded to 32 MiB (the first 512 GiB), with a full-transfer fallback
-beyond it. Compression shifts and randomized archive encryption can reduce or
-eliminate reuse. The server reconstructs and verifies a complete archive, so
+beyond it. Compression shifts can reduce or eliminate reuse; CLI/GUI use full
+uploads when archive encryption is selected because its randomized ciphertext
+does not offer useful block reuse. The server reconstructs and verifies a complete archive, so
 restoration never depends on retaining earlier backups. This mode saves network
 traffic when blocks match; it still builds and hashes a complete local archive.
 
@@ -187,7 +213,7 @@ only by the appropriate server account.
 Bash, check out the published release tag and choose an output directory:
 
 ```bash
-git switch --detach v1.11.0
+git switch --detach v1.13.0
 DELIVERY_ROOT="$(pwd)/output/delivery" ./Utils/package-wsl.sh
 # WITH_DOCKER=1 also builds the server image
 ```
@@ -219,11 +245,11 @@ can also run as a container; see `docker-compose.yml`.
 
 ## Design
 
-**Archive pipeline.** The core scans a directory tree, packs its contents, then applies the selected compression and encryption. File data is processed in chunks, with temporary files between stages; entry metadata remains in memory. Allow disk space for intermediate files. Sequential packing stores metadata with each entry; indexed packing places an offset table after the file data. Both use the custom `BKP2` format.
+**Archive pipeline.** The core scans a directory tree, packs its contents, then applies the selected compression and encryption. File data is processed in chunks; entry metadata remains in memory. Intermediate files use the backup output filesystem or the nearest existing restore destination directory and are released as soon as the next stage replaces them. Allow additional disk space on that filesystem. Sequential packing stores metadata with each entry; indexed packing places an offset table after the file data. Both use the custom `BKP2` format.
 
-**Compression.** RLE and Huffman are self-contained self-written stages. LZ77 is the strongest option: it encodes the packed stream in independent 1 MiB blocks, using a 64 KiB sliding window with hash chains and one-step lazy matching, and stores any block verbatim when the token stream would not be smaller, so compression never grows a payload. LZ77 archives are written as `BKP2` version 3; versions 1 and 2 remain readable.
+**Compression.** RLE and Huffman are self-contained self-written stages. LZ77 encodes the packed stream in independent 1 MiB blocks, using a 64 KiB sliding window with hash chains and one-step lazy matching, and stores any block verbatim when the token stream would not be smaller, so compression never grows a payload. Plaintext LZ77 archives use `BKP2` version 3; encrypted archives use version 4.
 
-**Restore.** SHA-256 digests cover the packed data and encoded payload. The reader checks sizes, checksums, paths, and decompression bounds before extracting any entries. Directory file descriptors and `*at` calls constrain destination path resolution. Backup output is committed atomically; restore commits entries individually, without whole-directory rollback.
+**Restore.** SHA-256 digests cover the packed data and encoded payload; version 4 adds self-written HMAC-SHA-256 ([RFC 2104](https://www.rfc-editor.org/rfc/rfc2104)) with a separately derived authentication key. The reader authenticates a private ciphertext snapshot before decryption and validates sizes, checksums, paths and decompression bounds before extraction. The snapshot also protects plaintext restores from changes to the input file. Conflicts, target types, directory access and available space are checked before writing; GUI restore decodes once. Directory file descriptors and `*at` calls constrain destination paths. Backup output is committed atomically; restore commits entries individually. An unexpected later failure or cancellation reports committed entry counts and bytes; completed files remain, including any explicitly overwritten files. There is no whole-directory rollback.
 
 **Network storage.** A framed TCP protocol supports account registration, challenge-response login, and archive transfers. The server runs a worker thread per connection, subject to the configured connection limit. Uploads are checked against their declared size and SHA-256 digest before being committed to the user's storage directory. Clients build archives before upload and download them before extraction.
 
@@ -255,6 +281,12 @@ The CTest suite covers:
 - Account isolation, upload/download round trips, interrupted uploads, cancelled transfers, request ID validation, session recycling, and persistence across server restarts.
 - Periodic/real-time snapshots, restart retention, nested additions/deletions,
   encrypted restore, invalid output paths and prompt cancellation.
+- HMAC-SHA-256 RFC 4231 vectors, authentication before decoding, header/ciphertext/
+  tag tampering, legacy opt-in, bounded event coalescing, open writers, automatic
+  retries, restore preflight and usable-output/system-temporary-volume isolation.
+- Standalone verification for all algorithm combinations, malformed entry/path
+  rejection, wrong passwords, cancellation, legacy opt-in, and GUI validation
+  without a destination with stale-success clearing.
 - Incremental block reuse, reconstructed checksums, cancellation cleanup and
   restoration after removing the base; TLS trusted/untrusted, wrong-identity
   and expired certificates, encrypted error replies and handshake shutdown.

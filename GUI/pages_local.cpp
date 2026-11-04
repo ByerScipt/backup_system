@@ -219,17 +219,26 @@ QWidget* localRestorePage()
     form->addRow("归档密码", key);
     auto* overwrite = new QCheckBox("允许覆盖同名文件");
     form->addRow("覆盖策略", overwrite);
+    auto* legacy = addLegacyEncryptionOption(form);
     configuration.body->addLayout(form);
 
     Card preview = makeCard();
     auto* previewButton = new QPushButton("检查冲突");
     previewButton->setObjectName("secondaryButton");
+    auto* verifyButton = new QPushButton("验证备份");
+    verifyButton->setObjectName("verifyArchive");
+    auto* verificationStatus = makeHint(QString());
+    verificationStatus->setObjectName("verificationStatus");
+    auto* checks = new QHBoxLayout;
+    checks->addWidget(verifyButton);
+    checks->addWidget(previewButton);
+    checks->addWidget(verificationStatus, 1);
     auto* conflictView = new QTextEdit;
     conflictView->setReadOnly(true);
     conflictView->setAcceptRichText(false);
     conflictView->setPlaceholderText("未检查");
     conflictView->setMinimumHeight(120);
-    preview.body->addWidget(previewButton);
+    preview.body->addLayout(checks);
     preview.body->addWidget(conflictView, 1);
 
     page.layout->addWidget(configuration.frame, 3);
@@ -244,6 +253,58 @@ QWidget* localRestorePage()
     bindPathPicker(page.widget, browseDestination, destination,
                    "选择还原目标目录", selectDirectory);
 
+    for (auto* field : {archive, key})
+    {
+        QObject::connect(field, &QLineEdit::textChanged, verificationStatus,
+                         &QLabel::clear);
+    }
+    QObject::connect(legacy, &QCheckBox::toggled, verificationStatus,
+                     &QLabel::clear);
+    QObject::connect(
+        verifyButton, &QPushButton::clicked, page.widget,
+        [=]()
+        {
+            const auto input = archive->text().trimmed();
+            const auto password = key->text();
+            const bool allowLegacy = legacy->isChecked();
+            verificationStatus->clear();
+            if (input.isEmpty())
+            {
+                QMessageBox::warning(page.widget, "输入有误",
+                                     "请选择备份归档。");
+                return;
+            }
+            auto verificationControls = controls;
+            verificationControls.start = verifyButton;
+            startJob(
+                page.widget, verificationControls,
+                [=](std::atomic_bool* cancel, const ProgressCallback& progress)
+                {
+                    RestoreOptions options;
+                    options.password = password.toStdString();
+                    options.allowLegacyEncryption = allowLegacy;
+                    options.progress = progress;
+                    options.cancel = cancel;
+                    const auto result =
+                        BackupEngine::verify(input.toStdString(), options);
+                    if (!result.success)
+                    {
+                        throw std::runtime_error(result.message);
+                    }
+                    return QString("验证通过 · %1 个条目")
+                        .arg(result.entryCount);
+                },
+                [=]()
+                {
+                    if (archive->text().trimmed() == input &&
+                        key->text() == password &&
+                        legacy->isChecked() == allowLegacy)
+                    {
+                        verificationStatus->setText("验证通过");
+                    }
+                });
+        });
+
     auto previewResult = std::make_shared<RestorePreview>();
     QObject::connect(
         previewButton, &QPushButton::clicked, page.widget,
@@ -252,6 +313,7 @@ QWidget* localRestorePage()
             const QString input = archive->text().trimmed();
             const QString dest = destination->text().trimmed();
             const QString password = key->text();
+            const bool allowLegacy = legacy->isChecked();
             if (input.isEmpty() || dest.isEmpty())
             {
                 QMessageBox::warning(page.widget, "输入有误",
@@ -267,7 +329,7 @@ QWidget* localRestorePage()
                 {
                     *previewResult = BackupEngine::preview(
                         input.toStdString(), dest.toStdString(),
-                        password.toStdString(), progress, cancel);
+                        password.toStdString(), progress, cancel, allowLegacy);
                     return QString("预检完成 · %1 个条目 · %2 个冲突")
                         .arg(previewResult->entries.size())
                         .arg(previewResult->conflicts.size());
@@ -300,6 +362,7 @@ QWidget* localRestorePage()
             const QString dest = destination->text().trimmed();
             const QString password = key->text();
             const bool allowOverwrite = overwrite->isChecked();
+            const bool allowLegacy = legacy->isChecked();
             if (input.isEmpty() || dest.isEmpty())
             {
                 QMessageBox::warning(page.widget, "输入有误",
@@ -319,36 +382,12 @@ QWidget* localRestorePage()
                 page.widget, controls,
                 [=](std::atomic_bool* cancel, const ProgressCallback& progress)
                 {
-                    // Explicit overwrite needs no automatic conflict preview;
-                    // restore still validates the archive before extraction.
-                    if (!allowOverwrite)
-                    {
-                        auto resultPreview = BackupEngine::preview(
-                            input.toStdString(), dest.toStdString(),
-                            password.toStdString(), progress, cancel);
-                        if (!resultPreview.conflicts.empty())
-                        {
-                            QStringList lines;
-                            for (size_t i = 0;
-                                 i < std::min<size_t>(
-                                         resultPreview.conflicts.size(), 20);
-                                 ++i)
-                            {
-                                lines << QString::fromStdString(
-                                    resultPreview.conflicts[i]);
-                            }
-                            progress({"conflict-preview", 0, 0,
-                                      lines.join("；").toStdString()});
-                            throw std::runtime_error(
-                                "目标存在 " +
-                                std::to_string(resultPreview.conflicts.size()) +
-                                " 个冲突；请查看预检结果后启用覆盖策略");
-                        }
-                    }
-
+                    // The core checks destinations before the first write,
+                    // using the entries from this single decode pass.
                     RestoreOptions options;
                     options.password = password.toStdString();
                     options.overwrite = allowOverwrite;
+                    options.allowLegacyEncryption = allowLegacy;
                     options.cancel = cancel;
                     options.progress = progress;
                     auto result = BackupEngine::restore(

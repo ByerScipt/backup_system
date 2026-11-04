@@ -88,8 +88,9 @@ public:
     // acknowledgement. A lost/cancelled acknowledgement cannot undo a
     // server-side commit. Uploads that exceed the history response capacity
     // (4096 entries or 1 MiB) fail without publishing another backup.
-    // Incremental mode reuses matching blocks from the newest stored archive;
-    // the result is self-contained. Randomized encryption may prevent reuse.
+    // Incremental mode uses the newest archive with the same displayName;
+    // empty names use full uploads. Each name identifies a backup series.
+    // The result is self-contained. Randomized encryption may prevent reuse.
     bool upload(const std::string& archivePath, const std::string& displayName,
                 std::string& backupId, std::string& error,
                 ProgressCallback progress = {},

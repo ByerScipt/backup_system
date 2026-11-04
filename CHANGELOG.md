@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.13.0 — 2026-11-04
+
+- Add a standalone backup verification operation to the shared core, CLI
+  `verify` command and GUI restore page. Check authentication, decoded data
+  checksums and entry structure without extracting files or needing a target.
+  Report success/failure explicitly and clear stale GUI verification status.
+
+- Authenticate newly encrypted archives with self-written HMAC-SHA-256 over
+  the complete header and ciphertext (BKP2 version 4), before any decryption.
+  Versions 1–3 remain readable; legacy encrypted files require explicit opt-in.
+- Bound real-time event coalescing so continuous activity cannot postpone
+  snapshots forever, monitor writes from open writers, and retry failed creates
+  up to three times with cancellation and visible failure details.
+- Preflight restore target conflicts, types, access and available space before
+  writing; report already committed entries and bytes on a partial failure.
+- Remove the GUI's duplicate decode before restore. Keep immutable input stages,
+  combine identical plaintext checksum checks, place stages beside destinations
+  and release each replaced stage promptly.
+- Match incremental bases by backup series name, default CLI/GUI names to the
+  source directory, and use full uploads for randomized archive encryption.
+- Add authentication vectors/tampering/legacy regressions, automatic-job
+  recovery/starvation coverage and restore preflight/storage consistency checks.
+
 ## 1.12.0
 
 - Add periodic and Linux inotify-triggered local snapshots to the shared core,

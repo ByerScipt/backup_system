@@ -69,6 +69,9 @@ struct BuiltArchive
 };
 void testSha256();
 void testCryptoVectors();
+void testArchiveAuthentication();
+void testRestorePreflight();
+void testAutomaticRecovery();
 void testLz77RoundTrip();
 void testLz77HandBuiltStreams();
 void testLz77RejectsMalformedStreams();

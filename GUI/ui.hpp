@@ -155,6 +155,7 @@ void appendLog(QTextEdit* log, const QString& text);
 Page makePage();
 Card makeCard();
 QFormLayout* makeForm();
+QCheckBox* addLegacyEncryptionOption(QFormLayout* form);
 QLabel* makeHint(const QString& text);
 QHBoxLayout* pathRow(QLineEdit*& edit, QPushButton*& browse,
                      const QString& objectName);

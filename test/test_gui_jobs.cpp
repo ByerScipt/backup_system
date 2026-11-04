@@ -1235,9 +1235,41 @@ void testUserWorkflow(bool tls = false)
             "finished job retained cancel action");
     auto* restoreLocal = navigate(1);
     field(restoreLocal, "archivePath")->setText(root + "/local.bak");
-    field(restoreLocal, "destinationPath")->setText(root + "/local-restored");
     field(restoreLocal, "archivePassword")->setText("archive-pass");
+    auto* verifyArchive =
+        restoreLocal->findChild<QPushButton*>("verifyArchive");
+    require(verifyArchive != nullptr,
+            "GUI has no standalone backup verification");
+    QTest::mouseClick(verifyArchive, Qt::LeftButton);
+    require(
+        waitFor([&]()
+                { return !restoreLocal->property("jobRunning").toBool(); }) &&
+            restoreLocal->findChild<QLabel*>("verificationStatus")->text() ==
+                "验证通过" &&
+            !std::filesystem::exists(std::filesystem::path(root.toStdString()) /
+                                     "local-restored"),
+        "GUI verification failed without a destination or extracted files");
+    field(restoreLocal, "archivePassword")->setText("wrong");
+    require(restoreLocal->findChild<QLabel*>("verificationStatus")
+                ->text()
+                .isEmpty(),
+            "edited verification inputs retained stale success");
+    QTest::mouseClick(verifyArchive, Qt::LeftButton);
+    require(
+        waitFor([&]()
+                { return !restoreLocal->property("jobRunning").toBool(); }) &&
+            restoreLocal->findChild<QLabel*>("verificationStatus")
+                ->text()
+                .isEmpty() &&
+            modalError.startsWith("任务失败"),
+        "GUI verification accepted an incorrect password");
+    modalError.clear();
+    field(restoreLocal, "archivePassword")->setText("archive-pass");
+    field(restoreLocal, "destinationPath")->setText(root + "/local-restored");
     run(restoreLocal);
+    require(restoreLocal->findChild<QTextEdit*>("taskLog")->toPlainText().count(
+                "验证归档认证") == 1,
+            "local GUI restore authenticated/decoded the same archive twice");
 
     auto* account = navigate(5);
     account->findChild<QCheckBox*>("tlsEnabled")->setChecked(tls);

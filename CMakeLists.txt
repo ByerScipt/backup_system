@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(backup_system VERSION 1.12.0 LANGUAGES CXX)
+project(backup_system VERSION 1.13.0 LANGUAGES CXX)
 
 option(BACKUP_BUILD_GUI "Build the optional Qt6 GUI" ON)
 option(BACKUP_BUILD_TESTS "Build automated tests" ON)
@@ -105,6 +105,8 @@ if(BACKUP_BUILD_TESTS)
         test/test_security.cpp
         test/test_network.cpp
         test/test_crypto_vectors.cpp
+        test/test_authentication.cpp
+        test/test_restore.cpp
         test/test_filesystem.cpp
         test/test_io.cpp
         test/test_network_failures.cpp

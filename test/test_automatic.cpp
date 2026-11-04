@@ -95,6 +95,7 @@ void testAutomatic()
     automatic.keep = 3;
     automatic.maxBackups = 3;
     archives.clear();
+    std::ofstream openFile(source / "data", std::ios::binary | std::ios::app);
     options.progress = [&](const ProgressEvent& event)
     {
         if (event.stage != "automatic-backup")
@@ -104,7 +105,8 @@ void testAutomatic()
         archives.push_back(event.detail);
         if (archives.size() == 1)
         {
-            writeBytes(source / "data", {'t', 'w', 'o'});
+            openFile.put('x');
+            openFile.flush(); // The writer remains open across snapshots.
         }
         else if (archives.size() == 2)
         {
@@ -135,5 +137,75 @@ void testAutomatic()
               readBytes(temp.path / "realtime/source/nested/new") ==
                   std::vector<uint8_t>({'n', 'e', 'w'}),
           "real-time backup lost additions, deletions or nested directories");
+#endif
+}
+
+void testAutomaticRecovery()
+{
+    using namespace std::chrono_literals;
+    TempDirectory temp;
+    const auto source = temp.path / "source";
+    fs::create_directory(source);
+    writeBytes(source / "data", {'a'});
+    BackupOptions options;
+    AutomaticOptions automatic;
+    automatic.interval = 60ms;
+    automatic.maxBackups = 1;
+    bool changed = false;
+    options.progress = [&](const ProgressEvent& event)
+    {
+        if (!changed && event.stage == "scan" && event.detail == "source/data")
+        {
+            changed = true;
+            writeBytes(source / "data", {'l', 'o', 'n', 'g', 'e', 'r'});
+        }
+    };
+    const auto recovered = BackupEngine::automatic(
+        source.string(), (temp.path / "recovery").string(), options, automatic);
+    check(changed && recovered.success,
+          "automatic job stopped after a transient source change: " +
+              recovered.message);
+#ifdef __linux__
+    automatic.realtime = true;
+    automatic.maxBackups = 2;
+    std::atomic_bool cancel{false}, first{false};
+    options.cancel = &cancel;
+    options.progress = [&](const ProgressEvent& event)
+    {
+        if (event.stage == "automatic-backup")
+        {
+            first = true;
+        }
+    };
+    auto job =
+        std::async(std::launch::async,
+                   [&]()
+                   {
+                       return BackupEngine::automatic(
+                           source.string(), (temp.path / "busy").string(),
+                           options, automatic);
+                   });
+    const auto deadline = std::chrono::steady_clock::now() + 2s;
+    while (!first && job.wait_for(0ms) != std::future_status::ready &&
+           std::chrono::steady_clock::now() < deadline)
+    {
+        std::this_thread::sleep_for(5ms);
+    }
+    // Attribute events do not change contents while create() is reading.
+    // Continuous events must be coalesced without starving the next snapshot.
+    bool finished = false;
+    while (first && std::chrono::steady_clock::now() < deadline)
+    {
+        ::chmod((source / "data").c_str(), 0600);
+        if (job.wait_for(10ms) == std::future_status::ready)
+        {
+            finished = true;
+            break;
+        }
+    }
+    cancel = true;
+    const auto result = job.get();
+    check(first && finished && result.success,
+          "continuous filesystem events starved real-time snapshots");
 #endif
 }

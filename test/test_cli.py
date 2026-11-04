@@ -28,6 +28,7 @@ for value in ("localhost", "127.0.0.1:8848", "999.1.1.1", "::1", "127.0.0.1 ", "
     rejected([server, "--bind", value, "--help"], "bind")
 
 rejected([cli, "inspect", "unused", "--encrypt", "aes256"], "option")
+rejected([cli, "inspect", "unused", "--allow-legacy-encryption"], "option")
 rejected([cli, "restore", "unused", "-d", "unused", "--pack", "index"], "option")
 # --include is repeatable, so it is validated apart from single-valued options.
 rejected([cli, "inspect", "unused", "--include", "entry"], "option")
@@ -101,6 +102,11 @@ with tempfile.TemporaryDirectory(prefix="backup-cli-test-") as directory:
                             "--compress", compression,
                             "--encrypt", encryption, "--key-file", str(key)],
                            check=True, capture_output=True, timeout=5)
+            verified = subprocess.run([cli, "verify", str(archive),
+                                       "--key-file", str(key)], check=True,
+                                      capture_output=True, text=True, timeout=5)
+            assert "Verification passed" in verified.stdout
+            assert not destination.exists()
             command = [cli, "restore", str(archive), "-d", str(destination),
                        "--key-file", str(key)]
             subprocess.run(command, check=True, capture_output=True, timeout=5)
@@ -110,6 +116,24 @@ with tempfile.TemporaryDirectory(prefix="backup-cli-test-") as directory:
             subprocess.run(command + ["--overwrite"], check=True,
                            capture_output=True, timeout=5)
             assert restored.read_bytes() == (source / "file").read_bytes()
+
+    # Legacy encrypted archives require explicit trust; new ones authenticate.
+    legacy_bytes = bytearray((root / "none-chacha20.bak").read_bytes())
+    assert int.from_bytes(legacy_bytes[4:6], "little") == 4
+    del legacy_bytes[-32:]
+    legacy_bytes[4:6] = (2).to_bytes(2, "little")
+    legacy = root / "legacy-encrypted.bak"
+    legacy.write_bytes(legacy_bytes)
+    legacy_command = [cli, "restore", str(legacy), "-d", str(root / "legacy"),
+                      "--key-file", str(key)]
+    rejected(legacy_command, "opt-in")
+    rejected([cli, "verify", str(legacy), "--key-file", str(key)], "opt-in")
+    subprocess.run([cli, "verify", str(legacy), "--key-file", str(key),
+                    "--allow-legacy-encryption"], check=True,
+                   capture_output=True, timeout=5)
+    subprocess.run(legacy_command + ["--allow-legacy-encryption"], check=True,
+                   capture_output=True, timeout=5)
+    assert (root / "legacy/source/file").read_bytes() == b"restore options fixture"
 
     # --include stores only the selected entries, keeping the structure.
     nested = source / "nested"

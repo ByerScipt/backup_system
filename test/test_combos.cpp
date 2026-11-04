@@ -56,6 +56,13 @@ testAllCombinations(const fs::path& workspace, const fs::path& source,
                     workspace / ("restore-" + std::to_string(number));
                 RestoreOptions restore;
                 restore.password = options.password;
+                const auto verified =
+                    BackupEngine::verify(archive.string(), restore);
+                check(verified.success &&
+                          verified.entryCount == created.entryCount &&
+                          verified.outputBytes == 0 && !fs::exists(destination),
+                      "standalone verification failed or extracted data: " +
+                          verified.message);
                 bool decryptProgress = false;
                 restore.progress = [&](const ProgressEvent& event)
                 { decryptProgress |= event.stage == "decrypt"; };

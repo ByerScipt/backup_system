@@ -31,6 +31,9 @@ void expectRestoreFailure(const fs::path& archive, const fs::path& destination,
         BackupEngine::restore(archive.string(), destination.string(), {});
     check(!result.success,
           "malformed archive was restored: " + archive.filename().string());
+    check(!BackupEngine::verify(archive.string()).success,
+          "malformed archive passed standalone verification: " +
+              archive.filename().string());
     if (!expectedMessage.empty())
     {
         check(result.message.find(expectedMessage) != std::string::npos,

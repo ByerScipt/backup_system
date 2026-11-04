@@ -10,6 +10,22 @@ int main(int argc, char* argv[])
 {
     try
     {
+        if (argc == 2 && std::string(argv[1]) == "--authentication")
+        {
+            testArchiveAuthentication();
+            return 0;
+        }
+        if (argc == 2 && std::string(argv[1]) == "--automatic")
+        {
+            testAutomatic();
+            testAutomaticRecovery();
+            return 0;
+        }
+        if (argc == 2 && std::string(argv[1]) == "--restore")
+        {
+            testRestorePreflight();
+            return 0;
+        }
         if (argc == 2 && std::string(argv[1]) == "--network")
         {
             testNetworkFailures();
@@ -24,6 +40,8 @@ int main(int argc, char* argv[])
         std::cout << "[1/4] SHA-256, cipher vectors, LZ77 and selection\n";
         testSha256();
         testCryptoVectors();
+        testArchiveAuthentication();
+        testRestorePreflight();
         testLz77RoundTrip();
         testLz77HandBuiltStreams();
         testLz77RejectsMalformedStreams();
@@ -37,6 +55,7 @@ int main(int argc, char* argv[])
         testHardLinks();
         testSelection();
         testAutomatic();
+        testAutomaticRecovery();
         if (argc == 2 && std::string(argv[1]) == "--filesystem")
         {
             std::cout << "Filesystem regression tests passed.\n";

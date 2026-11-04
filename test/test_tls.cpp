@@ -105,7 +105,7 @@ void testTls()
               "TLS upload failed: " + error);
         size_t reused = 0;
         check(client.upload(
-                  archive.string(), "TLS delta", next, error,
+                  archive.string(), "TLS", next, error,
                   [&](const ProgressEvent& event)
                   { reused += event.stage == "network-reuse"; }, nullptr,
                   true) &&

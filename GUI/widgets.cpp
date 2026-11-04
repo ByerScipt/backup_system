@@ -358,7 +358,7 @@ void startJob(QWidget* owner, const JobControls& controls, Job job,
                 }
                 if (!detail.isEmpty() &&
                     (completed == 0 || completed == total ||
-                     stage == "自动快照"))
+                     stage == "自动快照" || stage == "自动重试"))
                 {
                     appendLog(safeLog, stage + " · " + detail);
                 }
@@ -428,6 +428,10 @@ QString stageName(const QString& stage)
 {
     static const std::pair<const char*, const char*> names[] = {
         {"automatic-backup", "自动快照"},
+        {"automatic-retry", "自动重试"},
+        {"authenticate", "验证归档认证"},
+        {"restore-preflight", "检查还原目标"},
+        {"verify", "验证备份"},
         {"scan", "扫描目录"},
         {"pack", "写入归档"},
         {"compress-rle", "RLE 压缩"},

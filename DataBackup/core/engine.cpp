@@ -40,14 +40,14 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
 
         uint64_t inputBytes = 0;
         auto entries = detail::scanDirectory(source, inputBytes, options);
-        detail::TempFile packed;
+        auto packed = std::make_unique<detail::TempFile>(canonicalParent);
         if (options.pack == PackAlgorithm::Stream)
         {
-            detail::packStream(entries, packed.path(), inputBytes, options);
+            detail::packStream(entries, packed->path(), inputBytes, options);
         }
         else if (options.pack == PackAlgorithm::Index)
         {
-            detail::packIndex(entries, packed.path(), inputBytes, options);
+            detail::packIndex(entries, packed->path(), inputBytes, options);
         }
         else
         {
@@ -55,22 +55,25 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
         }
 
         ArchiveInfo info;
-        info.version = detail::archiveVersionFor(options.compression);
+        info.version = options.encryption == EncryptionAlgorithm::None
+                           ? detail::archiveVersionFor(options.compression)
+                           : detail::kArchiveVersionAuthenticated;
         info.pack = options.pack;
         info.compression = options.compression;
         info.encryption = options.encryption;
-        info.packedSize = detail::fileSizeChecked(packed.path());
+        info.packedSize = detail::fileSizeChecked(packed->path());
         info.packedDigest =
-            detail::shaFileRange(packed.path(), 0, UINT64_MAX, options.cancel);
+            detail::shaFileRange(packed->path(), 0, UINT64_MAX, options.cancel);
 
         std::optional<detail::TempFile> compressed;
-        fs::path payloadPath = packed.path();
+        fs::path payloadPath = packed->path();
         if (options.compression != CompressionAlgorithm::None)
         {
-            compressed.emplace();
+            compressed.emplace(canonicalParent);
             detail::compressStage(payloadPath, compressed->path(),
                                   options.compression, options);
             payloadPath = compressed->path();
+            packed.reset();
         }
         else
         {
@@ -82,11 +85,13 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
         std::optional<detail::TempFile> encoded;
         if (options.encryption != EncryptionAlgorithm::None)
         {
-            encoded.emplace();
+            encoded.emplace(canonicalParent);
             detail::cryptStage(payloadPath, encoded->path(), options.encryption,
                                options.password, salt, options.progress,
                                options.cancel, "encrypt");
             payloadPath = encoded->path();
+            compressed.reset();
+            packed.reset();
         }
         else
         {
@@ -96,7 +101,8 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
         detail::checkCancelled(options.cancel);
         info.encodedSize = detail::fileSizeChecked(payloadPath);
         info.encodedDigest =
-            payloadPath == packed.path()
+            options.compression == CompressionAlgorithm::None &&
+                    options.encryption == EncryptionAlgorithm::None
                 ? info.packedDigest
                 : detail::shaFileRange(payloadPath, 0, UINT64_MAX,
                                        options.cancel);
@@ -111,6 +117,16 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
                           "finalize", options.cancel);
         out.close();
         detail::ensure(out.good(), "cannot close final archive");
+        if (info.version == detail::kArchiveVersionAuthenticated)
+        {
+            const auto tag = detail::archiveAuthentication(
+                finalTemp.path(), detail::kArchiveHeaderSize + info.encodedSize,
+                options.password, salt, options.cancel);
+            std::ofstream authenticated(finalTemp.path(),
+                                        std::ios::binary | std::ios::app);
+            detail::writeExact(authenticated, tag.data(), tag.size());
+            detail::closeOutput(authenticated);
+        }
         detail::UniqueFd fd(
             ::open(finalTemp.path().c_str(), O_RDONLY | O_CLOEXEC));
         detail::ensure(fd.get() >= 0,
@@ -136,7 +152,7 @@ BackupResult BackupEngine::create(const std::string& sourceDirectory,
         result.message = "backup completed";
         result.entryCount = entries.size();
         result.inputBytes = inputBytes;
-        result.outputBytes = detail::kArchiveHeaderSize + info.encodedSize;
+        result.outputBytes = detail::fileSizeChecked(canonicalOutput);
     }
     catch (const std::exception& error)
     {
@@ -163,22 +179,58 @@ BackupResult BackupEngine::restore(const std::string& archivePath,
     try
     {
         fs::path archive = fs::canonical(archivePath);
-        uint64_t outputBytes = 0;
         detail::withDecodedArchive(
             archive, options,
             [&](const detail::ParsedHeader&, const fs::path& packed,
                 const std::vector<detail::Entry>& entries)
             {
-                detail::extractEntries(packed,
-                                       fs::absolute(destinationDirectory),
-                                       entries, options, outputBytes);
-                result.entryCount = entries.size();
-            });
+                detail::extractEntries(
+                    packed, fs::absolute(destinationDirectory), entries,
+                    options, result.outputBytes, result.entryCount);
+            },
+            detail::restoreWorkDirectory(destinationDirectory));
         detail::checkCancelled(options.cancel);
         result.success = true;
         result.message = "restore completed";
         result.inputBytes = detail::fileSizeChecked(archive);
-        result.outputBytes = outputBytes;
+    }
+    catch (const std::exception& error)
+    {
+        result.message = error.what();
+        if (result.entryCount)
+        {
+            result.message +=
+                "; already restored " + std::to_string(result.entryCount) +
+                " entries; completed files remain in the destination";
+        }
+    }
+    return result;
+}
+
+BackupResult BackupEngine::verify(const std::string& archivePath,
+                                  const RestoreOptions& options)
+{
+    BackupResult result;
+    try
+    {
+        const auto archive = fs::canonical(archivePath);
+        detail::withDecodedArchive(
+            archive, options,
+            [&](const detail::ParsedHeader& header, const fs::path&,
+                const std::vector<detail::Entry>& entries)
+            {
+                result.entryCount = entries.size();
+                result.inputBytes =
+                    detail::kArchiveHeaderSize + header.info.encodedSize +
+                    (header.info.version == detail::kArchiveVersionAuthenticated
+                         ? detail::kArchiveTagSize
+                         : 0);
+                detail::report(options.progress, "verify", entries.size(),
+                               entries.size());
+            });
+        detail::checkCancelled(options.cancel);
+        result.success = true;
+        result.message = "archive verification completed";
     }
     catch (const std::exception& error)
     {
@@ -191,7 +243,8 @@ RestorePreview BackupEngine::preview(const std::string& archivePath,
                                      const std::string& destinationDirectory,
                                      const std::string& password,
                                      ProgressCallback progress,
-                                     std::atomic_bool* cancel)
+                                     std::atomic_bool* cancel,
+                                     bool allowLegacyEncryption)
 {
     detail::checkCancelled(cancel);
     fs::path archive = fs::canonical(archivePath);
@@ -199,6 +252,7 @@ RestorePreview BackupEngine::preview(const std::string& archivePath,
     options.password = password;
     options.progress = std::move(progress);
     options.cancel = cancel;
+    options.allowLegacyEncryption = allowLegacyEncryption;
     RestorePreview preview;
     detail::withDecodedArchive(
         archive, options,
@@ -242,7 +296,8 @@ RestorePreview BackupEngine::preview(const std::string& archivePath,
                                        target.string());
                 }
             }
-        });
+        },
+        detail::restoreWorkDirectory(destinationDirectory));
     return preview;
 }
 

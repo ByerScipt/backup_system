@@ -19,9 +19,20 @@ void testIncremental(uint16_t port, const fs::path& workspace)
     std::string error, baseId, changedId;
     check(client.registerUser(error), "cannot register incremental account");
     // An empty history falls back to the ordinary upload without a base chain.
-    check(client.upload(original.string(), "base", baseId, error, {}, nullptr,
+    check(client.upload(original.string(), "series", baseId, error, {}, nullptr,
                         true),
           "first incremental upload failed: " + error);
+    const auto directory =
+        protocol::userDirectory(workspace / "server-data", "incremental");
+    const auto unrelated = workspace / "unrelated.bak";
+    writeBytes(unrelated, std::vector<uint8_t>(contents.size(), 0x55));
+    std::string unrelatedId;
+    check(client.upload(unrelated.string(), "other-series", unrelatedId, error),
+          "cannot create unrelated incremental history");
+    auto unrelatedMeta =
+        protocol::readMeta(directory / (unrelatedId + ".meta"), unrelatedId);
+    unrelatedMeta.timestamp += 60;
+    protocol::writeMeta(directory / (unrelatedId + ".meta"), unrelatedMeta);
     contents[2 * protocol::kChunkSize + 77] = 99;
     writeBytes(source / "data", contents);
     const auto changed = workspace / "incremental-changed.bak";
@@ -36,7 +47,7 @@ void testIncremental(uint16_t port, const fs::path& workspace)
         }
         previous = event.completed;
     };
-    check(client.upload(changed.string(), "changed", changedId, error, progress,
+    check(client.upload(changed.string(), "series", changedId, error, progress,
                         nullptr, true) &&
               reused >= protocol::kChunkSize,
           "incremental upload did not reuse unchanged blocks: " + error);
@@ -58,7 +69,7 @@ void testIncremental(uint16_t port, const fs::path& workspace)
               cancelledId.empty(),
           "cancelled incremental upload reported a successful commit");
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    check(client.list(error).size() == 2 && error.empty(),
+    check(client.list(error).size() == 3 && error.empty(),
           "cancelled incremental upload left a visible backup");
 
     // Reject references outside the base and malformed reference lengths
@@ -115,10 +126,8 @@ void testIncremental(uint16_t port, const fs::path& workspace)
         check(frame && frame->type == protocol::MessageType::Error,
               "server accepted an invalid incremental reference");
     }
-    check(client.list(error).size() == 2 && error.empty(),
+    check(client.list(error).size() == 3 && error.empty(),
           "invalid incremental references published an archive");
-    const auto directory =
-        protocol::userDirectory(workspace / "server-data", "incremental");
     fs::remove(directory / (baseId + ".bak"));
     fs::remove(directory / (baseId + ".meta"));
     const auto independent = workspace / "incremental-independent.bak";
